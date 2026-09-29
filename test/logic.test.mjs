@@ -3,6 +3,9 @@ import * as SF from '../js/spyfall.js';
 import * as WW from '../js/onuw.js';
 import * as UC from '../js/undercover.js';
 import * as AV from '../js/avalon.js';
+import * as IN from '../js/insider.js';
+import * as JO from '../js/justone.js';
+import { WORDS } from '../js/words.js';
 
 let pass = 0;
 const t = (name, fn) => { fn(); pass++; console.log('✓', name); };
@@ -320,6 +323,90 @@ t('avalon: 5 rejects / 3 fails -> evil; 2-fail quest', () => {
   assert.equal(AV.afterQuest(h), 'S', '1 fail not enough on quest 4 with 7p');
   const noM = avFixed({ a: 'servant', b: 'servant', c: 'servant', d: 'minion', e: 'minion' }, { merlin: false });
   noM.quests.slice(0, 3).forEach(q => (q.res = 'S')); assert.equal(AV.status(noM).w, 'good');
+});
+
+t('words: unique, enough for no-repeat windows', () => {
+  assert.equal(new Set(WORDS).size, WORDS.length, 'duplicate word');
+  assert.ok(WORDS.length > IN.RECENT && WORDS.length > JO.RECENT + JO.ROUNDS);
+});
+
+t('insider: deal roles distinct, insider uniform among non-masters', () => {
+  const N = 30000, n = 6, cnt = Array(n).fill(0);
+  for (let k = 0; k < N; k++) {
+    const g = IN.deal(sids(n), 's0');
+    assert.notEqual(g.insider, g.master);
+    assert.equal(g.word, WORDS[g.wi]);
+    cnt[+g.insider.slice(1)]++;
+  }
+  assert.equal(cnt[0], 0);
+  for (const c of cnt.slice(1)) assert.ok(Math.abs(c / N - 1 / (n - 1)) < 0.012, 'bias ' + cnt);
+});
+
+t('insider: no word repeats within RECENT', () => {
+  let recent = [];
+  for (let k = 0; k < 2000; k++) { const g = IN.deal(sids(5), 's0', recent); assert.ok(!recent.includes(g.wi)); recent = [g.wi, ...recent].slice(0, IN.RECENT); }
+});
+
+t('insider: votes and outcomes', () => {
+  const g = IN.deal(['m', 'a', 'b', 'c', 'd'], 'm');
+  g.insider = 'b'; g.guesser = 'a';
+  g.v1 = { m: true, a: false, b: true, c: true, d: false };
+  assert.equal(IN.v1Yes(g), true);
+  g.v1 = { m: true, a: false, b: true, c: false, d: false };
+  assert.equal(IN.v1Yes(g), false);
+  assert.equal(IN.canAccuse(g, 'a', 'm'), false, 'cannot accuse master');
+  assert.equal(IN.canAccuse(g, 'a', 'a'), false, 'no self');
+  g.v2 = { m: 'b', a: 'b', b: 'c', c: 'b', d: 'c' };
+  assert.deepEqual(IN.v2Top(g).top, ['b']);
+  g.v2 = { m: 'b', a: 'c', b: 'c', c: 'b', d: 'a' };
+  assert.deepEqual(IN.v2Top(g).top.sort(), ['b', 'c']);
+  let r = IN.outcome(g, 'b', 'v2'); assert.equal(r.w, 'common');
+  assert.deepEqual(IN.winners(g, r), { m: true, a: true, b: false, c: true, d: true });
+  r = IN.outcome(g, 'a', 'v1'); assert.equal(r.w, 'insider'); assert.equal(IN.winners(g, r).b, true);
+  r = IN.outcome(g, null, 'timeout'); assert.ok(Object.values(IN.winners(g, r)).every(x => !x));
+});
+
+t('justone: deck, guesser rotation, 3p gives 2 clues', () => {
+  const g = JO.newGame(sids(4), 13);
+  assert.equal(new Set(g.deck).size, 13);
+  const first = JO.guesser(g); g.turn = 4; assert.equal(JO.guesser(g), first);
+  assert.equal(JO.cluesPer(3), 2); assert.equal(JO.cluesPer(4), 1);
+  const h = JO.newGame(sids(3), 5);
+  const giver = JO.givers(h)[0];
+  assert.equal(JO.setClues(h, giver, ['a']), false);
+  assert.ok(JO.setClues(h, giver, ['a', 'b']));
+  assert.equal(JO.setClues(h, JO.guesser(h), ['x', 'y']), false, 'guesser cannot clue');
+});
+
+function joFixed(w, n = 5) {
+  const g = JO.newGame(sids(n), 5);
+  g.deck[0] = WORDS.indexOf(w);
+  g.g0 = 0; g.turn = 0; // guesser s0
+  return g;
+}
+
+t('justone: auto strike duplicates & word-related, manual override', () => {
+  const g = joFixed('ดอกทานตะวัน');
+  JO.setClues(g, 's1', ['สีเหลือง']);
+  JO.setClues(g, 's2', ['สี เหลือง']);
+  JO.setClues(g, 's3', ['ทานตะวัน']);
+  JO.setClues(g, 's4', ['แดด']);
+  const r = Object.fromEntries(JO.review(g).map(x => [x.sid, x.auto]));
+  assert.deepEqual(r, { s1: 'dup', s2: 'dup', s3: 'word', s4: null });
+  assert.deepEqual(JO.shown(g), ['แดด']);
+  g.manual['s4:0'] = true; assert.deepEqual(JO.shown(g), []);
+  g.manual['s3:0'] = false; assert.deepEqual(JO.shown(g), ['ทานตะวัน']);
+});
+
+t('justone: scoring — ok, pass, wrong burns next card', () => {
+  const g = joFixed('ช้าง');
+  assert.equal(JO.resolve(g, ' ช้าง '), 'ok'); JO.advance(g);
+  assert.equal(g.score, 1); assert.equal(g.i, 1); assert.equal(JO.guesser(g), 's1');
+  JO.resolve(g, null); JO.advance(g); assert.equal(g.i, 2); assert.equal(g.lost, 1);
+  JO.resolve(g, 'ผิดแน่นอน'); JO.override(g); assert.equal(g.guess.res, 'ok'); g.guess.res = 'wrong';
+  JO.advance(g); assert.equal(g.i, 4); assert.equal(g.lost, 3);
+  JO.resolve(g, 'ผิด'); assert.equal(JO.advance(g), true, 'deck exhausted');
+  assert.equal(g.score + g.lost, 5);
 });
 
 console.log(`\n${pass} tests passed`);

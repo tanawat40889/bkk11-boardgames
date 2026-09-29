@@ -4,6 +4,9 @@ import * as SF from './spyfall.js';
 import * as WW from './onuw.js';
 import * as UC from './undercover.js';
 import * as AV from './avalon.js';
+import * as IN from './insider.js';
+import * as JO from './justone.js';
+import { rint } from './rng.js';
 
 const app = document.getElementById('app');
 const now = () => Date.now();
@@ -20,6 +23,8 @@ const GAMES = {
   spyfall: { n: 'Spyfall', s: 'Spyfall', e: '🕵️', min: SF.MIN, max: SF.MAX },
   uc: { n: 'Undercover', s: 'Undercover', e: '🎭', min: UC.MIN, max: UC.MAX },
   av: { n: 'Avalon', s: 'Avalon', e: '🏰', min: AV.MIN, max: AV.MAX },
+  ins: { n: 'Insider', s: 'Insider', e: '🔎', min: IN.MIN, max: IN.MAX },
+  jo: { n: 'Just One', s: 'Just One', e: '💡', min: JO.MIN, max: JO.MAX },
 };
 const ROLE = WW.ROLES;
 const RL = r => `${ROLE[r].e} ${ROLE[r].n}`;
@@ -44,7 +49,7 @@ function newHost(room, game, name) {
   return {
     room, game, phase: 'lobby', round: 0, endsAt: null, paused: null, g: null, recent: [],
     players: [{ sid: 's' + uid(6), pid: S.pid, name, seen: now() }],
-    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults() },
+    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 } },
   };
 }
 
@@ -69,6 +74,17 @@ function pubOf() {
       if (H.phase === 'night') { p.night = WW.phaseRole(g) || null; p.step = [g.pi + 1, g.phases.length]; }
       if (H.phase === 'vote') p.voted = Object.keys(g.votes);
       if (H.phase === 'result') p.result = g.result;
+    } else if (H.game === 'ins') {
+      p.ins = { master: g.master, guesser: g.guesser, cand: g.cand, word: g.guesser ? g.word : null };
+      if (H.phase === 'iword') p.ready = g.ready;
+      if (H.phase === 'iv1') p.voted = Object.keys(g.v1);
+      if (H.phase === 'iv2') p.voted = Object.keys(g.v2);
+      if (H.phase === 'iend') p.result = g.result;
+    } else if (H.game === 'jo') {
+      p.jo = { guesser: JO.guesser(g), i: g.i, total: g.deck.length, score: g.score, lost: g.lost, per: JO.cluesPer(g.sids.length), submitted: Object.keys(g.clues) };
+      if (H.phase === 'jguess') p.jo.shown = JO.shown(g);
+      if (H.phase === 'jres') p.jo.res = { word: JO.word(g), guess: g.guess, clues: JO.review(g) };
+      if (H.phase === 'jend') { p.jo.log = g.log; p.jo.rating = JO.rating(g.score, g.deck.length); }
     } else if (H.game === 'av') {
       p.av = {
         quests: g.quests.map(q => ({ size: q.size, need: q.need, res: q.res, fails: q.fails })),
@@ -109,6 +125,19 @@ function privOf(sid) {
       v.done = !!g.acted[sid];
     }
     if (H.phase === 'vote') v.vote = g.votes[sid] || null;
+  } else if (H.game === 'ins') {
+    v.role = IN.roleOf(g, sid);
+    if (v.role !== 'common') v.word = g.word;
+    v.ready = g.ready.includes(sid);
+    if (H.phase === 'iv1') v.v1 = sid in g.v1 ? g.v1[sid] : null;
+    if (H.phase === 'iv2') v.v2 = g.v2[sid] || null;
+  } else if (H.game === 'jo') {
+    v.guesser = JO.guesser(g) === sid;
+    if (!v.guesser) {
+      v.word = JO.word(g);
+      v.mine = g.clues[sid] || null;
+      if (H.phase === 'jcheck') v.review = JO.review(g);
+    }
   } else if (H.game === 'av') {
     v.role = g.role[sid];
     v.info = avInfo(sid);
@@ -147,6 +176,8 @@ function hostTick() {
   if (H.endsAt && t >= H.endsAt) {
     if (H.phase === 'night') return nextNight();
     if (H.phase === 'day') return startVote();
+    if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
+    if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
   }
   const on = H.players.map(isOn).join();
   if (on !== H._on || (H.endsAt && H.endsAt > t - 3000 && t - lastTimed > 3000)) {
@@ -249,6 +280,27 @@ function endSpy(guess) {
   H.endsAt = null;
   H.paused = null;
   broadcast();
+}
+
+function inEnd(r) {
+  const g = H.g;
+  g.result = { ...r, insider: g.insider, master: g.master, word: g.word, guesser: g.guesser, v1: g.v1, v2: g.v2, win: IN.winners(g, r) };
+  H.phase = 'iend';
+  H.endsAt = null;
+  broadcast();
+}
+function inFound(by) {
+  const g = H.g;
+  if (H.phase !== 'iask' || !g.sids.includes(by) || by === g.master) return;
+  g.guesser = by;
+  g.used = Math.max(0, now() - g.t0);
+  H.phase = 'idisc';
+  H.endsAt = now() + Math.max(30000, g.used);
+  broadcast();
+}
+function inTie(to) {
+  const g = H.g;
+  if (H.phase === 'itie' && g.cand?.includes(to)) inEnd(IN.outcome(g, to, 'tie'));
 }
 
 function avInfo(sid) {
@@ -355,6 +407,56 @@ function hostIn(m) {
         g.sids.every(s => g.votes[s]) ? finishVote() : broadcast();
       }
       break;
+    case 'ifound':
+      if (sid === g.master) inFound(m.by);
+      break;
+    case 'iv1':
+      if (H.phase === 'iv1') {
+        g.v1[sid] = !!m.yes;
+        if (g.sids.every(s => s in g.v1)) {
+          if (IN.v1Yes(g)) return inEnd(IN.outcome(g, g.guesser, 'v1'));
+          H.phase = 'iv2';
+        }
+        broadcast();
+      }
+      break;
+    case 'iv2':
+      if (H.phase === 'iv2' && IN.canAccuse(g, sid, m.to)) {
+        g.v2[sid] = m.to;
+        if (g.sids.every(s => g.v2[s])) {
+          const { top } = IN.v2Top(g);
+          if (top.length === 1) return inEnd(IN.outcome(g, top[0], 'v2'));
+          g.cand = top;
+          H.phase = 'itie';
+        }
+        broadcast();
+      }
+      break;
+    case 'itie':
+      if (sid === g.master) inTie(m.to);
+      break;
+    case 'jclue':
+      if (H.phase === 'jclue' && JO.setClues(g, sid, m.list)) {
+        if (JO.allIn(g)) H.phase = 'jcheck';
+        broadcast();
+      }
+      break;
+    case 'jstrike':
+      if (H.phase === 'jcheck' && sid !== JO.guesser(g)) {
+        const it = JO.review(g).find(x => x.id === m.id);
+        if (it) { g.manual[it.id] = !it.out; broadcast(); }
+      }
+      break;
+    case 'jdone':
+      if (H.phase === 'jcheck' && sid !== JO.guesser(g)) { H.phase = 'jguess'; broadcast(); }
+      break;
+    case 'jguess':
+      if (H.phase === 'jguess' && sid === JO.guesser(g)) {
+        JO.resolve(g, typeof m.text === 'string' && m.text.trim() ? m.text.trim().slice(0, 40) : null);
+        H.phase = 'jres';
+        broadcast();
+      }
+      break;
     case 'apropose':
       if (H.phase === 'ateam' && AV.propose(g, sid, m.team)) { H.phase = 'avote'; broadcast(); }
       break;
@@ -409,6 +511,20 @@ const HA = {
   },
   autodeck() { H.settings.onuw.auto = true; broadcast(); },
   ucauto() { H.settings.uc.auto = true; broadcast(); },
+  istart() { if (H.phase === 'iask' || H.phase !== 'iword') return; H.phase = 'iask'; H.g.t0 = now(); H.endsAt = now() + H.settings.ins.min * 60000; broadcast(); },
+  hfound(d) { if (confirm(`${pn(d.sid)} ทายคำถูกแล้ว?`)) inFound(d.sid); },
+  itovote() { if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; broadcast(); } },
+  htie(d) { if (confirm(`ตัดสินว่า ${pn(d.sid)} คืออินไซเดอร์?`)) inTie(d.sid); },
+  jforce() {
+    const g = H.g;
+    if (H.phase === 'jclue' && Object.keys(g.clues).length && confirm('ข้ามคนที่ยังไม่ส่งคำใบ้?')) { H.phase = 'jcheck'; broadcast(); }
+  },
+  jok() { if (H.phase === 'jres' && confirm('นับคำตอบนี้ว่าถูก?')) { JO.override(H.g); broadcast(); } },
+  jnext() {
+    if (H.phase !== 'jres') return;
+    H.phase = JO.advance(H.g) ? 'jend' : 'jclue';
+    broadcast();
+  },
   atoggle(d) {
     const a = H.settings.av;
     a[d.r] = !a[d.r];
@@ -433,7 +549,7 @@ const HA = {
     }
   },
   set(d) {
-    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1] }[d.k];
+    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1] }[d.k];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
     const v = H.settings[g][k] + lim[2] * +d.d;
     if (v < lim[0] || v > lim[1]) return;
@@ -448,6 +564,18 @@ const HA = {
       if (e.length) return toast(e[0]);
       H.g = WW.newGame(sids, deck);
       H.phase = 'deal';
+      H.endsAt = null;
+    } else if (H.game === 'ins') {
+      H.inm = (H.inm ?? rint(n)) + 1;
+      const master = sids[H.inm % n];
+      H.g = IN.deal(sids, master, H.recentIN || []);
+      H.recentIN = [H.g.wi, ...(H.recentIN || [])].slice(0, IN.RECENT);
+      H.phase = 'iword';
+      H.endsAt = null;
+    } else if (H.game === 'jo') {
+      H.g = JO.newGame(sids, H.settings.jo.rounds, H.recentJO || []);
+      H.recentJO = [...H.g.deck, ...(H.recentJO || [])].slice(0, JO.RECENT);
+      H.phase = 'jclue';
       H.endsAt = null;
     } else if (H.game === 'av') {
       const e = AV.validate(n, H.settings.av);
@@ -575,6 +703,8 @@ function startClient() {
 function startHost() {
   H.settings.uc ||= { auto: true, uc: 1, white: 0 };
   H.settings.av ||= AV.defaults();
+  H.settings.ins ||= { min: 5 };
+  H.settings.jo ||= { rounds: 13 };
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
     S.online = on;
@@ -685,6 +815,8 @@ function home() {
       ${g('spyfall', '3–10 คน · ~8 นาที · หาสปายที่ไม่รู้ว่าอยู่ที่ไหน')}
       ${g('uc', '4–10 คน · ~10 นาที · หาคนที่ได้คำไม่เหมือนเพื่อน')}
       ${g('av', '5–10 คน · ~30 นาที · ภารกิจ โหวต และหักหลัง')}
+      ${g('ins', '4–10 คน · ~10 นาที · ถามใช่/ไม่ใช่ แล้วจับคนที่รู้คำตอบอยู่แล้ว')}
+      ${g('jo', '3–10 คน · ~20 นาที · ช่วยกันใบ้ คำใบ้ซ้ำโดนลบ')}
       ${S.busy === 'create' ? '<p class="muted center">กำลังสร้างห้อง…</p>' : ''}</section>
     ${installHint()}
     ${lastOk && !S.busy ? `<section class="panel"><button class="btn ghost wide" data-act="resume">↩︎ กลับเข้าห้อง ${esc(last.room)}${last.host ? ' (เจ้าของห้อง)' : ''}</button></section>` : ''}
@@ -730,7 +862,9 @@ function view() {
   if (S.priv.spectator) return shell(`<div class="panel center"><p>รอบนี้เริ่มไปแล้ว รอเล่นรอบถัดไปนะ</p></div>`);
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
-    lobby, aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
+    lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
+    jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
+    aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
   }[p.phase];
   try { return shell(v ? v() : ''); } catch (e) {
@@ -774,6 +908,13 @@ function lobby() {
         ${stepper('onuw.day', 'เวลาคุยตอนกลางวัน', p.set.onuw.day / 60, ' นาที')}
         <label class="toggle"><input type="checkbox" data-act="voice" ${S.voice ? 'checked' : ''}> 🔊 เสียงบรรยายจากเครื่องนี้</label>`
       : `${deckChips(deck)}<p class="muted small">การ์ด ${deck.length} ใบ · กลางคืน ${p.set.onuw.night} วิ/บทบาท · กลางวัน ${p.set.onuw.day / 60} นาที</p>`;
+  } else if (p.game === 'ins') {
+    if (n < IN.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${IN.MIN} คน`);
+    settings = host ? stepper('ins.min', 'เวลาถามหาคำ', p.set.ins.min, ' นาที') : `<p class="muted small">ถามหาคำ ${p.set.ins.min} นาที · ผู้คุมเกมวนไปทีละคน</p>`;
+  } else if (p.game === 'jo') {
+    if (n < JO.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${JO.MIN} คน`);
+    settings = (host ? stepper('jo.rounds', 'จำนวนการ์ด', p.set.jo.rounds, ' ใบ') : `<p class="muted small">การ์ด ${p.set.jo.rounds} ใบ</p>`)
+      + (n === 3 ? '<p class="muted small">เล่น 3 คน: คนใบ้แต่ละคนให้คำใบ้ 2 คำ</p>' : '');
   } else if (p.game === 'av') {
     const a = p.set.av, T = AV.TEAMS[Math.max(AV.MIN, Math.min(AV.MAX, n))];
     errs = AV.validate(n, a);
@@ -967,6 +1108,138 @@ function revealV() {
     ${host ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 รอบใหม่', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+/* Insider */
+const IR = IN.ROLE;
+function inCard() {
+  const v = S.priv;
+  const d = { master: 'ทุกคนรู้ว่าคุณเป็นผู้คุมเกม · ตอบได้แค่ ใช่ / ไม่ใช่ / ไม่รู้', insider: 'แอบรู้คำลับ · ชี้นำให้ทุกคนทายถูกทันเวลา แต่อย่าให้ใครจับได้', common: 'ถามคำถามใช่/ไม่ใช่เพื่อหาคำลับ แล้วช่วยกันจับอินไซเดอร์' }[v.role];
+  return `<span class="role t-${v.role === 'insider' ? 'wolf' : 'village'}"><span class="rn">${IR[v.role]}</span>
+    ${v.word ? `<span class="small muted">คำลับ</span><span class="rn word">${esc(v.word)}</span>` : ''}<span class="rd">${d}</span></span>`;
+}
+const inMine = () => secret(inCard(), 'แตะเพื่อดูบทบาทของคุณ');
+const inMasterLine = () => `<p class="center">🎓 ผู้คุมเกม: <b>${esc(pn(S.pub.ins.master))}</b>${S.pub.ins.master === me() ? ' (คุณ)' : ''}</p>`;
+
+function inWordV() {
+  const p = S.pub, v = S.priv, n = pl().length, rd = p.ready || [];
+  return `<h1 class="ph">🔎 รับบทบาท</h1>${inMasterLine()}${inMine()}
+    ${v.ready ? '<p class="center ok-text">✔ คุณพร้อมแล้ว</p>' : btn('ready', 'ดูแล้ว พร้อม', 'primary wide big')}
+    <section class="panel"><h2>พร้อม ${rd.length}/${n}</h2>${players({ ready: rd })}</section>
+    ${isHostView() ? btn('istart', rd.length >= n ? '⏱️ เริ่มจับเวลา' : `⏱️ เริ่มจับเวลา (พร้อม ${rd.length}/${n})`, 'primary wide big') : ''}`;
+}
+
+function inAskV() {
+  const p = S.pub, master = p.ins.master === me();
+  return `<div class="timer big" data-timer></div>${inMasterLine()}
+    <p class="center">ถามผู้คุมเกมได้แค่คำถาม <b>ใช่ / ไม่ใช่</b> · หมดเวลาก่อนทายถูก = ทุกคนแพ้</p>
+    ${master ? `<section class="panel"><h2>ใครทายถูก? (กดเมื่อมีคนพูดคำลับถูก)</h2>
+      <div class="picks">${pl().filter(x => x.sid !== me()).map(x => `<button class="pick" data-act="ifound" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div></section>` : ''}
+    ${isHostView() && !master ? `<details class="panel small"><summary>ผู้คุมเกมหลุด? เจ้าของห้องกดแทน</summary>
+      <div class="picks">${pl().filter(x => x.sid !== p.ins.master).map(x => `<button class="pick" data-act="hfound" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div></details>` : ''}
+    ${inMine()}`;
+}
+
+function inDiscV() {
+  const p = S.pub;
+  return `<div class="banner win"><div class="small">🎉 ${esc(pn(p.ins.guesser))} ทายถูก! คำลับคือ</div><div class="bt">${esc(p.ins.word)}</div></div>
+    <div class="timer big" data-timer></div>
+    <p class="center">คุยกันว่าใครคือ <b>อินไซเดอร์</b> — ใครชี้นำคำถามเก่งเกินไป?<br><span class="muted small">เวลาคุยเท่ากับเวลาที่ใช้ทายคำ</span></p>
+    ${isHostView() ? btn('itovote', '🗳️ ไปโหวตเลย', 'primary wide big') : ''}${inMine()}`;
+}
+
+function inV1V() {
+  const p = S.pub, v = S.priv, g = pn(p.ins.guesser), voted = p.voted || [];
+  return `<h1 class="ph">🗳️ โหวตรอบแรก</h1><p class="center big-t">${esc(g)} คืออินไซเดอร์หรือไม่?</p>
+    <div class="row">${btn('iv1', '✅ ใช่', v.v1 === true ? 'primary' : '', { yes: 1 })}${btn('iv1', '❌ ไม่ใช่', v.v1 === false ? 'danger' : '', { yes: 0 })}</div>
+    <p class="center muted small">ถ้าเกินครึ่งตอบว่าใช่ จะเปิดเผยทันที · ถ้าไม่ ไปโหวตรอบสอง</p>
+    <section class="panel"><h2>โหวตแล้ว ${voted.length}/${pl().length}</h2>${players({ voted })}</section>`;
+}
+
+function inV2V() {
+  const p = S.pub, v = S.priv, voted = p.voted || [];
+  return `<h1 class="ph">🗳️ โหวตรอบสอง</h1><p class="center">ใครคืออินไซเดอร์? (เปลี่ยนใจได้จนกว่าจะครบ)</p>
+    <div class="picks">${pl().filter(x => x.sid !== me() && x.sid !== p.ins.master).map(x => `<button class="pick ${v.v2 === x.sid ? 'on' : ''}" data-act="iv2" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div>
+    <section class="panel"><h2>โหวตแล้ว ${voted.length}/${pl().length}</h2>${players({ voted })}</section>`;
+}
+
+function inTieV() {
+  const p = S.pub, master = p.ins.master === me(), host = isHostView();
+  const picks = act => `<div class="picks">${p.ins.cand.map(s => `<button class="pick" data-act="${act}" data-sid="${s}">${esc(pn(s))}</button>`).join('')}</div>`;
+  return `<h1 class="ph">⚖️ คะแนนเสมอ</h1><p class="center">ผู้คุมเกม (${esc(pn(p.ins.master))}) ตัดสินว่าใครคืออินไซเดอร์</p>
+    ${master ? picks('itie') : host ? `<details class="panel small"><summary>ผู้คุมเกมหลุด? เจ้าของห้องกดแทน</summary>${picks('htie')}</details>` : ''}`;
+}
+
+function inEndV() {
+  const R = S.pub.result, win = R.win[me()];
+  const head = R.w === 'none' ? '⏰ หมดเวลา — ทุกคนแพ้' : R.w === 'common' ? '🙂 จับอินไซเดอร์ได้! ผู้คุมเกม + คนทั่วไปชนะ' : '🕵️ อินไซเดอร์รอดตัว — อินไซเดอร์ชนะ';
+  const acc = R.accused ? `ถูกกล่าวหา: ${pn(R.accused)} (${R.how === 'v1' ? 'โหวตรอบแรก' : R.how === 'v2' ? 'โหวตรอบสอง' : 'ผู้คุมเกมตัดสิน'})` : '';
+  const v2c = {};
+  Object.values(R.v2 || {}).forEach(t => (v2c[t] = (v2c[t] || 0) + 1));
+  return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${win ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>${head}</div><div class="small">${esc(acc)}</div></div>
+    <section class="panel"><h2>เฉลย</h2><p>คำลับ: <b>${esc(R.word)}</b><br>🕵️ อินไซเดอร์: <b>${esc(pn(R.insider))}</b><br>🎓 ผู้คุมเกม: ${esc(pn(R.master))}${R.guesser ? `<br>🎯 คนทายถูก: ${esc(pn(R.guesser))}` : ''}</p></section>
+    ${Object.keys(R.v1 || {}).length ? `<section class="panel"><h2>ผลโหวต</h2><ul class="players">${pl().map(x => `<li><span class="pname">${esc(x.name)}</span><span class="small">${x.sid in R.v1 ? (R.v1[x.sid] ? 'รอบแรก ✅' : 'รอบแรก ❌') : ''}${R.v2?.[x.sid] ? ` · เลือก ${esc(pn(R.v2[x.sid]))}` : ''}${v2c[x.sid] ? ` · โดน ${v2c[x.sid]} เสียง` : ''}</span></li>`).join('')}</ul></section>` : ''}
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Just One */
+const joHead = () => {
+  const j = S.pub.jo;
+  return `<section class="panel board"><div class="jstat"><span>การ์ด <b>${Math.min(j.i + 1, j.total)}/${j.total}</b></span><span>✅ <b>${j.score}</b></span><span>🗑️ <b>${j.lost}</b></span></div>
+    <div class="small center">🙈 คนทายรอบนี้: <b>${esc(pn(j.guesser))}</b>${j.guesser === me() ? ' (คุณ)' : ''}</div></section>`;
+};
+const joWord = () => `<div class="banner"><div class="small">คำลับ (คนทายห้ามเห็น)</div><div class="bt">${esc(S.priv.word)}</div></div>`;
+
+function joClueV() {
+  const j = S.pub.jo, v = S.priv, k = j.per, need = pl().length - 1;
+  if (v.guesser) return `${joHead()}<p class="center big-t">🙈 คุณเป็นคนทาย</p><p class="center">รอคนอื่นให้คำใบ้ (${j.submitted.length}/${need}) · อย่าแอบดูจอคนอื่น</p>
+    ${isHostView() && j.submitted.length ? btn('jforce', 'ข้ามคนที่ยังไม่ส่ง', 'ghost wide small') : ''}`;
+  S.jc ||= ['', ''];
+  const form = v.mine && !S.jedit
+    ? `<p class="center ok-text">✔ ส่งแล้ว: ${v.mine.map(esc).join(', ')}</p>${btn('jedit', 'แก้ไขคำใบ้', 'ghost wide small')}`
+    : `<section class="panel"><h2>คำใบ้ของคุณ${k > 1 ? ' (2 คำ)' : ''}</h2>
+        ${[...Array(k)].map((_, i) => `<input id="jc${i}" class="jin" maxlength="30" autocomplete="off" placeholder="คำใบ้ ${k > 1 ? i + 1 : ''} (1 คำ)" value="${esc(S.jc[i] || '')}">`).join('')}
+        <p class="muted small">ห้ามปรึกษากัน · ถ้าซ้ำกับคนอื่นจะถูกลบทั้งคู่ · ห้ามใช้คำลับหรือส่วนของคำลับ</p>
+        ${btn('jsend', 'ส่งคำใบ้', 'primary wide')}</section>`;
+  return `${joHead()}${joWord()}${form}<p class="center muted small">ส่งแล้ว ${j.submitted.length}/${need}</p>
+    ${isHostView() && j.submitted.length ? btn('jforce', 'ข้ามคนที่ยังไม่ส่ง', 'ghost wide small') : ''}`;
+}
+
+const JWHY = { dup: 'ซ้ำ', word: 'เหมือนคำลับ', empty: 'ว่าง' };
+function joCheckV() {
+  const v = S.priv;
+  if (v.guesser) return `${joHead()}<p class="center big-t">🙈 คนใบ้กำลังตรวจคำใบ้ซ้ำ…</p><p class="center muted">อย่าแอบดูจอคนอื่นนะ</p>`;
+  return `${joHead()}${joWord()}
+    <section class="panel"><h2>ตรวจคำใบ้</h2><p class="muted small">ระบบลบคำซ้ำ/คำที่เหมือนคำลับให้แล้ว · แตะเพื่อลบหรือคืนคำ (เช่น คำพ้องความหมาย หรือคำตระกูลเดียวกัน)</p>
+      <div class="clues">${v.review.map(x => `<button class="clue ${x.out ? 'out' : ''}" data-act="jstrike" data-id="${esc(x.id)}"><b>${esc(x.text)}</b><small>${esc(pn(x.sid))}${x.auto ? ` · ${JWHY[x.auto]}` : ''}</small></button>`).join('')}</div>
+    </section>
+    ${btn('jdone', '✔ ตรวจเสร็จ ส่งให้คนทาย', 'primary wide big')}`;
+}
+
+function joGuessV() {
+  const j = S.pub.jo, v = S.priv;
+  const clues = j.shown.length ? `<div class="clues">${j.shown.map(t => `<span class="clue"><b>${esc(t)}</b></span>`).join('')}</div>` : '<p class="center muted">ไม่เหลือคำใบ้เลย 😱</p>';
+  return `${joHead()}<section class="panel"><h2>คำใบ้ที่เหลือ</h2>${clues}</section>
+    ${v.guesser
+      ? `<section class="panel"><h2>คำตอบของคุณ</h2><input id="jg" class="jin" maxlength="40" autocomplete="off" placeholder="พิมพ์คำตอบ" value="${esc(S.jg || '')}">
+          <div class="row">${btn('jpass', '⏭️ ผ่าน', 'ghost')}${btn('jguess', 'ตอบ', 'primary')}</div></section>`
+      : `<p class="center">รอ ${esc(pn(j.guesser))} ทาย… ห้ามใบ้เพิ่มนะ 🤐</p>`}`;
+}
+
+function joResV() {
+  const r = S.pub.jo.res, g = r.guess;
+  const head = g.res === 'ok' ? '✅ ถูกต้อง! +1' : g.res === 'pass' ? '⏭️ ผ่าน — เสียการ์ดใบนี้' : '❌ ผิด — เสียการ์ดใบนี้และใบถัดไป';
+  return `${joHead()}<div class="banner ${g.res === 'ok' ? 'win' : 'lose'}"><div class="small">คำลับ</div><div class="bt">${esc(r.word)}</div>
+      <div>${g.text != null ? `ตอบว่า “${esc(g.text)}”` : 'ไม่ได้ตอบ'}</div><div>${head}</div></div>
+    <section class="panel"><h2>คำใบ้ทั้งหมด</h2><div class="clues">${r.clues.map(x => `<span class="clue ${x.out ? 'out' : ''}"><b>${esc(x.text)}</b><small>${esc(pn(x.sid))}</small></span>`).join('')}</div></section>
+    ${isHostView() ? `${g.res === 'wrong' ? btn('jok', 'นับว่าถูก (สะกดต่าง / ความหมายเดียวกัน)', 'ghost wide small') : ''}${btn('jnext', 'ต่อไป ▶', 'primary wide big')}` : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
+}
+
+function joEndV() {
+  const j = S.pub.jo;
+  return `<div class="banner win"><div class="small">คะแนนของทีม</div><div class="bt">${j.score} / ${j.total}</div><div>${esc(j.rating)}</div></div>
+    <section class="panel"><h2>ทุกการ์ด</h2><ol class="log">${j.log.map(l => `<li><b>${esc(l.word)}</b> — ${esc(pn(l.guesser))} ${l.res === 'ok' ? '✅' : l.res === 'pass' ? '⏭️ ผ่าน' : `❌ “${esc(l.guess)}”`}</li>`).join('')}</ol></section>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
 const AR = r => `${AV.ROLES[r].e} ${AV.ROLES[r].n}`;
 
 function avRoleCard() {
@@ -1156,7 +1429,20 @@ function ucEndV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'av' ? `
+  const body = g === 'ins' ? `
+    <p><b>เป้าหมาย:</b> ช่วยกันทายคำลับให้ได้ภายในเวลา แล้วจับ <b>อินไซเดอร์</b> ที่แอบรู้คำตอบอยู่แล้ว</p>
+    <ol><li><b>🎓 ผู้คุมเกม</b> (ทุกคนรู้ว่าใคร) รู้คำลับ ตอบได้แค่ "ใช่ / ไม่ใช่ / ไม่รู้"</li>
+    <li><b>🕵️ อินไซเดอร์</b> แอบรู้คำลับ ต้องชี้นำคำถามให้ทุกคนทายถูก แต่ห้ามโดนจับได้</li>
+    <li>ทุกคนถามคำถามใช่/ไม่ใช่ได้เรื่อยๆ ใครทายถูก ผู้คุมเกมกด "ทายถูก" · หมดเวลาก่อน = ทุกคนแพ้</li>
+    <li>ได้เวลาคุยเท่ากับเวลาที่ใช้ทายคำ แล้วโหวตรอบแรก: "คนที่ทายถูกคืออินไซเดอร์หรือไม่?" ถ้าเกินครึ่งว่าใช่ เปิดเผยเลย</li>
+    <li>ถ้าไม่ โหวตรอบสองเลือกคนที่คิดว่าเป็นอินไซเดอร์ (เสมอให้ผู้คุมเกมตัดสิน)</li></ol>
+    <p>จับอินไซเดอร์ได้ = ผู้คุมเกมและคนทั่วไปชนะ · จับผิดคน = อินไซเดอร์ชนะ</p>` : g === 'jo' ? `
+    <p><b>เกมช่วยกัน:</b> ทุกคนอยู่ทีมเดียวกัน พยายามทายให้ถูกมากที่สุด</p>
+    <ol><li>แต่ละรอบมีคนทาย 1 คน (วนไปเรื่อยๆ) คนอื่นเห็นคำลับ</li>
+    <li>คนใบ้พิมพ์คำใบ้ <b>คนละ 1 คำ</b> แบบไม่ปรึกษากัน (เล่น 3 คน ได้คนละ 2 คำ)</li>
+    <li><b>คำใบ้ที่ซ้ำกันจะถูกลบทั้งหมด</b> รวมถึงคำที่เป็นหรือมีส่วนของคำลับ · คนใบ้ช่วยกันตรวจ แตะเพื่อลบ/คืนคำได้ เช่น คำพ้องที่ระบบจับไม่ได้</li>
+    <li>คนทายเห็นเฉพาะคำใบ้ที่เหลือ ทายได้ 1 ครั้ง หรือกดผ่าน</li></ol>
+    <p>✅ ถูก = ได้ 1 แต้ม · ⏭️ ผ่าน = เสียการ์ดใบนั้น · ❌ ผิด = เสียการ์ดใบนั้นและใบถัดไป</p>` : g === 'av' ? `
     <p><b>เป้าหมาย:</b> ฝ่ายดีต้องทำภารกิจสำเร็จ 3 ใน 5 ครั้ง · ฝ่ายร้ายที่แฝงตัวอยู่ต้องทำให้ล้มเหลว 3 ครั้ง</p>
     <ol><li><b>👑 หัวหน้า</b> เลือกทีมตามจำนวนที่ภารกิจกำหนด (หัวหน้าวนไปทีละคน)</li>
     <li>ทุกคนโหวต ✅/❌ ทีมนั้นพร้อมกัน เสียงเห็นด้วยต้อง<b>เกินครึ่ง</b> ไม่ผ่านก็เปลี่ยนหัวหน้า · ไม่ผ่าน 5 ครั้งติด ฝ่ายร้ายชนะทันที</li>
@@ -1192,9 +1478,10 @@ function rulesView() {
 function render() {
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}`;
     if (k !== S.key) {
-      S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false;
+      S.jc = ['', '']; S.jedit = false;
+      S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
     }
   }
@@ -1254,6 +1541,22 @@ const ACT = {
   doact: () => { const a = actPayload(S.priv.act); if (a) send({ t: 'act', a }); },
   decoy: d => { S.decoy = +d.i; render(); },
   vote: d => send({ t: 'vote', to: d.sid }),
+  ifound: d => { if (confirm(`${pn(d.sid)} ทายคำถูกแล้ว?`)) send({ t: 'ifound', by: d.sid }); },
+  iv1: d => send({ t: 'iv1', yes: d.yes === '1' }),
+  iv2: d => send({ t: 'iv2', to: d.sid }),
+  itie: d => { if (confirm(`ตัดสินว่า ${pn(d.sid)} คืออินไซเดอร์?`)) send({ t: 'itie', to: d.sid }); },
+  jsend: () => {
+    const k = S.pub.jo.per, list = S.jc.slice(0, k).map(x => (x || '').trim());
+    if (list.some(x => !x)) return toast(k > 1 ? 'ใส่คำใบ้ให้ครบ 2 คำ' : 'ใส่คำใบ้ก่อน');
+    if (list.some(x => /\s/.test(x)) && !confirm('คำใบ้ควรเป็นคำเดียว ส่งเลยไหม?')) return;
+    S.jedit = false;
+    send({ t: 'jclue', list });
+  },
+  jedit: () => { S.jedit = true; S.jc = [...(S.priv.mine || ['', ''])]; render(); },
+  jstrike: d => send({ t: 'jstrike', id: d.id }),
+  jdone: () => { if (confirm('ตรวจครบแล้ว ส่งคำใบ้ให้คนทาย?')) send({ t: 'jdone' }); },
+  jguess: () => { const t = (S.jg || '').trim(); if (!t) return toast('พิมพ์คำตอบก่อน'); if (confirm(`ตอบว่า “${t}” ?`)) send({ t: 'jguess', text: t }); },
+  jpass: () => { if (confirm('ผ่านข้อนี้? (เสียการ์ดใบนี้)')) send({ t: 'jguess', text: null }); },
   apick: d => {
     const size = S.pub.av.quests[S.pub.av.q].size;
     S.sel = S.sel.includes(d.sid) ? S.sel.filter(x => x !== d.sid) : [...S.sel, d.sid].slice(-size);
@@ -1288,6 +1591,8 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   if (e.target.id === 'name') S.name = e.target.value;
   if (e.target.id === 'wg') S.wg = e.target.value;
+  if (e.target.id === 'jc0' || e.target.id === 'jc1') { S.jc ||= ['', '']; S.jc[+e.target.id[2]] = e.target.value; }
+  if (e.target.id === 'jg') S.jg = e.target.value;
   if (e.target.id === 'code') { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); S.codeIn = e.target.value; }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'code') joinRoom(S.codeIn); });

@@ -159,3 +159,14 @@ li.off .dot { background: #666; } li.off .pname { opacity: .55; }
 .qcards { font-size: 2rem; margin: 8px 0; letter-spacing: 4px; }
 .role .info { margin-top: 10px; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; }
+.g-ins { border-color: #3d2a5c; background: linear-gradient(135deg, #251a3a, var(--bg2)); }
+.g-jo { border-color: #5c4a1c; background: linear-gradient(135deg, #332a12, var(--bg2)); }
+.jstat { display: flex; justify-content: space-around; font-size: 1.05rem; margin-bottom: 6px; }
+.jin { width: 100%; background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 1.1rem; outline: none; margin-bottom: 8px; }
+.jin:focus { border-color: var(--accent); }
+.clues { display: flex; flex-wrap: wrap; gap: 8px; }
+.clue { display: inline-flex; flex-direction: column; align-items: center; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--accent2); background: var(--bg2); font-size: 1.15rem; cursor: pointer; min-width: 84px; }
+.clue small { font-size: .72rem; color: var(--muted); }
+.clue.out { opacity: .4; text-decoration: line-through; border-color: var(--line); }
+details.panel summary { cursor: pointer; color: var(--muted); }
+details.panel .picks { margin-top: 10px; }
