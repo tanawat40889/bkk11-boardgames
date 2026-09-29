@@ -6,6 +6,7 @@ import * as AV from '../js/avalon.js';
 import * as IN from '../js/insider.js';
 import * as JO from '../js/justone.js';
 import { WORDS } from '../js/words.js';
+import * as SK from '../js/skull.js';
 
 let pass = 0;
 const t = (name, fn) => { fn(); pass++; console.log('✓', name); };
@@ -407,6 +408,124 @@ t('justone: scoring — ok, pass, wrong burns next card', () => {
   JO.advance(g); assert.equal(g.i, 4); assert.equal(g.lost, 3);
   JO.resolve(g, 'ผิด'); assert.equal(JO.advance(g), true, 'deck exhausted');
   assert.equal(g.score + g.lost, 5);
+});
+
+function skGame(n = 3) {
+  const g = SK.newGame(sids(n));
+  SK.startRound(g, 's0');
+  return g;
+}
+const place = (g, ds) => Object.entries(ds).forEach(([s, d]) => assert.ok(SK.placeInit(g, s, d), s));
+
+t('skull: setup & starter uniform', () => {
+  const g = SK.newGame(sids(4));
+  assert.deepEqual(g.hand.s0, { f: 3, s: 1 });
+  const c = Array(4).fill(0), N = 20000;
+  for (let k = 0; k < N; k++) c[+SK.newGame(sids(4)).starter.slice(1)]++;
+  for (const x of c) assert.ok(Math.abs(x / N - 0.25) < 0.015, 'bias ' + c);
+});
+
+t('skull: opening placement then turn order', () => {
+  const g = skGame();
+  assert.equal(SK.add(g, 's0', 'f'), false, 'no turns before everyone placed');
+  place(g, { s0: 'f', s1: 's' });
+  assert.equal(g.turn, null);
+  assert.equal(SK.placeInit(g, 's1', 'f'), false, 'only one opening disc');
+  place(g, { s2: 'f' });
+  assert.equal(g.turn, 's0');
+  assert.equal(SK.add(g, 's1', 'f'), false, 'not your turn');
+  assert.ok(SK.add(g, 's0', 's'));
+  assert.equal(SK.add(g, 's1', 's'), false, 'only one skull');
+  assert.ok(SK.add(g, 's1', 'f'));
+  assert.equal(g.turn, 's2');
+});
+
+t('skull: bidding, passing, cap and auto-challenge', () => {
+  const g = skGame();
+  place(g, { s0: 'f', s1: 'f', s2: 'f' });
+  assert.equal(SK.bid(g, 's0', 4), false, 'bid > table');
+  assert.ok(SK.bid(g, 's0', 1));
+  assert.equal(SK.add(g, 's1', 'f'), false, 'no adding once bidding started');
+  assert.equal(SK.bid(g, 's1', 1), false, 'must raise');
+  assert.ok(SK.pass(g, 's1'));
+  assert.equal(g.turn, 's2');
+  assert.ok(SK.bid(g, 's2', 2));
+  assert.equal(g.turn, 's0', 'passed s1 skipped');
+  assert.ok(SK.pass(g, 's0'));
+  assert.equal(g.ch, 's2');
+  const h = skGame();
+  place(h, { s0: 'f', s1: 'f', s2: 'f' });
+  SK.bid(h, 's0', 3);
+  assert.equal(h.ch, 's0', 'max bid challenges immediately');
+});
+
+t('skull: flip own stack first, success scores', () => {
+  const g = skGame();
+  place(g, { s0: 'f', s1: 'f', s2: 'f' });
+  SK.add(g, 's0', 'f');
+  SK.bid(g, 's1', 3); SK.pass(g, 's2'); SK.pass(g, 's0');
+  assert.equal(g.ch, 's1');
+  assert.deepEqual(g.reveals, [{ sid: 's1', d: 'f' }], 'own stack auto-revealed');
+  assert.equal(SK.flip(g, 's1', 's1'), false, 'own already done');
+  assert.ok(SK.flip(g, 's1', 's0'));
+  assert.equal(g.res, null);
+  assert.ok(SK.flip(g, 's1', 's2'));
+  assert.equal(g.res.ok, true);
+  assert.equal(SK.flip(g, 's1', 's0'), false, 'done');
+  SK.settle(g); assert.equal(g.pts.s1, 1); assert.equal(g.winner, null);
+  assert.equal(SK.nextStarter(g), 's1');
+});
+
+t('skull: flips top disc first; other skull -> random loss; own skull -> choice', () => {
+  const g = skGame();
+  place(g, { s0: 's', s1: 'f', s2: 'f' });
+  SK.add(g, 's0', 'f'); // s0 stack: [s, f] top = f
+  SK.bid(g, 's1', 3); SK.pass(g, 's2'); SK.pass(g, 's0');
+  SK.flip(g, 's1', 's0'); assert.equal(g.reveals.at(-1).d, 'f', 'top first');
+  SK.flip(g, 's1', 's0'); assert.deepEqual(g.res, { ok: false, owner: 's0' });
+  assert.equal(SK.needsChoice(g), false);
+  SK.settle(g); assert.equal(SK.discs(g, 's1'), 3); assert.ok(['f', 's'].includes(g.res.lost));
+  assert.equal(SK.nextStarter(g), 's1');
+
+  const h = skGame();
+  place(h, { s0: 's', s1: 'f', s2: 'f' });
+  SK.bid(h, 's0', 3);
+  assert.deepEqual(h.res, { ok: false, owner: 's0' });
+  assert.ok(SK.needsChoice(h));
+  assert.equal(SK.settle(h, 'x'), false);
+  assert.ok(SK.settle(h, 's')); assert.deepEqual(h.hand.s0, { f: 3, s: 0 });
+});
+
+t('skull: random loss is roughly proportional', () => {
+  let s = 0; const N = 20000;
+  for (let k = 0; k < N; k++) {
+    const g = skGame(); place(g, { s0: 'f', s1: 's', s2: 'f' });
+    SK.bid(g, 's0', 3); SK.flip(g, 's0', 's1'); SK.settle(g); if (g.res.lost === 's') s++;
+  }
+  assert.ok(Math.abs(s / N - 0.25) < 0.015, 'skull loss rate ' + s / N);
+});
+
+t('skull: 2 points wins; elimination; last standing wins; starter rules', () => {
+  const g = skGame();
+  g.pts.s1 = 1;
+  place(g, { s0: 'f', s1: 'f', s2: 'f' }); SK.bid(g, 's0', 1); SK.pass(g, 's1'); SK.pass(g, 's2');
+  SK.settle(g); assert.equal(g.pts.s0, 1);
+  g.pts.s0 = 1; SK.startRound(g, 's0'); place(g, { s0: 'f', s1: 'f', s2: 'f' }); SK.bid(g, 's0', 3); SK.flip(g, 's0', 's1'); SK.flip(g, 's0', 's2');
+  SK.settle(g); assert.equal(g.winner, 's0');
+
+  const h = skGame();
+  h.hand.s1 = { f: 0, s: 1 };
+  place(h, { s0: 's', s1: 's', s2: 'f' }); SK.bid(h, 's0', 1); SK.pass(h, 's1'); SK.pass(h, 's2');
+  // s0 own skull
+  SK.settle(h, 's');
+  h.hand.s0 = { f: 0, s: 0 }; // simulate elimination by own skull
+  assert.equal(SK.nextStarter(h), 's1', 'next living player');
+  SK.startRound(h, 's1');
+  assert.ok(!('s0' in h.stacks), 'eliminated player skipped');
+  place(h, { s1: 's', s2: 'f' });
+  SK.bid(h, 's1', 2); // s1 own skull, loses last disc
+  SK.settle(h, 's');
+  assert.equal(h.winner, 's2', 'last player standing');
 });
 
 console.log(`\n${pass} tests passed`);

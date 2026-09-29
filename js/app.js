@@ -6,6 +6,7 @@ import * as UC from './undercover.js';
 import * as AV from './avalon.js';
 import * as IN from './insider.js';
 import * as JO from './justone.js';
+import * as SK from './skull.js';
 import { rint } from './rng.js';
 
 const app = document.getElementById('app');
@@ -25,6 +26,7 @@ const GAMES = {
   av: { n: 'Avalon', s: 'Avalon', e: '🏰', min: AV.MIN, max: AV.MAX },
   ins: { n: 'Insider', s: 'Insider', e: '🔎', min: IN.MIN, max: IN.MAX },
   jo: { n: 'Just One', s: 'Just One', e: '💡', min: JO.MIN, max: JO.MAX },
+  sk: { n: 'Skull', s: 'Skull', e: '💀', min: SK.MIN, max: SK.MAX },
 };
 const ROLE = WW.ROLES;
 const RL = r => `${ROLE[r].e} ${ROLE[r].n}`;
@@ -80,6 +82,12 @@ function pubOf() {
       if (H.phase === 'iv1') p.voted = Object.keys(g.v1);
       if (H.phase === 'iv2') p.voted = Object.keys(g.v2);
       if (H.phase === 'iend') p.result = g.result;
+    } else if (H.game === 'sk') {
+      p.sk = {
+        pl: Object.fromEntries(g.sids.map(x => [x, { n: g.stacks[x]?.length ?? 0, d: SK.discs(g, x), pts: g.pts[x], fl: g.flipped[x] ?? 0 }])),
+        turn: g.turn, bid: g.bid, passed: g.passed, ch: g.ch, reveals: g.reveals, total: SK.total(g), round: g.round, winner: g.winner,
+        res: g.res && { ok: g.res.ok, owner: g.res.owner, settled: !!g.res.settled, choose: SK.needsChoice(g) },
+      };
     } else if (H.game === 'jo') {
       p.jo = { guesser: JO.guesser(g), i: g.i, total: g.deck.length, score: g.score, lost: g.lost, per: JO.cluesPer(g.sids.length), submitted: Object.keys(g.clues) };
       if (H.phase === 'jguess') p.jo.shown = JO.shown(g);
@@ -131,6 +139,12 @@ function privOf(sid) {
     v.ready = g.ready.includes(sid);
     if (H.phase === 'iv1') v.v1 = sid in g.v1 ? g.v1[sid] : null;
     if (H.phase === 'iv2') v.v2 = g.v2[sid] || null;
+  } else if (H.game === 'sk') {
+    v.hand = g.hand[sid];
+    v.stack = g.stacks[sid] || [];
+    v.canF = sid in g.stacks && SK.canPlace(g, sid, 'f');
+    v.canS = sid in g.stacks && SK.canPlace(g, sid, 's');
+    if (g.res?.settled && g.ch === sid && g.res.lost) v.lost = g.res.lost;
   } else if (H.game === 'jo') {
     v.guesser = JO.guesser(g) === sid;
     if (!v.guesser) {
@@ -407,6 +421,18 @@ function hostIn(m) {
         g.sids.every(s => g.votes[s]) ? finishVote() : broadcast();
       }
       break;
+    case 'skplace': case 'skbid': case 'skpass': case 'skflip': case 'sklose': {
+      if (H.phase !== 'sk') break;
+      const ok = m.t === 'skplace' ? (g.turn ? SK.add(g, sid, m.d) : SK.placeInit(g, sid, m.d))
+        : m.t === 'skbid' ? SK.bid(g, sid, m.n)
+        : m.t === 'skpass' ? SK.pass(g, sid)
+        : m.t === 'skflip' ? SK.flip(g, sid, m.to)
+        : sid === g.ch && SK.needsChoice(g) && SK.settle(g, m.d);
+      if (!ok) break;
+      if (g.res && !g.res.settled && !SK.needsChoice(g)) SK.settle(g);
+      broadcast();
+      break;
+    }
     case 'ifound':
       if (sid === g.master) inFound(m.by);
       break;
@@ -511,6 +537,13 @@ const HA = {
   },
   autodeck() { H.settings.onuw.auto = true; broadcast(); },
   ucauto() { H.settings.uc.auto = true; broadcast(); },
+  sknext() {
+    const g = H.g;
+    if (H.phase !== 'sk' || !g.res?.settled) return;
+    if (g.winner) H.phase = 'skend';
+    else SK.startRound(g, SK.nextStarter(g));
+    broadcast();
+  },
   istart() { if (H.phase === 'iask' || H.phase !== 'iword') return; H.phase = 'iask'; H.g.t0 = now(); H.endsAt = now() + H.settings.ins.min * 60000; broadcast(); },
   hfound(d) { if (confirm(`${pn(d.sid)} ทายคำถูกแล้ว?`)) inFound(d.sid); },
   itovote() { if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; broadcast(); } },
@@ -571,6 +604,10 @@ const HA = {
       H.g = IN.deal(sids, master, H.recentIN || []);
       H.recentIN = [H.g.wi, ...(H.recentIN || [])].slice(0, IN.RECENT);
       H.phase = 'iword';
+      H.endsAt = null;
+    } else if (H.game === 'sk') {
+      H.g = SK.newGame(sids);
+      H.phase = 'sk';
       H.endsAt = null;
     } else if (H.game === 'jo') {
       H.g = JO.newGame(sids, H.settings.jo.rounds, H.recentJO || []);
@@ -817,6 +854,7 @@ function home() {
       ${g('av', '5–10 คน · ~30 นาที · ภารกิจ โหวต และหักหลัง')}
       ${g('ins', '4–10 คน · ~10 นาที · ถามใช่/ไม่ใช่ แล้วจับคนที่รู้คำตอบอยู่แล้ว')}
       ${g('jo', '3–10 คน · ~20 นาที · ช่วยกันใบ้ คำใบ้ซ้ำโดนลบ')}
+      ${g('sk', '3–6 คน (สูงสุด 10) · ~20 นาที · บลัฟ ดอกไม้กับหัวกะโหลก')}
       ${S.busy === 'create' ? '<p class="muted center">กำลังสร้างห้อง…</p>' : ''}</section>
     ${installHint()}
     ${lastOk && !S.busy ? `<section class="panel"><button class="btn ghost wide" data-act="resume">↩︎ กลับเข้าห้อง ${esc(last.room)}${last.host ? ' (เจ้าของห้อง)' : ''}</button></section>` : ''}
@@ -863,6 +901,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
+    sk: skV, skend: skEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -911,6 +950,9 @@ function lobby() {
   } else if (p.game === 'ins') {
     if (n < IN.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${IN.MIN} คน`);
     settings = host ? stepper('ins.min', 'เวลาถามหาคำ', p.set.ins.min, ' นาที') : `<p class="muted small">ถามหาคำ ${p.set.ins.min} นาที · ผู้คุมเกมวนไปทีละคน</p>`;
+  } else if (p.game === 'sk') {
+    if (n < SK.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SK.MIN} คน`);
+    settings = `<p class="muted small">ทุกคนมี 🌹 ดอกไม้ 3 + 💀 หัวกะโหลก 1 · ชนะ ${SK.WIN} ครั้งก่อน หรือเหลือรอดคนสุดท้าย${n > 6 ? ' · เกิน 6 คน เกมจะยาวขึ้น' : ''}</p>`;
   } else if (p.game === 'jo') {
     if (n < JO.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${JO.MIN} คน`);
     settings = (host ? stepper('jo.rounds', 'จำนวนการ์ด', p.set.jo.rounds, ' ใบ') : `<p class="muted small">การ์ด ${p.set.jo.rounds} ใบ</p>`)
@@ -1106,6 +1148,75 @@ function revealV() {
     <p class="center">${verdict}</p>
     <section class="panel"><h2>บทบาทของทุกคน</h2><ul class="players">${pl().map(x => `<li><span class="pname">${esc(x.name)}</span><span class="${R.spies.includes(x.sid) ? 'tag bad' : 'muted'}">${R.spies.includes(x.sid) ? '🕵️ สปาย' : esc(R.roles[x.sid] || '')}</span></li>`).join('')}</ul></section>
     ${host ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 รอบใหม่', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Skull */
+const DI = d => (d === 'f' ? '🌹' : '💀');
+function skBoard() {
+  const k = S.pub.sk;
+  return `<section class="panel"><ul class="players sk">${pl().map(x => {
+    const q = k.pl[x.sid], out = !q.d;
+    const tag = out ? '<span class="tag bad">ตกรอบ</span>' : x.sid === k.ch ? '<span class="tag ok">🎯 ผู้ท้า</span>' : k.passed.includes(x.sid) ? '<span class="tag">หมอบ</span>' : x.sid === k.turn ? '<span class="tag ok">👉 ถึงตา</span>' : '';
+    return `<li class="${out ? 'off' : ''}"><span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</span>
+      <span class="skst">${'⭐'.repeat(q.pts)}${'☆'.repeat(SK.WIN - q.pts)}</span><span class="skst" title="แผ่นที่เหลือ">🔘${q.d}</span><span class="skst" title="วางบนโต๊ะ">🂠${q.n - q.fl}${q.fl ? `+${q.fl}` : ''}</span>${tag}</li>`;
+  }).join('')}</ul><p class="muted small">⭐ แต้ม · 🔘 แผ่นที่เหลือทั้งหมด · 🂠 แผ่นคว่ำบนโต๊ะ (+ที่ถูกเปิดแล้ว)</p></section>`;
+}
+
+function skMine() {
+  const v = S.priv;
+  if (!v.hand.f && !v.hand.s) return '<p class="alert center">คุณตกรอบแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>';
+  const hf = v.hand.f - v.stack.filter(d => d === 'f').length, hs = v.hand.s - v.stack.filter(d => d === 's').length;
+  return `<section class="panel"><h2>แผ่นของคุณ <span class="muted small">(อย่าให้ใครเห็น)</span></h2>
+    <p>ในมือ: ${'🌹'.repeat(hf)}${'💀'.repeat(hs)}${!hf && !hs ? '<span class="muted">— หมดแล้ว</span>' : ''}</p>
+    <p>บนโต๊ะ (ล่าง → บน): ${v.stack.length ? v.stack.map(DI).join(' ') : '<span class="muted">—</span>'}</p></section>`;
+}
+
+function skV() {
+  const k = S.pub.sk, v = S.priv, mine = me(), opening = !k.turn && !k.ch && !k.res;
+  let status = '', act = '';
+  if (opening) {
+    const placed = Object.values(k.pl).filter(q => q.n).length, need = Object.values(k.pl).filter(q => q.d).length;
+    status = `🂠 ทุกคนวางแผ่นแรกคว่ำไว้ (${placed}/${need})`;
+    if (v.stack.length === 0 && (v.canF || v.canS)) act = `<p class="ask center">เลือกแผ่นแรกของคุณ</p><div class="row">${btn('skplace', '🌹 ดอกไม้', 'big', { d: 'f' }, !v.canF)}${btn('skplace', '💀 หัวกะโหลก', 'big', { d: 's' }, !v.canS)}</div>`;
+  } else if (k.turn) {
+    status = k.bid ? `💰 ประมูลสูงสุด <b>${k.bid.n}</b> โดย ${esc(pn(k.bid.by))} · ตาของ <b>${esc(pn(k.turn))}</b>` : `👉 ตาของ <b>${esc(pn(k.turn))}</b> — วางเพิ่ม หรือเริ่มประมูล`;
+    if (k.turn === mine) {
+      const min = (k.bid?.n || 0) + 1, max = k.total;
+      S.bidN = Math.min(max, Math.max(min, S.bidN ?? min));
+      const stepper = min <= max ? `<div class="stepper"><span>${k.bid ? 'เพิ่มเป็น' : 'ประมูล'} (เปิดเจอ 🌹 กี่แผ่น)</span><div class="sctl"><button class="sb" data-act="skn" data-d="-1" ${S.bidN <= min ? 'disabled' : ''}>−</button><b>${S.bidN}</b><button class="sb" data-act="skn" data-d="1" ${S.bidN >= max ? 'disabled' : ''}>+</button></div></div>
+        ${btn('skbid', k.bid ? `💰 เพิ่มเป็น ${S.bidN}` : `💰 ประมูล ${S.bidN}`, 'primary wide')}` : '';
+      act = k.bid
+        ? `<section class="panel"><h2>ตาคุณ</h2>${stepper}${btn('skpass', '🙅 หมอบ', 'ghost wide')}</section>`
+        : `<section class="panel"><h2>ตาคุณ</h2>${v.canF || v.canS ? `<div class="row">${btn('skplace', 'วาง 🌹', '', { d: 'f' }, !v.canF)}${btn('skplace', 'วาง 💀', '', { d: 's' }, !v.canS)}</div><p class="or center">หรือ</p>` : '<p class="muted small">ไม่มีแผ่นในมือแล้ว ต้องประมูล</p>'}${stepper}</section>`;
+    }
+  } else if (k.ch) {
+    const fl = k.reveals.filter(r => r.d === 'f').length;
+    status = `🎯 ${esc(pn(k.ch))} ต้องเปิดเจอ 🌹 ให้ได้ <b>${k.bid.n}</b> แผ่น (ตอนนี้ ${fl})`;
+    if (k.ch === mine && !k.res) {
+      const opts = pl().filter(x => x.sid !== mine && k.pl[x.sid].n - k.pl[x.sid].fl > 0);
+      act = `<p class="ask center">เลือกกองที่จะเปิดแผ่นบนสุด</p><div class="picks">${opts.map(x => `<button class="pick" data-act="skflip" data-sid="${x.sid}">${esc(x.name)}<br><small>เหลือ ${k.pl[x.sid].n - k.pl[x.sid].fl}</small></button>`).join('')}</div>`;
+    }
+    if (k.res?.choose && k.ch === mine) act = `<p class="ask center">💀 เจอกะโหลกตัวเอง — เลือกแผ่นที่จะทิ้ง</p><div class="row">${btn('sklose', 'ทิ้ง 🌹', '', { d: 'f' }, !v.hand.f)}${btn('sklose', 'ทิ้ง 💀', 'danger', { d: 's' }, !v.hand.s)}</div>`;
+    else if (k.res?.choose) act = `<p class="center">${esc(pn(k.ch))} กำลังเลือกแผ่นที่จะทิ้ง…</p>`;
+  }
+  const reveals = k.reveals.length ? `<section class="panel"><h2>เปิดแล้ว</h2><div class="clues">${k.reveals.map(r => `<span class="clue ${r.d === 's' ? 'skull' : ''}"><b>${DI(r.d)}</b><small>${esc(pn(r.sid))}</small></span>`).join('')}</div></section>` : '';
+  let res = '';
+  if (k.res?.settled) {
+    const r = k.res, ch = pn(k.ch);
+    res = r.ok
+      ? `<div class="banner win"><div class="bt">🎉 ${esc(ch)} สำเร็จ!</div><div>ได้ 1 แต้ม (${k.pl[k.ch].pts}/${SK.WIN})</div></div>`
+      : `<div class="banner lose"><div class="bt">💀 เจอหัวกะโหลก!</div><div>${r.owner === k.ch ? `${esc(ch)} เจอกะโหลกของตัวเอง` : `ของ ${esc(pn(r.owner))}`} — ${esc(ch)} เสีย 1 แผ่น${k.pl[k.ch].d ? '' : ' และตกรอบ'}</div>
+          ${v.lost ? `<div class="small">แผ่นที่คุณเสีย: ${DI(v.lost)} (คนอื่นไม่รู้)</div>` : ''}</div>`;
+    act = isHostView() ? btn('sknext', k.winner ? '🏆 ดูผู้ชนะ' : '▶ รอบต่อไป', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>';
+  }
+  return `<p class="center skstatus">${status}</p>${res}${act}${reveals}${skBoard()}${skMine()}`;
+}
+
+function skEndV() {
+  const k = S.pub.sk, w = k.winner === me();
+  return `<div class="banner ${w ? 'win' : 'lose'}"><div class="bt">${w ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${esc(pn(k.winner))} ชนะ ${k.pl[k.winner].pts >= SK.WIN ? `(ท้าสำเร็จ ${SK.WIN} ครั้ง)` : '(รอดคนสุดท้าย)'}</div></div>
+    ${skBoard()}
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
 /* Insider */
@@ -1429,7 +1540,14 @@ function ucEndV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'ins' ? `
+  const body = g === 'sk' ? `
+    <p><b>เป้าหมาย:</b> ท้าเปิดแผ่นให้สำเร็จ ${SK.WIN} ครั้ง หรือเป็นคนสุดท้ายที่ยังเหลือแผ่น</p>
+    <ol><li>ทุกคนมี 🌹 ดอกไม้ 3 แผ่น + 💀 หัวกะโหลก 1 แผ่น · เริ่มรอบ ทุกคนวางคว่ำคนละ 1 แผ่นพร้อมกัน</li>
+    <li>ถึงตาคุณ: <b>วางเพิ่ม</b> 1 แผ่น หรือ <b>เริ่มประมูล</b> ว่าจะเปิดเจอดอกไม้ได้กี่แผ่น (ไม่เกินจำนวนแผ่นบนโต๊ะ)</li>
+    <li>เมื่อมีคนประมูลแล้ว ห้ามวางเพิ่ม · แต่ละคนต้อง <b>เพิ่มตัวเลข</b> หรือ <b>หมอบ</b> (หมอบแล้วกลับมาไม่ได้)</li>
+    <li>คนที่ประมูลสูงสุดต้องเปิด <b>กองตัวเองให้หมดก่อน</b> แล้วเลือกเปิดแผ่นบนสุดของคนอื่นจนครบ</li>
+    <li>เปิดเจอดอกไม้ครบ = ได้ 1 แต้ม · เจอหัวกะโหลก = เสียแผ่น 1 แผ่นแบบสุ่ม (ถ้าเป็นกะโหลกตัวเอง เลือกทิ้งเองได้) · แผ่นหมด = ตกรอบ</li></ol>
+    <p class="muted small">คนท้าเป็นคนเริ่มรอบถัดไป ถ้าตกรอบ เจ้าของกะโหลกเป็นคนเริ่มแทน</p>` : g === 'ins' ? `
     <p><b>เป้าหมาย:</b> ช่วยกันทายคำลับให้ได้ภายในเวลา แล้วจับ <b>อินไซเดอร์</b> ที่แอบรู้คำตอบอยู่แล้ว</p>
     <ol><li><b>🎓 ผู้คุมเกม</b> (ทุกคนรู้ว่าใคร) รู้คำลับ ตอบได้แค่ "ใช่ / ไม่ใช่ / ไม่รู้"</li>
     <li><b>🕵️ อินไซเดอร์</b> แอบรู้คำลับ ต้องชี้นำคำถามให้ทุกคนทายถูก แต่ห้ามโดนจับได้</li>
@@ -1478,9 +1596,9 @@ function rulesView() {
 function render() {
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null;
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
     }
@@ -1541,6 +1659,12 @@ const ACT = {
   doact: () => { const a = actPayload(S.priv.act); if (a) send({ t: 'act', a }); },
   decoy: d => { S.decoy = +d.i; render(); },
   vote: d => send({ t: 'vote', to: d.sid }),
+  skplace: d => send({ t: 'skplace', d: d.d }),
+  skn: d => { S.bidN = (S.bidN ?? 0) + +d.d; render(); },
+  skbid: () => { if (confirm(`ประมูล ${S.bidN} แผ่น?`)) send({ t: 'skbid', n: S.bidN }); },
+  skpass: () => { if (confirm('หมอบ? (กลับมาประมูลรอบนี้ไม่ได้)')) send({ t: 'skpass' }); },
+  skflip: d => send({ t: 'skflip', to: d.sid }),
+  sklose: d => { if (confirm(`ทิ้ง ${d.d === 'f' ? '🌹 ดอกไม้' : '💀 หัวกะโหลก'} 1 แผ่น?`)) send({ t: 'sklose', d: d.d }); },
   ifound: d => { if (confirm(`${pn(d.sid)} ทายคำถูกแล้ว?`)) send({ t: 'ifound', by: d.sid }); },
   iv1: d => send({ t: 'iv1', yes: d.yes === '1' }),
   iv2: d => send({ t: 'iv2', to: d.sid }),

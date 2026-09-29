@@ -170,3 +170,8 @@ li.off .dot { background: #666; } li.off .pname { opacity: .55; }
 .clue.out { opacity: .4; text-decoration: line-through; border-color: var(--line); }
 details.panel summary { cursor: pointer; color: var(--muted); }
 details.panel .picks { margin-top: 10px; }
+.g-sk { border-color: #5c1c2a; background: linear-gradient(135deg, #331218, var(--bg2)); }
+.players.sk li { gap: 6px; flex-wrap: wrap; }
+.skst { font-size: .85rem; white-space: nowrap; }
+.skstatus { font-size: 1.05rem; margin: 12px 0; }
+.clue.skull { border-color: var(--bad); background: #ff5d7322; }
