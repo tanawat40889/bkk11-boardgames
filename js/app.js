@@ -1165,7 +1165,8 @@ function skBoard() {
 function skMine() {
   const v = S.priv;
   if (!v.hand.f && !v.hand.s) return '<p class="alert center">คุณตกรอบแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>';
-  const hf = v.hand.f - v.stack.filter(d => d === 'f').length, hs = v.hand.s - v.stack.filter(d => d === 's').length;
+  // After a loss is settled, hand shrinks while this round's discs are still on the table.
+  const hf = Math.max(0, v.hand.f - v.stack.filter(d => d === 'f').length), hs = Math.max(0, v.hand.s - v.stack.filter(d => d === 's').length);
   return `<section class="panel"><h2>แผ่นของคุณ <span class="muted small">(อย่าให้ใครเห็น)</span></h2>
     <p>ในมือ: ${'🌹'.repeat(hf)}${'💀'.repeat(hs)}${!hf && !hs ? '<span class="muted">— หมดแล้ว</span>' : ''}</p>
     <p>บนโต๊ะ (ล่าง → บน): ${v.stack.length ? v.stack.map(DI).join(' ') : '<span class="muted">—</span>'}</p></section>`;
@@ -1320,7 +1321,7 @@ function joCheckV() {
   if (v.guesser) return `${joHead()}<p class="center big-t">🙈 คนใบ้กำลังตรวจคำใบ้ซ้ำ…</p><p class="center muted">อย่าแอบดูจอคนอื่นนะ</p>`;
   return `${joHead()}${joWord()}
     <section class="panel"><h2>ตรวจคำใบ้</h2><p class="muted small">ระบบลบคำซ้ำ/คำที่เหมือนคำลับให้แล้ว · แตะเพื่อลบหรือคืนคำ (เช่น คำพ้องความหมาย หรือคำตระกูลเดียวกัน)</p>
-      <div class="clues">${v.review.map(x => `<button class="clue ${x.out ? 'out' : ''}" data-act="jstrike" data-id="${esc(x.id)}"><b>${esc(x.text)}</b><small>${esc(pn(x.sid))}${x.auto ? ` · ${JWHY[x.auto]}` : ''}</small></button>`).join('')}</div>
+      <div class="clues">${(v.review || []).map(x => `<button class="clue ${x.out ? 'out' : ''}" data-act="jstrike" data-id="${esc(x.id)}"><b>${esc(x.text)}</b><small>${esc(pn(x.sid))}${x.auto ? ` · ${JWHY[x.auto]}` : ''}</small></button>`).join('')}</div>
     </section>
     ${btn('jdone', '✔ ตรวจเสร็จ ส่งให้คนทาย', 'primary wide big')}`;
 }

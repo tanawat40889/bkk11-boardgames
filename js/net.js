@@ -6,6 +6,7 @@ const BROKERS = [
   'wss://test.mosquitto.org:8081',
 ];
 const ROOT = 'bkk11bg/v1/';
+const NO_NET = 'เชื่อมต่อเซิร์ฟเวอร์เกมไม่ได้ — Wi-Fi นี้อาจบล็อกไว้ ลองปิด Wi-Fi แล้วใช้ 4G/5G';
 
 function open(url) {
   return new Promise((res, rej) => {
@@ -69,17 +70,16 @@ export class Room {
 const free = v => !v || v.closed;
 
 export async function create(gen) {
-  let last;
   for (let i = 0; i < BROKERS.length; i++) {
     let c;
-    try { c = await open(BROKERS[i]); } catch (e) { last = e; continue; }
+    try { c = await open(BROKERS[i]); } catch { continue; }
     for (let k = 0; k < 5; k++) {
       const room = gen();
       if (free(await peek(c, room, 1200))) return new Room(c, room, i);
     }
     c.end(true);
   }
-  throw last || new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+  throw new Error(NO_NET);
 }
 
 // Find which broker holds the room (host's retained /pub is the marker).
@@ -94,7 +94,7 @@ export async function join(room, pref) {
     if (!free(v)) return { room: new Room(c, room, i), pub: v };
     c.end(true);
   }
-  if (!reached) throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ตรวจสอบอินเทอร์เน็ต');
+  if (!reached) throw new Error(NO_NET);
   return null;
 }
 
@@ -103,5 +103,5 @@ export async function reopen(room, bi) {
   for (const i of order) {
     try { return new Room(await open(BROKERS[i]), room, i); } catch {}
   }
-  throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+  throw new Error(NO_NET);
 }
