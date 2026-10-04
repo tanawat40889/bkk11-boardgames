@@ -161,6 +161,7 @@ async function scenario(game, n) {
     if (HOLD && ticks >= HOLD) {
       // ?show=3 keeps only the first 3 screens at phone size (handy for screenshots)
       const show = +Q.get('show') || 0;
+      if (Q.has('peek')) wins.forEach(w => w.document.querySelector('[data-act=show]')?.click());   // flip the secret cards open
       if (show) { document.querySelectorAll('h3, table').forEach(e => (e.style.display = 'none')); [...box.children].forEach((f, i) => { f.style.cssText = i < show ? 'width:375px;height:780px' : 'display:none'; }); }
       await new Promise(() => {});
     }

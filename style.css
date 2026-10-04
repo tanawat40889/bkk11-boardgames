@@ -287,3 +287,135 @@ button.mat.can { cursor: pointer; animation: matpulse 1.2s infinite; }
 .secret.open { box-shadow: 0 8px 24px #0006; }
 .secret.flipin { animation: cardflip .45s ease-out; }
 @keyframes cardflip { from { transform: rotateY(90deg); } to { transform: none; } }
+
+/* ═════════ visual pass 2: tokens, cards and tables for every game ═════════ */
+/* player badges */
+.av { --s: 34px; flex: none; width: var(--s); height: var(--s); border-radius: 50%; display: inline-grid; place-items: center; font-weight: 700; font-size: calc(var(--s) * .46); color: #fff; line-height: 1;
+  background: radial-gradient(circle at 35% 30%, hsl(var(--ph) 75% 66%), hsl(var(--ph) 65% 40%)); box-shadow: 0 2px 0 hsl(var(--ph) 50% 24%), 0 4px 8px #0005; text-shadow: 0 1px 1px #0006; }
+.av.sm { --s: 24px; }
+.players li { gap: 12px; } .players li .av { outline: 2px solid var(--ok); outline-offset: 2px; }
+.players li.off .av { outline-color: #555; filter: grayscale(.8); opacity: .6; }
+.players .dot { display: none; }
+.who { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 4px; border-radius: 99px; background: var(--bg2); border: 1px solid var(--line); font-weight: 600; }
+.chips.team { justify-content: center; margin: 10px 0; }
+.vmark { font-weight: 700; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; } .vmark.yes { background: #1fa971; } .vmark.no { background: #d93a52; }
+.vcount { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 50%; background: var(--line); font-weight: 700; }
+
+/* general depth */
+.panel { box-shadow: 0 6px 18px #0004; }
+.btn { box-shadow: 0 2px 0 #0006; } .btn.primary { box-shadow: 0 3px 0 #4a36b8, 0 8px 18px #6a4ff055; } .btn.primary:active { box-shadow: 0 1px 0 #4a36b8; }
+.btn.danger { box-shadow: 0 3px 0 #a52e42; }
+.pick { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(180deg, #2a2548, var(--bg2)); box-shadow: 0 3px 0 #0006; border-radius: 14px; min-height: 58px; }
+.pick:active { transform: translateY(2px); box-shadow: 0 1px 0 #0006; }
+.pick.on { background: linear-gradient(180deg, #a48dff, #6a4ff0); box-shadow: 0 3px 0 #4a36b8, 0 0 0 3px #8b6cff55; }
+.ph { text-shadow: 0 2px 12px #8b6cff66; }
+.timer.big { display: block; width: max-content; margin: 10px auto; padding: 2px 28px; border-radius: 99px; background: #0005; border: 2px solid var(--line); box-shadow: inset 0 2px 8px #0008; }
+.timer.big.low { border-color: var(--accent2); box-shadow: inset 0 2px 8px #0008, 0 0 18px #ffb84d55; }
+.banner { position: relative; overflow: hidden; box-shadow: 0 8px 24px #0005; }
+.banner::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: radial-gradient(circle at 12% 20%, #fff3 0 3px, transparent 4px), radial-gradient(circle at 80% 15%, #fff3 0 4px, transparent 5px), radial-gradient(circle at 65% 80%, #fff2 0 3px, transparent 4px), radial-gradient(circle at 25% 75%, #fff2 0 5px, transparent 6px), radial-gradient(circle at 92% 60%, #fff2 0 3px, transparent 4px); }
+
+/* the secret card is a real playing card */
+.secret { max-width: 290px; margin-left: auto; margin-right: auto; border-radius: 22px; }
+.secret.closed { aspect-ratio: 5 / 7; min-height: 0; border: 0; padding: 14px; gap: 12px; color: #d9d2ff;
+  background: radial-gradient(circle at 50% 42%, #5540c7 0 26%, transparent 27%), repeating-linear-gradient(45deg, #3a2f86 0 10px, #33297a 10px 20px);
+  box-shadow: inset 0 0 0 5px #1b1830, inset 0 0 0 8px #8b6cff, inset 0 0 0 11px #1b1830, 0 10px 24px #0007; }
+.secret.closed .back { font-size: 1rem; margin-top: 18%; } .secret.closed .back i { font-style: normal; font-size: 4.2rem; filter: drop-shadow(0 3px 6px #0009); }
+.secret.closed .hint { color: #fff; font-weight: 600; margin-top: auto; } .secret.closed .muted { color: #c9c2f3; margin-bottom: 6%; }
+.secret.open { min-height: 380px; border: 0; padding: 22px 16px 16px; background: linear-gradient(170deg, #fdfbff, #e7e1fb); color: #1e1838;
+  box-shadow: inset 0 0 0 6px #fff, inset 0 0 0 9px var(--frame, #8b6cff), 0 10px 24px #0007; }
+.secret.open:has(.t-wolf) { --frame: #e0445c; } .secret.open:has(.t-village) { --frame: #2f8fe0; } .secret.open:has(.t-tanner) { --frame: #b98a4a; }
+.secret.open .rd, .secret.open .hint, .secret.open .muted, .secret.open .small { color: #5d567e; }
+.secret.open .team { background: var(--frame, #8b6cff) !important; color: #fff !important; font-weight: 600; }
+.secret.open .remo { font-size: 5rem; filter: drop-shadow(0 4px 6px #0003); }
+.secret.open .rn { color: #1e1838; } .secret.open .rn.word { color: #6a4ff0; font-size: 2.4rem; }
+.secret.open .spy .rn { color: #d93a52; }
+.secret.open .info { background: #fff; color: #1e1838; border-color: var(--frame, #8b6cff); text-align: left; }
+.secret.open .know { color: #1e1838; } .secret.open .klabel { color: #1e1838; }
+
+/* mini role cards (Werewolf deck / results) */
+.minis { display: flex; flex-wrap: wrap; gap: 8px; }
+.mini { --c: #2f8fe0; position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 68px; height: 92px; padding: 4px; border-radius: 10px; text-align: center;
+  background: linear-gradient(170deg, #fdfbff, #e7e1fb); color: #1e1838; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px var(--c), 0 4px 8px #0005; }
+.mini i { font-style: normal; font-size: 1.9rem; line-height: 1; } .mini b { font-size: .62rem; line-height: 1.15; font-weight: 600; }
+.mini em { position: absolute; top: -6px; right: -6px; font-style: normal; font-size: .72rem; font-weight: 700; background: var(--accent2); color: #231500; border-radius: 99px; padding: 1px 6px; }
+.mini.t-wolf { --c: #e0445c; } .mini.t-tanner { --c: #b98a4a; }
+.mini.sm { width: 46px; height: 58px; } .mini.sm i { font-size: 1.4rem; } .mini.sm b { font-size: .5rem; } .mini.was { opacity: .5; }
+.swap { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Werewolf night sky + face-down cards */
+.night { border-radius: 22px; padding: 18px 14px 20px; margin-top: 10px;
+  background: radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 28% 62%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 44% 30%, #fffa 50%, transparent 51%), radial-gradient(1.5px 1.5px at 63% 12%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 78% 48%, #fffa 50%, transparent 51%), radial-gradient(1.5px 1.5px at 90% 24%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 8% 78%, #fffa 50%, transparent 51%), radial-gradient(1px 1px at 86% 82%, #fff 50%, transparent 51%), linear-gradient(180deg, #0b1030, #1a1440 70%, #241a4d); box-shadow: inset 0 0 40px #0008; }
+.moon { filter: drop-shadow(0 0 18px #ffe9a8aa); }
+.pick.cc { min-height: 0; aspect-ratio: 5 / 7; flex-direction: column; padding: 6px; background: transparent; box-shadow: none; border: 0; }
+.pick.cc .cb { display: block; width: 100%; flex: 1; border-radius: 10px; background: radial-gradient(circle at 50% 50%, #5540c7 0 22%, transparent 23%), repeating-linear-gradient(45deg, #3a2f86 0 8px, #33297a 8px 16px);
+  box-shadow: inset 0 0 0 3px #1b1830, inset 0 0 0 5px #8b6cff, 0 4px 10px #0007; transition: transform .15s; }
+.pick.cc.on .cb { transform: translateY(-8px); box-shadow: inset 0 0 0 3px #1b1830, inset 0 0 0 5px var(--accent2), 0 12px 16px #0008; }
+.pick.cc.on { background: transparent; box-shadow: none; } .pick.cc small { color: var(--muted); }
+.wake { box-shadow: 0 0 18px #8b6cff66; }
+
+/* Spyfall: location postcards */
+.locs { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.loc { flex-direction: column; gap: 2px; text-align: center; padding: 8px 4px; min-height: 74px; border-radius: 12px; background: linear-gradient(180deg, #fdf6e3, #efe2bd); color: #3a2f10; border: 0; box-shadow: 0 3px 0 #b9a66a, 0 5px 10px #0004; }
+.loc span { font-size: 1.7rem; line-height: 1.1; } .loc b { font-size: .72rem; font-weight: 600; line-height: 1.15; }
+.loc.x { opacity: .3; filter: grayscale(1); } .locs.guessing .loc { box-shadow: 0 0 0 3px var(--bad), 0 5px 10px #0004; }
+.first { width: max-content; max-width: 100%; margin: 10px auto; padding: 6px 16px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); }
+@media (min-width: 700px) { .locs { grid-template-columns: repeat(4, 1fr); } }
+
+/* yes / no tokens */
+.vtoks { display: flex; gap: 18px; justify-content: center; margin: 16px 0; }
+.vtok { width: 128px; height: 128px; border-radius: 50%; border: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; font-weight: 700; color: #fff; transition: transform .12s; }
+.vtok i { font-style: normal; font-size: 2.6rem; line-height: 1; }
+.vtok.yes { background: radial-gradient(circle at 40% 30%, #5fe0a6, #17895a); box-shadow: 0 5px 0 #0e5c3c, 0 10px 18px #0006, inset 0 0 0 6px #ffffff33; }
+.vtok.no { background: radial-gradient(circle at 40% 30%, #ff8a9c, #c22843); box-shadow: 0 5px 0 #7d1629, 0 10px 18px #0006, inset 0 0 0 6px #ffffff33; }
+.vtok:active { transform: translateY(4px); } .vtok:not(.on) { opacity: .78; }
+.vtok.on { opacity: 1; outline: 4px solid var(--accent2); outline-offset: 4px; transform: scale(1.04); }
+
+/* Avalon: quest medallions and mission cards */
+.qc { background: radial-gradient(circle at 40% 30%, #3a3466, #1b1830); box-shadow: 0 3px 0 #0007, inset 0 0 0 3px #ffffff14; border-width: 3px; }
+.qc.ok { background: radial-gradient(circle at 40% 30%, #3fd898, #147a50); border-color: #9cf0c8; } .qc.bad { background: radial-gradient(circle at 40% 30%, #ff7d92, #a8213a); border-color: #ffc2cb; }
+.qc.ok small, .qc.bad small { color: #fff; } .qc.cur { animation: curpulse 1.6s infinite; }
+@keyframes curpulse { 50% { box-shadow: 0 3px 0 #0007, 0 0 0 5px #ffb84d55; } }
+.rd2 { width: 18px; height: 18px; box-shadow: inset 0 2px 3px #0008; }
+.qpick { display: flex; gap: 16px; justify-content: center; margin: 14px 0; }
+.qcard { width: 124px; aspect-ratio: 5 / 7; border-radius: 14px; border: 0; cursor: pointer; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: inherit; color: #fff; transition: transform .12s; }
+.qcard i { font-style: normal; font-size: 3rem; line-height: 1; filter: drop-shadow(0 3px 4px #0006); } .qcard b { font-size: 1.05rem; }
+.qcard.ok { background: linear-gradient(160deg, #2bbd80, #0f6b46); box-shadow: inset 0 0 0 4px #ffffff40, 0 5px 0 #0a4a30, 0 10px 18px #0006; }
+.qcard.bad { background: linear-gradient(160deg, #e8546c, #8c1a30); box-shadow: inset 0 0 0 4px #ffffff40, 0 5px 0 #5e0f1f, 0 10px 18px #0006; }
+button.qcard:active { transform: translateY(4px); }
+.qcard.sm { width: 54px; cursor: default; } .qcard.sm i { font-size: 1.5rem; }
+.qcards { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; letter-spacing: 0; margin: 12px 0; }
+.qcards .qcard:nth-child(odd) { transform: rotate(-4deg); } .qcards .qcard:nth-child(even) { transform: rotate(4deg); }
+
+/* Undercover: speaking order */
+.order { list-style: none; padding: 0; counter-reset: o; }
+.order li { counter-increment: o; display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.order li:last-child { border: 0; }
+.order li::before { content: counter(o); width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--line); font-size: .8rem; font-weight: 700; color: var(--text); }
+.order li.me::before { background: var(--accent2); color: #231500; }
+
+/* Just One: clue easels */
+.clue { background: linear-gradient(180deg, #fffdf5, #f1e9cf); color: #2b2410; border: 0; border-radius: 6px 6px 12px 12px; padding: 14px 16px 10px; min-width: 96px; position: relative;
+  box-shadow: 0 -5px 0 #c9a15a inset, 0 5px 10px #0005; }
+.clue b { font-size: 1.25rem; } .clue small { color: #7d7350; }
+.clues .clue:nth-child(3n+1) { transform: rotate(-2deg); } .clues .clue:nth-child(3n+2) { transform: rotate(1.5deg); }
+.clue.out { opacity: .45; } .clue.out b { text-decoration: line-through; text-decoration-color: #d93a52; text-decoration-thickness: 3px; }
+.clue.skull { background: #2a2638; color: #fff; }
+.jstat { padding: 4px 0; } .jstat b { font-size: 1.2rem; }
+.jin { box-shadow: inset 0 2px 6px #0006; }
+
+/* Codenames: agent cards */
+.ccell { background: linear-gradient(180deg, #f7f0dc, #e4d9b6); border: 0; box-shadow: 0 3px 0 #a89868, 0 5px 8px #0005; border-radius: 8px; min-height: 60px; position: relative; }
+.ccell:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 #a89868; }
+.ccell.hint.k-r { box-shadow: inset 0 0 0 3px #e0445c, 0 3px 0 #a89868; } .ccell.hint.k-b { box-shadow: inset 0 0 0 3px #2f8fe0, 0 3px 0 #a89868; }
+.ccell.hint.k-x { box-shadow: inset 0 0 0 4px #000, 0 3px 0 #a89868; } .ccell.hint.k-n { box-shadow: inset 0 0 0 2px #b8ad8a, 0 3px 0 #a89868; }
+.ccell.rev.k-r { background: linear-gradient(180deg, #ef5d75, #c22843); box-shadow: 0 3px 0 #7d1629; } .ccell.rev.k-b { background: linear-gradient(180deg, #53a8ee, #1f6fbd); box-shadow: 0 3px 0 #134b82; }
+.ccell.rev.k-n { background: linear-gradient(180deg, #a59b7d, #7d7458); box-shadow: 0 3px 0 #575039; } .ccell.rev.k-x { background: linear-gradient(180deg, #333, #000); box-shadow: 0 3px 0 #000; }
+.cteam { box-shadow: 0 6px 16px #0004; } .cclue { box-shadow: 0 6px 16px #0004; }
+
+/* Werewolf result table */
+.res td { vertical-align: middle; }
+.secret.closed { background: repeating-linear-gradient(45deg, #3a2f86 0 10px, #33297a 10px 20px); }
+.secret.closed .back { margin-top: 14%; width: 48%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #7a63ee, #4a36b8); box-shadow: inset 0 0 0 4px #ffffff33, 0 4px 12px #0006; }
+.secret.open:has(.spy) { --frame: #e0445c; } .secret.open:has(.spyloc) { --frame: #1fa971; }
+.cteam li { display: flex; align-items: center; gap: 8px; padding: 5px 0; } .cteam .cm { margin-left: auto; }

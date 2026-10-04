@@ -1023,10 +1023,15 @@ function view() {
   }
 }
 
+// Coloured initial badge — every player keeps the same colour in every game.
+const hueOf = sid => Math.round((Math.max(0, pl().findIndex(x => x.sid === sid)) * 360) / Math.max(1, pl().length));
+const av = (sid, cls = '') => `<span class="av ${cls}" style="--ph:${hueOf(sid)}">${esc([...(pn(sid) || '?')][0])}</span>`;
+const who = sid => `<span class="who">${av(sid, 'sm')}${esc(pn(sid))}</span>`;
+
 function players(opts = {}) {
   const p = S.pub;
   return `<ul class="players">${pl().map(x => `<li class="${x.on ? '' : 'off'}">
-      <span class="dot"></span><span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}${x.sid === p.host ? ' 👑' : ''}</span>
+      ${av(x.sid)}<span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}${x.sid === p.host ? ' 👑' : ''}</span>
       ${opts.ready?.includes(x.sid) ? '<span class="tag ok">พร้อม</span>' : ''}
       ${opts.voted?.includes(x.sid) ? '<span class="tag ok">โหวตแล้ว</span>' : ''}
       ${opts.kick && x.sid !== me() ? `<button class="x" data-act="kick" data-sid="${x.sid}" aria-label="เอาออก">✕</button>` : ''}
@@ -1039,7 +1044,7 @@ const stepper = (k, label, val, unit) => `<div class="stepper"><span>${label}</s
 function deckChips(deck) {
   const c = {};
   deck.forEach(r => (c[r] = (c[r] || 0) + 1));
-  return `<div class="chips">${WW.UI_ORDER.filter(r => c[r]).map(r => `<span class="chip t-${ROLE[r].t}">${ROLE[r].e} ${ROLE[r].n}${c[r] > 1 ? ` ×${c[r]}` : ''}</span>`).join('')}</div>`;
+  return `<div class="minis">${WW.UI_ORDER.filter(r => c[r]).map(r => `<span class="mini t-${ROLE[r].t}"><i>${ROLE[r].e}</i><b>${ROLE[r].n}</b>${c[r] > 1 ? `<em>×${c[r]}</em>` : ''}</span>`).join('')}</div>`;
 }
 
 const playersTxt = G => `${G.min}–${G.max} คน`;
@@ -1144,7 +1149,7 @@ function lobby() {
 function secret(inner, label) {
   return S.reveal
     ? `<button class="secret open ${S.flip ? 'flipin' : ''}" data-act="hide">${inner}<span class="hint">แตะเพื่อซ่อน</span></button>`
-    : `<button class="secret closed" data-act="show"><span class="back">🂠</span><span class="hint">${label}</span><span class="muted small">อย่าให้คนอื่นเห็นจอ</span></button>`;
+    : `<button class="secret closed" data-act="show"><span class="back"><i>${GAMES[S.pub.game].e}</i></span><span class="hint">${label}</span><span class="muted small">อย่าให้คนอื่นเห็นจอ</span></button>`;
 }
 
 const roleCard = r => `<span class="role t-${ROLE[r].t}"><span class="remo">${ROLE[r].e}</span><span class="rn">${ROLE[r].n}</span>
@@ -1169,7 +1174,7 @@ const phaseKnow = () => {
 function actUI(kind) {
   const others = pl().filter(x => x.sid !== me());
   const pbtn = x => { const k = 'p:' + x.sid; return `<button class="pick ${S.sel.includes(k) ? 'on' : ''}" data-act="sel" data-v="${k}">${esc(x.name)}</button>`; };
-  const cbtn = i => { const k = 'c:' + i; return `<button class="pick cc ${S.sel.includes(k) ? 'on' : ''}" data-act="sel" data-v="${k}">🂠<small>กลาง ${i + 1}</small></button>`; };
+  const cbtn = i => { const k = 'c:' + i; return `<button class="pick cc ${S.sel.includes(k) ? 'on' : ''}" data-act="sel" data-v="${k}"><i class="cb"></i><small>กลาง ${i + 1}</small></button>`; };
   const centers = `<div class="picks c3">${[0, 1, 2].map(cbtn).join('')}</div>`;
   const people = `<div class="picks">${others.map(pbtn).join('')}</div>`;
   const q = {
@@ -1193,7 +1198,7 @@ function actPayload(kind) {
 
 function decoy() {
   return `<p class="ask">😴 หลับตาไว้… แต่แตะการ์ดเล่นไปด้วย</p>
-    <div class="picks c3">${[0, 1, 2].map(i => `<button class="pick cc ${S.decoy === i ? 'on' : ''}" data-act="decoy" data-i="${i}">🂠<small>การ์ด ${i + 1}</small></button>`).join('')}</div>
+    <div class="picks c3">${[0, 1, 2].map(i => `<button class="pick cc ${S.decoy === i ? 'on' : ''}" data-act="decoy" data-i="${i}"><i class="cb"></i><small>การ์ด ${i + 1}</small></button>`).join('')}</div>
     <p class="muted small center">ทุกคนแตะจอเหมือนกัน คนอื่นจะได้ไม่รู้ว่าใครตื่นอยู่</p>`;
 }
 
@@ -1247,7 +1252,7 @@ function resultV() {
     <section class="panel"><h2>เฉลยการ์ด</h2>
       <table class="res"><thead><tr><th>ผู้เล่น</th><th>เริ่ม → จบ</th><th>โหวต</th></tr></thead><tbody>
       ${R.rows.map(r => `<tr class="${r.win ? 'w' : ''}"><td>${r.dead ? '💀 ' : ''}${esc(pn(r.sid))}${r.win ? ' 🏆' : ''}<div class="muted small">→ ${r.to ? esc(pn(r.to)) : '—'}</div></td>
-        <td>${ROLE[r.init].e}${r.init !== r.fin ? ` → ${ROLE[r.fin].e}` : ''} <span class="small">${ROLE[r.fin].n}</span></td><td class="c">${r.votes}</td></tr>`).join('')}
+        <td><span class="swap">${r.init !== r.fin ? `<span class="mini sm t-${ROLE[r.init].t} was"><i>${ROLE[r.init].e}</i></span>→` : ''}<span class="mini sm t-${ROLE[r.fin].t}"><i>${ROLE[r.fin].e}</i><b>${ROLE[r.fin].n}</b></span></span></td><td class="c"><span class="vcount">${r.votes}</span></td></tr>`).join('')}
       </tbody></table>
       <p class="muted small">กลาง: ${R.center.map((c, i) => `${i + 1}) ${c.init !== c.fin ? `${ROLE[c.init].e}→` : ''}${RL(c.fin)}`).join(' · ')}</p>
     </section>
@@ -1256,7 +1261,7 @@ function resultV() {
 }
 
 function locGrid(clickable) {
-  return `<div class="locs ${S.guess ? 'guessing' : ''}">${SF.LOCATIONS.map((l, i) => `<button class="loc ${S.crossed.has(i) ? 'x' : ''}" data-act="${clickable}" data-i="${i}"><span>${l.e}</span>${esc(l.n)}</button>`).join('')}</div>`;
+  return `<div class="locs ${S.guess ? 'guessing' : ''}">${SF.LOCATIONS.map((l, i) => `<button class="loc ${S.crossed.has(i) ? 'x' : ''}" data-act="${clickable}" data-i="${i}"><span>${l.e}</span><b>${esc(l.n)}</b></button>`).join('')}</div>`;
 }
 
 function playV() {
@@ -1335,7 +1340,7 @@ function miEndV() {
 const CT = CN.TEAM;
 function cnTeamV() {
   const c = S.pub.cn, mine = c.team[me()], host = isHostView(), errs = CN.validTeams(pl().map(x => x.sid), c);
-  const col = t => `<div class="cteam t-${t}"><h2>${CT[t]}</h2><ul>${pl().filter(x => c.team[x.sid] === t).map(x => `<li>${c.master[t] === x.sid ? '🕶️ ' : ''}${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</li>`).join('') || '<li class="muted">— ว่าง —</li>'}</ul></div>`;
+  const col = t => `<div class="cteam t-${t}"><h2>${CT[t]}</h2><ul>${pl().filter(x => c.team[x.sid] === t).map(x => `<li>${av(x.sid, 'sm')}<span>${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</span>${c.master[t] === x.sid ? '<span class="cm">🕶️</span>' : ''}</li>`).join('') || '<li class="muted">— ว่าง —</li>'}</ul></div>`;
   return `<h1 class="ph">🗝️ แบ่งทีม</h1><p class="center muted small">🕶️ = หัวหน้าสายลับ (เห็นเฉลย เป็นคนใบ้)</p>
     <div class="cteams">${col('r')}${col('b')}</div>
     <div class="row">${btn('cteam', `ย้ายไปทีม${CT[CN.other(mine)]}`, 'ghost', { team: CN.other(mine) })}${btn('cmaster', '🕶️ ฉันเป็นหัวหน้า', c.master[mine] === me() ? 'primary' : 'ghost', {}, c.master[mine] === me())}</div>
@@ -1558,7 +1563,7 @@ function inDiscV() {
 function inV1V() {
   const p = S.pub, v = S.priv, g = pn(p.ins.guesser), voted = p.voted || [];
   return `<h1 class="ph">🗳️ โหวตรอบแรก</h1><p class="center big-t">${esc(g)} คืออินไซเดอร์หรือไม่?</p>
-    <div class="row">${btn('iv1', '✅ ใช่', v.v1 === true ? 'primary' : '', { yes: 1 })}${btn('iv1', '❌ ไม่ใช่', v.v1 === false ? 'danger' : '', { yes: 0 })}</div>
+    <div class="vtoks"><button class="vtok yes ${v.v1 === true ? 'on' : ''}" data-act="iv1" data-yes="1"><i>✔</i>ใช่</button><button class="vtok no ${v.v1 === false ? 'on' : ''}" data-act="iv1" data-yes="0"><i>✘</i>ไม่ใช่</button></div>
     <p class="center muted small">ถ้าเกินครึ่งตอบว่าใช่ จะเปิดเผยทันที · ถ้าไม่ ไปโหวตรอบสอง</p>
     <section class="panel"><h2>โหวตแล้ว ${voted.length}/${pl().length}</h2>${players({ voted })}</section>`;
 }
@@ -1668,7 +1673,7 @@ function avBoard() {
 }
 
 const avMine = () => secret(avRoleCard(), 'แตะเพื่อดูบทบาทของคุณ');
-const avTeam = t => `<div class="chips">${t.map(s => `<span class="chip">${esc(pn(s))}</span>`).join('')}</div>`;
+const avTeam = t => `<div class="chips team">${t.map(who).join('')}</div>`;
 
 function avRolesV() {
   const p = S.pub, v = S.priv, n = pl().length, rd = p.ready || [];
@@ -1694,7 +1699,7 @@ function avVoteV() {
   const a = S.pub.av, v = S.priv, voted = S.pub.voted || [];
   return `${avBoard()}
     <h1 class="ph">🗳️ อนุมัติทีมนี้ไหม?</h1>${avTeam(a.team)}
-    <div class="row">${btn('avote', '✅ อนุมัติ', v.vote === true ? 'primary' : '', { ok: 1 })}${btn('avote', '❌ ไม่อนุมัติ', v.vote === false ? 'danger' : '', { ok: 0 })}</div>
+    <div class="vtoks"><button class="vtok yes ${v.vote === true ? 'on' : ''}" data-act="avote" data-ok="1"><i>✔</i>อนุมัติ</button><button class="vtok no ${v.vote === false ? 'on' : ''}" data-act="avote" data-ok="0"><i>✘</i>ไม่อนุมัติ</button></div>
     <p class="center muted small">ผลโหวตของทุกคนจะเปิดพร้อมกัน · เปลี่ยนใจได้จนกว่าจะครบ</p>
     <section class="panel"><h2>โหวตแล้ว ${voted.length}/${pl().length}</h2>${players({ voted })}</section>
     ${avMine()}`;
@@ -1706,7 +1711,7 @@ function avResV() {
     <div class="banner ${h.ok ? 'win' : 'lose'}"><div class="bt">${h.ok ? '✅ ทีมผ่าน' : '❌ ทีมไม่ผ่าน'}</div>
       <div class="small">${h.ok ? 'ทีมนี้ออกไปทำภารกิจ' : 'หัวหน้าเปลี่ยนเป็นคนถัดไป'}</div></div>
     <section class="panel"><h2>ทีม</h2>${avTeam(h.team)}</section>
-    <section class="panel"><h2>ใครโหวตอะไร</h2><ul class="players">${pl().map(x => `<li><span class="pname">${esc(x.name)}</span><span>${h.votes[x.sid] ? '✅' : '❌'}</span></li>`).join('')}</ul></section>
+    <section class="panel"><h2>ใครโหวตอะไร</h2><ul class="players">${pl().map(x => `<li>${av(x.sid)}<span class="pname">${esc(x.name)}</span><span class="vmark ${h.votes[x.sid] ? 'yes' : 'no'}">${h.votes[x.sid] ? '✔' : '✘'}</span></li>`).join('')}</ul></section>
     ${isHostView() ? btn('anext', 'ต่อไป ▶', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
 }
 
@@ -1716,17 +1721,17 @@ function avQuestV() {
   if (onTeam) body = v.played
     ? `<p class="center ok-text">✔ ส่งการ์ดแล้ว รอคนอื่น (${S.pub.played}/${a.team.length})</p>`
     : `<p class="ask center">เลือกการ์ดภารกิจ (ไม่มีใครรู้ว่าใครส่งอะไร)</p>
-       <div class="row">${btn('acard', '✅ สำเร็จ', 'primary big', { ok: 1 })}${evil ? btn('acard', '❌ ล้มเหลว', 'danger big', { ok: 0 }) : ''}</div>
+       <div class="qpick"><button class="qcard ok" data-act="acard" data-ok="1"><i>🏆</i><b>สำเร็จ</b></button>${evil ? '<button class="qcard bad" data-act="acard" data-ok="0"><i>💥</i><b>ล้มเหลว</b></button>' : ''}</div>
        ${evil ? '' : '<p class="muted small center">ฝ่ายดีส่งได้แค่ ✅ เท่านั้น</p>'}`;
   return `${avBoard()}<h1 class="ph">⚔️ ภารกิจที่ ${a.q + 1}</h1>${avTeam(a.team)}${body}${avMine()}`;
 }
 
 function avQResV() {
   const a = S.pub.av, Q = a.quests[a.q - 1];
-  const cards = [...Array(Q.size - Q.fails).fill('✅'), ...Array(Q.fails).fill('❌')];
+  const cards = [...Array(Q.size - Q.fails).fill('<span class="qcard sm ok"><i>🏆</i></span>'), ...Array(Q.fails).fill('<span class="qcard sm bad"><i>💥</i></span>')];
   return `${avBoard()}
     <div class="banner ${Q.res === 'S' ? 'win' : 'lose'}"><div class="small">ภารกิจที่ ${a.q}</div><div class="bt">${Q.res === 'S' ? '✅ สำเร็จ' : '❌ ล้มเหลว'}</div>
-      <div class="qcards">${cards.join(' ')}</div><div class="small">มีการ์ด ❌ ${Q.fails} ใบ${Q.need > 1 ? ' (ภารกิจนี้ต้อง ❌ 2 ใบถึงล้ม)' : ''}</div></div>
+      <div class="qcards">${cards.join('')}</div><div class="small">มีการ์ด ❌ ${Q.fails} ใบ${Q.need > 1 ? ' (ภารกิจนี้ต้อง ❌ 2 ใบถึงล้ม)' : ''}</div></div>
     ${isHostView() ? btn('anext', 'ต่อไป ▶', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
 }
 
@@ -1784,7 +1789,7 @@ function ucDescV() {
   return `<h1 class="ph">🎤 รอบที่ ${p.turn}</h1>
     ${deadNote()}
     <p class="center">พูดบรรยายคำของตัวเองทีละคน คนละ 1 ประโยค<br><span class="muted small">ห้ามพูดคำนั้นตรงๆ · Mr. White จะไม่ได้พูดคนแรก</span></p>
-    <section class="panel"><h2>ลำดับการพูด</h2><ol class="order">${p.order.map(s => `<li${s === me() ? ' class="me"' : ''}>${esc(pn(s))}${s === me() ? ' <em>(คุณ)</em>' : ''}</li>`).join('')}</ol></section>
+    <section class="panel"><h2>ลำดับการพูด</h2><ol class="order">${p.order.map(s => `<li${s === me() ? ' class="me"' : ''}>${av(s, 'sm')}${esc(pn(s))}${s === me() ? ' <em>(คุณ)</em>' : ''}</li>`).join('')}</ol></section>
     ${secret(wordCard(v), 'แตะเพื่อดูคำของคุณอีกครั้ง')}
     <section class="panel"><h2>ในเกมนี้มี</h2>${ucInfo()}</section>
     ${ucOutList()}
@@ -1924,6 +1929,8 @@ function render() {
   const focus = document.activeElement?.id, pos = focus && document.activeElement.selectionStart;
   app.innerHTML = view();
   if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
+  // Player buttons get that player's coloured badge.
+  app.querySelectorAll('.pick[data-sid], .pick[data-v^="p:"]').forEach(b => b.insertAdjacentHTML('afterbegin', av(b.dataset.sid || b.dataset.v.slice(2), 'sm')));
   const q = document.getElementById('qr');
   if (q && window.QRCode) new QRCode(q, { text: q.dataset.link, width: 200, height: 200, colorDark: '#111', colorLight: '#fff' });
   tickTimers();
