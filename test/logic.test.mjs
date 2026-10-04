@@ -7,6 +7,9 @@ import * as IN from '../js/insider.js';
 import * as JO from '../js/justone.js';
 import { WORDS } from '../js/words.js';
 import * as SK from '../js/skull.js';
+import * as MI from '../js/mind.js';
+import * as CN from '../js/codenames.js';
+import * as SC from '../js/scout.js';
 
 let pass = 0;
 const t = (name, fn) => { fn(); pass++; console.log('✓', name); };
@@ -526,6 +529,197 @@ t('skull: 2 points wins; elimination; last standing wins; starter rules', () => 
   SK.bid(h, 's1', 2); // s1 own skull, loses last disc
   SK.settle(h, 's');
   assert.equal(h.winner, 's2', 'last player standing');
+});
+
+t('mind: deal sizes, unique cards, sorted; level/life tables', () => {
+  for (let n = MI.MIN; n <= MI.MAX; n++) {
+    const g = MI.newGame(sids(n));
+    assert.equal(g.level, 1); assert.equal(g.lives, Math.min(n, 4)); assert.equal(g.stars, 1);
+    while (g.level < g.max) { for (const s of g.sids) g.hands[s] = []; MI.nextLevel(g); }
+    const all = g.sids.flatMap(s => g.hands[s]);
+    assert.equal(all.length, n * g.max); assert.equal(new Set(all).size, all.length);
+    for (const s of g.sids) assert.deepEqual(g.hands[s], [...g.hands[s]].sort((a, b) => a - b));
+  }
+  assert.equal(MI.levelsFor(2), 12); assert.equal(MI.levelsFor(3), 10); assert.equal(MI.levelsFor(4), 8);
+});
+
+t('mind: correct play, mistake burns lower cards & costs a life, lose at 0', () => {
+  const g = MI.newGame(['a', 'b', 'c']);
+  g.hands = { a: [5, 40], b: [10, 20], c: [30] };
+  assert.deepEqual(MI.play(g, 'a').burned, []);
+  assert.equal(g.lives, 3);
+  const e = MI.play(g, 'c');
+  assert.deepEqual(e.burned, [{ sid: 'b', card: 10 }, { sid: 'b', card: 20 }]);
+  assert.equal(g.lives, 2); assert.deepEqual(g.hands.b, []);
+  assert.equal(MI.play(g, 'b'), null, 'empty hand');
+  MI.play(g, 'a'); assert.ok(MI.cleared(g));
+  const h = MI.newGame(['a', 'b']); h.lives = 1; h.hands = { a: [50], b: [3] };
+  MI.play(h, 'a'); assert.equal(h.over, 'lose');
+});
+
+t('mind: shuriken needs everyone holding cards; rewards; win', () => {
+  const g = MI.newGame(['a', 'b', 'c']);
+  g.hands = { a: [5, 40], b: [10], c: [] };
+  assert.ok(MI.propose(g, 'a')); assert.equal(g.stars, 1);
+  assert.equal(MI.propose(g, 'b'), false, 'one proposal at a time');
+  assert.ok(MI.agree(g, 'b'));
+  assert.equal(g.stars, 0); assert.deepEqual(g.hands, { a: [40], b: [], c: [] }); assert.equal(g.prop, null);
+  assert.equal(MI.propose(g, 'a'), false, 'no stars left');
+  MI.play(g, 'a');
+  g.level = 2; assert.equal(MI.nextLevel(g), 'star'); assert.equal(g.stars, 1); assert.equal(g.level, 3);
+  for (const s of g.sids) g.hands[s] = [];
+  assert.equal(MI.nextLevel(g), 'life'); assert.equal(g.lives, 4);
+  for (const s of g.sids) g.hands[s] = [];
+  g.level = g.max; MI.nextLevel(g); assert.equal(g.over, 'win');
+  const d = MI.newGame(['a', 'b']); d.hands = { a: [1], b: [2] }; MI.propose(d, 'a'); MI.decline(d, 'b'); assert.equal(d.prop, null); assert.equal(d.stars, 1);
+});
+
+t('codenames: pool, teams, key distribution', () => {
+  assert.ok(CN.POOL.length > CN.RECENT + 25, 'pool ' + CN.POOL.length);
+  for (let n = 4; n <= 10; n++) {
+    const t0 = CN.autoTeams(sids(n));
+    assert.deepEqual(CN.validTeams(sids(n), t0), []);
+    const g = CN.newGame(sids(n), t0);
+    assert.equal(new Set(g.words).size, 25);
+    const c = k => g.key.filter(x => x === k).length;
+    assert.equal(c(g.first), 9); assert.equal(c(CN.other(g.first)), 8); assert.equal(c('n'), 7); assert.equal(c('x'), 1);
+    assert.equal(g.turn, g.first);
+  }
+  assert.ok(CN.validTeams(['a', 'b', 'c', 'd'], { team: { a: 'r', b: 'r', c: 'r', d: 'b' }, master: { r: 'a', b: 'd' } }).length);
+  assert.ok(CN.validTeams(['a', 'b', 'c', 'd'], { team: { a: 'r', b: 'r', c: 'b', d: 'b' }, master: { r: 'a', b: 'a' } }).length);
+});
+
+function cnFixed() {
+  const g = CN.newGame(['a', 'b', 'c', 'd'], { team: { a: 'r', b: 'r', c: 'b', d: 'b' }, master: { r: 'a', b: 'c' } });
+  g.first = g.turn = 'r';
+  g.key = [...Array(9).fill('r'), ...Array(8).fill('b'), ...Array(7).fill('n'), 'x'];
+  return g;
+}
+t('codenames: clue rules, guessing, turn changes', () => {
+  const g = cnFixed();
+  assert.equal(CN.guess(g, 'b', 0), null, 'no clue yet');
+  assert.equal(CN.giveClue(g, 'b', 'ทดสอบ', 2), false, 'only spymaster');
+  assert.equal(CN.giveClue(g, 'a', g.words[3], 2), false, 'cannot use a board word');
+  assert.ok(CN.giveClue(g, 'a', 'ทดสอบคำใบ้', 1));
+  assert.equal(CN.guess(g, 'a', 0), null, 'spymaster cannot guess');
+  assert.equal(CN.guess(g, 'd', 0), null, 'other team cannot guess');
+  assert.equal(CN.guess(g, 'b', 0), 'r'); assert.equal(g.turn, 'r');
+  assert.equal(CN.guess(g, 'b', 0), null, 'already revealed');
+  assert.equal(CN.guess(g, 'b', 1), 'r'); assert.equal(g.turn, 'b', 'n+1 guesses then turn ends');
+  CN.giveClue(g, 'c', 'ใบ้สอง', 3);
+  assert.equal(CN.guess(g, 'd', 20), 'n'); assert.equal(g.turn, 'r', 'neutral ends turn');
+  CN.giveClue(g, 'a', 'ใบ้สาม', 2);
+  assert.equal(CN.guess(g, 'b', 9), 'b'); assert.equal(g.turn, 'b', 'opponent word ends turn');
+  CN.giveClue(g, 'c', 'ใบ้สี่', 1); assert.ok(CN.pass(g, 'd')); assert.equal(g.turn, 'r');
+});
+t('codenames: assassin, finishing all words, giving the opponent their last word', () => {
+  let g = cnFixed(); CN.giveClue(g, 'a', 'ใบ้', 1); CN.guess(g, 'b', 24);
+  assert.equal(g.winner, 'b'); assert.equal(g.why, 'assassin');
+  g = cnFixed(); for (let i = 0; i < 8; i++) g.rev[i] = 'r';
+  CN.giveClue(g, 'a', 'ใบ้', 1); CN.guess(g, 'b', 8); assert.equal(g.winner, 'r');
+  g = cnFixed(); for (let i = 9; i < 16; i++) g.rev[i] = 'b';
+  CN.giveClue(g, 'a', 'ใบ้', 1); CN.guess(g, 'b', 16); assert.equal(g.winner, 'b', 'revealing their last word hands them the win');
+  g = cnFixed(); CN.giveClue(g, 'a', 'ไม่จำกัด', 0);
+  for (let i = 0; i < 5; i++) CN.guess(g, 'b', i); assert.equal(g.turn, 'r', '0 = unlimited guesses');
+});
+
+t('scout: deck sizes and hand sizes', () => {
+  assert.equal(SC.deck(3).length, 36); assert.equal(SC.deck(4).length, 44); assert.equal(SC.deck(5).length, 45);
+  for (const n of [3, 4, 5]) {
+    const g = SC.newGame(sids(n));
+    const all = g.sids.flatMap(s => g.hands[s]);
+    assert.equal(all.length, n * SC.handSize(n));
+    assert.equal(new Set(all.map(c => [...c].sort((a, b) => a - b).join('-'))).size, all.length, 'no duplicate cards');
+    assert.equal(g.rounds, n);
+  }
+});
+
+t('scout: classify & strength order', () => {
+  const C = v => SC.classify(v.map(x => [x, 0]));
+  assert.equal(C([3, 5]), null); assert.equal(C([3, 4, 6]), null); assert.equal(C([1, 2, 1]), null);
+  assert.ok(C([5, 4, 3])); assert.ok(C([7, 7, 7]));
+  assert.ok(SC.beats(C([1, 2]), C([9])), 'more cards wins');
+  assert.ok(SC.beats(C([2, 2]), C([8, 9])), 'match beats run of same size');
+  assert.ok(SC.beats(C([4, 5]), C([3, 4])), 'higher run wins');
+  assert.ok(!SC.beats(C([3, 4]), C([4, 3])), 'equal does not beat');
+  assert.ok(SC.beats(C([6]), C([5]))); assert.ok(!SC.beats(C([5]), C([5])));
+  assert.ok(SC.beats(C([1]), null));
+});
+
+function scFixed(hands) {
+  const g = SC.newGame(Object.keys(hands));
+  g.hands = JSON.parse(JSON.stringify(hands)); g.ready = [...g.sids]; g.turn = g.sids[0]; g.round = 1;
+  return g;
+}
+t('scout: flip reverses order & swaps numbers; no play before everyone is ready', () => {
+  const g = SC.newGame(sids(3));
+  const s = g.turn, h = JSON.stringify(g.hands[s]);
+  assert.equal(SC.show(g, s, 0, 0), false, 'not ready');
+  SC.flipHand(g, s);
+  assert.deepEqual(g.hands[s], JSON.parse(h).map(([a, b]) => [b, a]).reverse());
+  SC.setReady(g, s); assert.equal(SC.flipHand(g, s), false, 'locked after ready');
+});
+
+t('scout: show captures, scout gives token, insert/flip, turn order', () => {
+  const g = scFixed({ a: [[3, 9], [4, 8], [7, 1]], b: [[5, 2], [5, 6], [9, 9]], c: [[1, 2], [8, 3]] });
+  assert.equal(SC.show(g, 'b', 0, 1), false, 'not your turn');
+  assert.equal(SC.show(g, 'a', 0, 2), false, 'not a legal set');
+  assert.equal(SC.scout(g, 'a', 'L', 0, false), false, 'nothing to scout');
+  assert.ok(SC.show(g, 'a', 0, 1)); assert.equal(g.turn, 'b'); assert.deepEqual(g.hands.a, [[7, 1]]);
+  assert.equal(SC.show(g, 'b', 2, 2), false, 'single cannot beat a pair');
+  assert.ok(SC.show(g, 'b', 0, 1), 'pair of 5s beats run 3-4'); assert.equal(g.cap.b, 2);
+  assert.ok(SC.scout(g, 'c', 'R', 1, true));
+  assert.deepEqual(g.hands.c, [[1, 2], [6, 5], [8, 3]]); assert.equal(g.tok.b, 1);
+  assert.deepEqual(g.active.cards, [[5, 2]]); assert.equal(g.turn, 'a');
+  assert.ok(SC.show(g, 'a', 0, 0), '7 beats single 5 and empties the hand');
+  assert.equal(g.res.why, 'empty'); assert.equal(g.res.ender, 'a');
+  const r = Object.fromEntries(g.res.rows.map(x => [x.sid, x.pts]));
+  assert.deepEqual(r, { a: 1, b: 2 + 1 - 1, c: -3 });
+});
+
+t('scout: round ends when everyone else scouts; owner pays no hand penalty', () => {
+  const g = scFixed({ a: [[9, 1], [9, 2], [2, 3]], b: [[1, 5], [3, 6]], c: [[2, 7], [4, 8]] });
+  SC.show(g, 'a', 0, 1);
+  assert.ok(SC.scout(g, 'b', 'L', 0, false));
+  assert.equal(g.res, null);
+  assert.ok(SC.scout(g, 'c', 'L', 2, false));
+  assert.equal(g.res.why, 'unbeaten'); assert.equal(g.res.ender, 'a');
+  const r = Object.fromEntries(g.res.rows.map(x => [x.sid, x.pts]));
+  assert.deepEqual(r, { a: 2, b: -3, c: -3 });
+});
+
+t('scout: scout & show is atomic and once per round', () => {
+  const g = scFixed({ a: [[6, 1], [6, 2], [1, 3]], b: [[7, 5], [2, 6], [9, 4]], c: [[2, 7], [4, 8], [5, 5]] });
+  SC.show(g, 'a', 0, 1);
+  const before = JSON.stringify([g.hands.b, g.active, g.tok]);
+  assert.equal(SC.scoutShow(g, 'b', 'L', 0, false, 2, 3), false, 'resulting show too weak -> nothing changes');
+  assert.equal(JSON.stringify([g.hands.b, g.active, g.tok]), before);
+  assert.ok(SC.scoutShow(g, 'b', 'L', 1, false, 0, 1), 'insert 6 next to 7 -> run 7-6 beats the remaining single 6');
+  assert.equal(g.usedSS.b, true); assert.equal(g.tok.a, 1); assert.equal(g.active.by, 'b'); assert.equal(g.cap.b, 1);
+  assert.equal(g.turn, 'c');
+  SC.scout(g, 'c', 'L', 0, false); SC.scout(g, 'a', 'L', 0, false);
+  assert.equal(g.res.why, 'unbeaten', 'everyone else scouted -> round ends even if the set is used up');
+  assert.equal(g.res.ender, 'b');
+  const h = scFixed({ a: [[6, 1], [1, 3]], b: [[7, 5], [2, 6]], c: [[2, 7], [4, 8]] });
+  SC.show(h, 'a', 0, 0); SC.scout(h, 'b', 'L', 0, false);
+  assert.equal(h.active, null); assert.equal(h.turn, 'c');
+  assert.equal(SC.scout(h, 'c', 'L', 0, false), false, 'nothing on the table: must show');
+  h.usedSS.c = true; assert.equal(SC.scoutShow(h, 'c', 'L', 0, false, 0, 0), false, 'already used / nothing to scout');
+  assert.ok(SC.show(h, 'c', 0, 0));
+});
+
+t('scout: rounds accumulate and game ends after n rounds', () => {
+  const g = SC.newGame(sids(3));
+  for (let r = 1; r <= 3; r++) {
+    assert.equal(g.round, r);
+    g.sids.forEach(s => SC.setReady(g, s));
+    const s = g.turn;
+    g.hands[s] = [[5, 1]];
+    assert.ok(SC.show(g, s, 0, 0));
+    assert.ok(g.res);
+    if (r < 3) { assert.equal(g.over, false); SC.nextRound(g); }
+  }
+  assert.equal(g.over, true); assert.ok(SC.winners(g).length >= 1);
 });
 
 console.log(`\n${pass} tests passed`);
