@@ -29,7 +29,10 @@ window.BROKER = {
   sub(id, t) { this.subs.get(id)?.add(t); if (this.retained.has(t)) this.deliver(id, t, this.retained.get(t)); },
   unsub(id, t) { this.subs.get(id)?.delete(t); },
   bye(id) { this.subs.delete(id); this.clients.delete(id); },
+  // ?loss=0.4 silently drops that share of player → host actions (what happens while a real host is reconnecting)
+  loss: +new URLSearchParams(location.search).get('loss') || 0, dropped: 0,
   pub(t, p, r) {
+    if (this.loss && t.endsWith('/in') && !/"t":"(join|ping)"/.test(p) && Math.random() < this.loss) { this.dropped++; return; }
     if (r) p ? this.retained.set(t, p) : this.retained.delete(t);
     for (const [id, ts] of this.subs) if (ts.has(t)) this.deliver(id, t, p);
   },

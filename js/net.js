@@ -12,11 +12,12 @@ function open(url) {
   return new Promise((res, rej) => {
     const c = mqtt.connect(url, {
       clientId: 'bg' + Math.random().toString(36).slice(2, 12),
-      connectTimeout: 5000, reconnectPeriod: 1500, keepalive: 20, clean: true,
+      // Generous handshake timeout: on a weak mobile signal a too-short one makes the client drop and retry forever.
+      connectTimeout: 20000, reconnectPeriod: 1000, keepalive: 30, clean: true,
     });
     let done = false;
     const fail = e => { if (done) return; done = true; clearTimeout(t); c.end(true); rej(e); };
-    const t = setTimeout(() => fail(new Error('timeout')), 6000);
+    const t = setTimeout(() => fail(new Error('timeout')), 9000);
     c.once('connect', () => { if (done) return; done = true; clearTimeout(t); res(c); });
     c.on('error', fail);
   });
@@ -48,6 +49,8 @@ export class Room {
   constructor(c, room, bi) {
     this.c = c; this.room = room; this.bi = bi; this.base = ROOT + room + '/'; this.h = {};
     this.online = true;
+    this.drops = 0; this.lastErr = ''; this.since = Date.now();
+    c.on('error', e => { this.lastErr = String(e?.message || e).slice(0, 80); });
     c.on('message', (t, b) => {
       if (!t.startsWith(this.base)) return;
       const f = this.h[t.slice(this.base.length)];
@@ -57,13 +60,15 @@ export class Room {
       if (s) try { v = JSON.parse(s); } catch { return; }
       try { f(v); } catch (e) { console.error(e); }
     });
-    c.on('offline', () => { this.online = false; this.onStatus?.(false); });
-    c.on('close', () => { if (this.online) { this.online = false; this.onStatus?.(false); } });
+    const down = () => { if (!this.online) return; this.online = false; this.drops++; this.onStatus?.(false); };
+    c.on('offline', down);
+    c.on('close', down);
     c.on('connect', () => { this.online = true; this.onStatus?.(true); });
   }
   sub(k, f) { this.h[k] = f; this.c.subscribe(this.base + k, { qos: 1 }); }
   send(k, v, retain = false) { this.c.publish(this.base + k, v == null ? '' : JSON.stringify(v), { qos: 1, retain }); }
-  kick() { if (!this.c.connected) this.c.reconnect(); }
+  // mqtt.js already retries every second; only nudge it when it is truly idle (a second reconnect() would open a duplicate socket).
+  kick() { if (!this.c.connected && !this.c.reconnecting) this.c.reconnect(); }
   end() { this.c.end(); }
 }
 

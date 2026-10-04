@@ -46,11 +46,11 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
-  pub: null, priv: null, endsAt: 0, online: true, busy: '', err: '', toast: '', joinErr: '',
+  pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
   key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
-let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0;
+let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
 const sentPriv = {};
 
 /* ───────────── host engine ───────────── */
@@ -146,7 +146,7 @@ function pubOf() {
 }
 
 function privOf(sid) {
-  const v = { sid, round: H.round }, g = H.g;
+  const v = { sid, round: H.round, ack: H.players.find(x => x.sid === sid)?.ack }, g = H.g;
   if (!g || H.phase === 'lobby') return v;
   if (!g.sids.includes(sid)) return { sid, spectator: true };
   if (H.game === 'onuw') {
@@ -216,9 +216,18 @@ function broadcast() {
   applyPub(pub, true);
 }
 
+// Tell one player their last action arrived (their private view carries `ack`).
+function ackOnly(p) {
+  if (p.pid === S.pid || !H.players.includes(p)) return;
+  const v = privOf(p.sid), j = JSON.stringify(v);
+  if (sentPriv[p.pid] !== j) { sentPriv[p.pid] = j; S.conn?.send('p/' + p.pid, v, true); }
+}
+
 function hostTick() {
   if (!H) return;
   const t = now();
+  // heartbeat, so players can tell "the host dropped" apart from "nothing is happening"
+  if (t - lastHb > 4000) { lastHb = t; S.conn?.send('hb', { t }); }
   if (H.endsAt && t >= H.endsAt) {
     if (H.phase === 'night') return nextNight();
     if (H.phase === 'day') return startVote();
@@ -425,6 +434,13 @@ function hostIn(m) {
   if (p) p.seen = now();
   if (m.t === 'join') return hostJoin(m);
   if (!p) return;
+  // Players resend an action until it is acknowledged; never apply the same one twice.
+  if (m.id) { if (p.ack === m.id) return ackOnly(p); p.ack = m.id; }
+  hostAct(m, p);
+  if (m.id) ackOnly(p);
+}
+
+function hostAct(m, p) {
   const g = H.g, sid = p.sid;
   switch (m.t) {
     case 'leave':
@@ -815,10 +831,29 @@ function applyPub(pub) {
   else { S.pub = pub; tickTimers(); }
 }
 
+// Player → host actions are resent until the host acknowledges them, so a tap is not lost while either side reconnects.
+const bootId = uid(6);
+let seq = 0, outbox = null, retryTimer = 0;
+function flush() {
+  if (!outbox || !S.conn) return;
+  if (outbox.tries >= 10) { outbox = null; S.sending = false; return toast('ส่งไม่ถึงเจ้าของห้อง ลองกดอีกครั้ง'); }
+  if (++outbox.tries === 2) { S.sending = true; render(); }
+  S.conn.send('in', outbox.m);
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(flush, 1500);
+}
+function acked(id) {
+  if (!outbox || outbox.m.id !== id) return;
+  outbox = null;
+  clearTimeout(retryTimer);
+  if (S.sending) { S.sending = false; render(); }
+}
 function send(m) {
   m.pid = S.pid;
-  if (S.isHost) hostIn(m);
-  else S.conn?.send('in', m);
+  if (S.isHost) return hostIn(m);
+  m.id = `${bootId}.${++seq}`;
+  outbox = { m, tries: 0 };
+  flush();
 }
 
 function saveSess() {
@@ -827,22 +862,39 @@ function saveSess() {
   LS.set('bg_last', { ...s, t: now() });
 }
 
+// Short blips are normal on phones: only show the "reconnecting" bar when we have been offline for a few seconds.
+function setOnline(on) {
+  const shown = !S.online && now() - S.offSince >= 3000;
+  S.online = on;
+  if (on) { if (shown) render(); return; }
+  S.offSince = now();
+  setTimeout(() => { if (!S.online) render(); }, 3100);
+}
+
 function hello() { S.conn?.send('in', { t: 'join', pid: S.pid, name: S.name }); }
 
 function startClient() {
   const c = S.conn;
-  c.sub('pub', v => (!v || v.closed ? leave('เจ้าของห้องปิดห้องแล้ว') : applyPub(v)));
+  c.sub('pub', v => { S.hostSeen = now(); return !v || v.closed ? leave('เจ้าของห้องปิดห้องแล้ว') : applyPub(v); });
   c.sub('p/' + S.pid, v => {
     if (!v) return;
     if (v.kicked) return leave('คุณถูกเชิญออกจากห้อง');
     if (v.error) { S.joinErr = v.error; S.priv = null; return render(); }
     S.joinErr = '';
     S.priv = v;
+    S.hostSeen = now();
+    acked(v.ack);
     render();
   });
-  c.onStatus = on => { S.online = on; if (on) hello(); render(); };
+  c.sub('hb', () => { S.hostSeen = now(); if (S.hostDown) { S.hostDown = false; render(); } });
+  c.onStatus = on => { setOnline(on); if (on) { hello(); flush(); } };
+  S.hostSeen = now(); S.hostDown = false;
   hello();
-  pingTimer = setInterval(() => c.send('in', { t: 'ping', pid: S.pid }), 8000);
+  pingTimer = setInterval(() => {
+    c.send('in', { t: 'ping', pid: S.pid });
+    const down = S.online && now() - S.hostSeen > 13000;
+    if (down !== S.hostDown) { S.hostDown = down; render(); }
+  }, 4000);
   saveSess();
 }
 
@@ -853,8 +905,8 @@ function startHost() {
   H.settings.jo ||= { rounds: 13 };
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
-    S.online = on;
-    if (on) { for (const k in sentPriv) delete sentPriv[k]; broadcast(); } else render();
+    setOnline(on);
+    if (on) { for (const k in sentPriv) delete sentPriv[k]; broadcast(); }
   };
   hostTimer = setInterval(hostTick, 1000);
   saveSess();
@@ -936,6 +988,7 @@ function leave(msg = '') {
     setTimeout(() => c.end(), 400);
   }
   clearInterval(hostTimer); clearInterval(pingTimer);
+  outbox = null; clearTimeout(retryTimer); S.sending = false; S.hostDown = false; S.online = true;
   SS.del('bg_sess'); LS.del('bg_last');
   H = null; lastPub = '';
   Object.assign(S, { conn: null, room: null, pid: null, isHost: false, pub: null, priv: null, pick: false, joinErr: '', err: msg, key: '', round: -1 });
@@ -992,7 +1045,7 @@ function shell(body) {
       <div class="tl"><span class="tg">${G.e} ${G.s}</span><span class="tc">ห้อง <b>${p.room}</b></span></div>
       <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="rules" aria-label="กติกา">?</button><button class="ib out" data-act="leave">ออก</button></div>
     </div></div>
-    ${S.online ? '' : '<div class="offline">⚠︎ การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>'}
+    ${!S.online && now() - S.offSince >= 3000 ? '<div class="offline">⚠︎ การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>' : S.hostDown && !S.isHost ? '<div class="offline host">⏸ เจ้าของห้องหลุดการเชื่อมต่อ — เกมหยุดรอสักครู่</div>' : S.sending ? '<div class="offline send">กำลังส่ง…</div>' : ''}
     <main class="wrap phase-${p.phase} game-${p.game}">${body}</main>
     ${S.rules ? rulesView() : ''}
     ${S.pick && p.phase === 'lobby' && S.isHost ? pickerView() : ''}
@@ -1912,11 +1965,26 @@ function rulesView() {
     <li>สปายกด “เดาสถานที่” ได้ตลอดเวลา — ถูกชนะ ผิดแพ้</li>
     <li>หมดเวลา: คุยแล้วโหวตหาสปายรอบสุดท้าย</li></ol>
     <p class="muted small">บทบาทในสถานที่ไม่ซ้ำกัน · สถานที่จะไม่วนซ้ำภายใน ${SF.RECENT} รอบ</p>`;
-  return `<div class="modal" data-act="rules"><div class="sheet" data-act="noop"><div class="sh"><h2>กติกา ${GAMES[g].s}</h2><button class="ib" data-act="rules">✕</button></div>${body}</div></div>`;
+  return `<div class="modal" data-act="rules"><div class="sheet" data-act="noop"><div class="sh"><h2>กติกา ${GAMES[g].s}</h2><button class="ib" data-act="rules">✕</button></div>${body}
+    <p class="muted small diag">การเชื่อมต่อ: เซิร์ฟเวอร์ ${S.conn ? S.conn.bi + 1 : '-'} · หลุด ${S.conn?.drops ?? 0} ครั้งใน ${S.conn?.since ? Math.round((Date.now() - S.conn.since) / 60000) : 0} นาที${S.conn?.lastErr ? ` · ล่าสุด: ${esc(S.conn.lastErr)}` : ''}${S.isHost ? ' · คุณเป็นเจ้าของห้อง' : ''}</p></div></div>`;
 }
 
 /* ───────────── render & events ───────────── */
+// Replacing the DOM while a finger is down swallows that tap, so wait for the finger to lift.
+let pressing = false, renderPending = false, lastHtml = null, pressTimer = 0;
+const pressEnd = () => {
+  if (!pressing) return;
+  pressing = false;
+  clearTimeout(pressTimer);
+  if (renderPending) setTimeout(() => { if (!pressing && renderPending) render(); }, 80);   // after the click has fired
+};
+addEventListener('pointerdown', () => { pressing = true; clearTimeout(pressTimer); pressTimer = setTimeout(pressEnd, 1500); }, true);
+addEventListener('pointerup', pressEnd, true);
+addEventListener('pointercancel', pressEnd, true);
+
 function render() {
+  if (pressing) { renderPending = true; return; }
+  renderPending = false;
   const p = S.pub;
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}`;
@@ -1927,7 +1995,10 @@ function render() {
     }
   }
   const focus = document.activeElement?.id, pos = focus && document.activeElement.selectionStart;
-  app.innerHTML = view();
+  const html = view();
+  if (html === lastHtml) return tickTimers();   // nothing visible changed: keep the DOM (and any tap in progress) intact
+  lastHtml = html;
+  app.innerHTML = html;
   if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
   // Player buttons get that player's coloured badge.
   app.querySelectorAll('.pick[data-sid], .pick[data-v^="p:"]').forEach(b => b.insertAdjacentHTML('afterbegin', av(b.dataset.sid || b.dataset.v.slice(2), 'sm')));

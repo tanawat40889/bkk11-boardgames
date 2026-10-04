@@ -421,3 +421,6 @@ button.qcard:active { transform: translateY(4px); }
 .cteam li { display: flex; align-items: center; gap: 8px; padding: 5px 0; } .cteam .cm { margin-left: auto; }
 .mini em { top: 3px; right: 3px; padding: 0 5px; font-size: .66rem; }
 .sslot { width: 32px; height: 72px; }
+.offline.host { background: #8b6cff; color: #fff; }
+.offline.send { background: var(--line); color: var(--text); font-weight: 500; }
+.diag { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line); }
