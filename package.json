@@ -1,1 +1,8 @@
-{"type":"module"}
+{
+  "type": "module",
+  "scripts": {
+    "test": "node test/logic.test.mjs && node test/e2e.mjs",
+    "test:logic": "node test/logic.test.mjs",
+    "test:e2e": "node test/e2e.mjs"
+  }
+}

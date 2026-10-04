@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="../">
+<title>e2e player</title>
+<link rel="stylesheet" href="style.css">
+<script>
+// One simulated player. Replaces the MQTT client with a mock that talks to the broker living in e2e.html.
+window.__errs = [];
+addEventListener('error', e => __errs.push('error: ' + (e.message || e.error)));
+addEventListener('unhandledrejection', e => __errs.push('rejection: ' + (e.reason?.stack || e.reason)));
+const _ce = console.error;
+console.error = (...a) => { __errs.push('console.error: ' + a.map(x => x?.stack || x).join(' ')); _ce(...a); };
+window.confirm = () => true; window.alert = () => {}; window.prompt = () => null;
+const speed = +new URLSearchParams(location.search).get('speed') || 1;
+if (speed > 1) { const t0 = Date.now(), real = Date.now.bind(Date); Date.now = () => t0 + (real() - t0) * speed; }
+window.mqtt = {
+  connect() {
+    const id = Math.random().toString(36).slice(2), B = parent.BROKER, h = {};
+    const emit = (e, ...a) => (h[e] || []).slice().forEach(f => f(...a));
+    const c = {
+      connected: false,
+      on(e, f) { (h[e] ||= []).push(f); return c; },
+      once(e, f) { const g = (...a) => { c.removeListener(e, g); f(...a); }; return c.on(e, g); },
+      removeListener(e, f) { h[e] = (h[e] || []).filter(x => x !== f); return c; },
+      subscribe(t) { B.sub(id, t); },
+      unsubscribe(t) { B.unsub(id, t); },
+      publish(t, p, o) { const r = !!o?.retain; setTimeout(() => B.pub(t, String(p), r), 1); },
+      end() { B.bye(id); },
+      reconnect() {},
+    };
+    B.join(id, window, emit);
+    addEventListener('pagehide', () => B.bye(id));
+    setTimeout(() => { c.connected = true; emit('connect'); }, 5);
+    return c;
+  },
+};
+</script>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

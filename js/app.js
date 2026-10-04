@@ -16,10 +16,12 @@ import { rint } from './rng.js';
 const app = document.getElementById('app');
 const now = () => Date.now();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ?ns=… gives each simulated player in the e2e test its own storage (they share one browser tab).
+const NS = new URLSearchParams(location.search).get('ns') || '';
 const mkStore = get => ({
-  get(k, d) { try { const v = get().getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { get().setItem(k, JSON.stringify(v)); } catch {} },
-  del(k) { try { get().removeItem(k); } catch {} },
+  get(k, d) { try { const v = get().getItem(NS + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { get().setItem(NS + k, JSON.stringify(v)); } catch {} },
+  del(k) { try { get().removeItem(NS + k); } catch {} },
 });
 const LS = mkStore(() => localStorage), SS = mkStore(() => sessionStorage);
 
@@ -866,6 +868,13 @@ function nameOk() {
   return true;
 }
 
+// Keep ?r=CODE in the address bar (so a refresh/share works) without dropping other params.
+function setRoomParam(code) {
+  const u = new URL(location.href);
+  code ? u.searchParams.set('r', code) : u.searchParams.delete('r');
+  history.replaceState(null, '', u);
+}
+
 async function createRoom(game) {
   if (!nameOk() || S.busy) return;
   S.busy = 'create'; S.err = ''; render();
@@ -892,7 +901,7 @@ async function joinRoom(code, pid = uid(), bi) {
     if (!r) S.err = `ไม่พบห้อง ${code} (ห้องอาจปิดไปแล้ว)`;
     else {
       S.conn = r.room; S.room = code; S.pid = pid; S.isHost = false;
-      history.replaceState(null, '', location.pathname + '?r=' + code);
+      setRoomParam(code);
       startClient();
       applyPub(r.pub);
     }
@@ -930,7 +939,7 @@ function leave(msg = '') {
   SS.del('bg_sess'); LS.del('bg_last');
   H = null; lastPub = '';
   Object.assign(S, { conn: null, room: null, pid: null, isHost: false, pub: null, priv: null, pick: false, joinErr: '', err: msg, key: '', round: -1 });
-  history.replaceState(null, '', location.pathname);
+  setRoomParam(null);
   render();
 }
 

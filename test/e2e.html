@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>BKK11 Boardgames — e2e</title>
+<style>
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 12px; background: #111; color: #eee; }
+  #frames { display: flex; flex-wrap: wrap; gap: 6px; }
+  iframe { width: 300px; height: 520px; border: 1px solid #444; background: #12101f; }
+  table { border-collapse: collapse; margin: 10px 0; } td, th { border: 1px solid #444; padding: 3px 8px; text-align: left; }
+  .ok { color: #3ecf8e; } .bad { color: #ff5d73; } pre { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h3>e2e: บอทเล่นทุกเกมจนจบ <small id="status"></small></h3>
+<table id="tbl"><tr><th>เกม</th><th>คน</th><th>ผล</th><th>ticks</th><th>รายละเอียด</th></tr></table>
+<div id="frames"></div>
+<pre id="result"></pre>
+<script>
+// ── in-page MQTT broker (exact-topic match + retained messages). Timers only, so it behaves under virtual time. ──
+window.BROKER = {
+  subs: new Map(), retained: new Map(), clients: new Map(),
+  deliver(id, t, p) {
+    const c = this.clients.get(id);
+    if (!c) return;
+    try { c.win.setTimeout(() => c.emit('message', t, { toString: () => p }), 1); } catch { this.bye(id); }
+  },
+  join(id, win, emit) { this.clients.set(id, { win, emit }); this.subs.set(id, new Set()); },
+  sub(id, t) { this.subs.get(id)?.add(t); if (this.retained.has(t)) this.deliver(id, t, this.retained.get(t)); },
+  unsub(id, t) { this.subs.get(id)?.delete(t); },
+  bye(id) { this.subs.delete(id); this.clients.delete(id); },
+  pub(t, p, r) {
+    if (r) p ? this.retained.set(t, p) : this.retained.delete(t);
+    for (const [id, ts] of this.subs) if (ts.has(t)) this.deliver(id, t, p);
+  },
+};
+
+const Q = new URLSearchParams(location.search);
+const SPEED = +Q.get('speed') || 1, REPS = +Q.get('reps') || 1, TICK = +Q.get('tick') || 40;
+const MAX_TICKS = +Q.get('max') || 25000;
+// chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
+const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
+// game -> player counts to try
+const PLAN = { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8] };
+const only = Q.get('games')?.split(',');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rnd = n => Math.floor(Math.random() * n);
+const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
+// Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
+const SKIP = new Set(['leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
+  'show', 'hide', 'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start']);
+// Clicked rarely so games still make progress.
+const RARE = { reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
+
+function fill(doc) {
+  const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
+  set('wg', WORDS[rnd(WORDS.length)]);
+  set('jc0', WORDS[rnd(WORDS.length)]); set('jc1', WORDS[rnd(WORDS.length)] + 'ๆ');
+  set('jg', WORDS[rnd(WORDS.length)]);
+  set('cw', 'ใบ้' + 'กขคงจฉชซ'[rnd(8)] + 'อ' + 'กขคงจฉชซ'[rnd(8)]);
+}
+// Scout: random clicking never finishes (hands only grow), so play sensibly — show the longest legal set, otherwise scout.
+let SC = null;
+import('../js/scout.js').then(m => (SC = m));
+const SC_ACTS = new Set(['sccard', 'scshow', 'scpick', 'scslot', 'scss']);
+function scoutTurn(doc) {
+  const q = s => doc.querySelector(s), qa = s => [...doc.querySelectorAll(s)];
+  if (q('[data-act=scslot]')) { const sl = qa('[data-act=scslot]'); sl[rnd(sl.length)].click(); return true; }
+  if (q('[data-act=scss]')) {                       // second half of Scout & Show: try the new card alone
+    const nw = q('.scard.new'); if (nw) nw.click();
+    const b = q('[data-act=scss]'); if (b && !b.disabled) b.click(); else q('[data-act=sccancel]')?.click();
+    return true;
+  }
+  if (!q('[data-act=scshow]')) return false;         // not my turn
+  const hand = qa('[data-act=sccard]').map(c => [+c.querySelector('b').textContent, 0]);
+  const tablePanel = qa('.panel').find(p => p.querySelector('h2')?.textContent.startsWith('บนโต๊ะ'));
+  const active = tablePanel ? [...tablePanel.querySelectorAll('.scard b')].map(b => [+b.textContent, 0]) : [];
+  const ac = active.length ? SC.classify(active) : null;
+  let best = null;
+  for (let i = 0; i < hand.length; i++) for (let j = i; j < hand.length; j++) {
+    const c = SC.classify(hand.slice(i, j + 1));
+    if (c && SC.beats(c, ac) && (!best || j - i > best[1] - best[0] || (j - i === best[1] - best[0] && Math.random() < 0.3))) best = [i, j];
+  }
+  const picks = qa('[data-act=scpick]');
+  if (best && (Math.random() < 0.85 || !picks.length)) {
+    // A previous tap may still be selected (e.g. the action was lost while the host was refreshing) — clear it first.
+    for (let k = 0; k < 30 && q('.scard.on'); k++) qa('.scard.on').at(-1).click();
+    for (let i = best[0]; i <= best[1]; i++) doc.querySelector(`[data-act=sccard][data-i="${i}"]`).click();
+    const b = q('[data-act=scshow]');
+    if (b.disabled) throw new Error('bot: computed a legal show but the Show button is disabled ' + JSON.stringify({ hand: hand.map(c => c[0]), active: active.map(c => c[0]), best, sel: qa('.scard.on').map(c => c.dataset.i), btn: b.textContent, note: doc.querySelector('.shand ~ p.muted')?.textContent }));
+    b.click();
+  } else if (picks.length) picks[rnd(picks.length)].click();
+  else throw new Error('bot: my turn but can neither show nor scout');
+  return true;
+}
+// The Mind: usually let the player with the globally lowest card play, so levels are actually cleared.
+function mindTurn(wins) {
+  const c = wins.map(w => w.document.querySelector('[data-act=mplay] b')).filter(Boolean);
+  if (!c.length) return;
+  const pick = Math.random() < 0.93 ? c.reduce((a, b) => (+b.textContent < +a.textContent ? b : a)) : c[rnd(c.length)];
+  pick.closest('[data-act=mplay]').click();
+}
+
+function act(win, game) {
+  const doc = win.document;
+  fill(doc);
+  if (game === 'sc' && SC && scoutTurn(doc)) return;
+  const els = [...doc.querySelectorAll('[data-act]')].filter(el => {
+    const a = el.dataset.act;
+    if (el.disabled || SKIP.has(a)) return false;
+    if (game === 'sc' && SC_ACTS.has(a)) return false;
+    if (game === 'mi' && a === 'mplay') return false;
+    if (a === 'loc' && !doc.querySelector('.locs.guessing')) return false;
+    if (a in RARE && Math.random() > RARE[a]) return false;
+    return true;
+  });
+  if (els.length) els[rnd(els.length)].click();
+}
+const text = win => (win.document.querySelector('main')?.innerText || win.document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 160);
+async function until(f, ticks = 400) { for (let i = 0; i < ticks; i++) { if (f()) return true; await sleep(TICK); } return false; }
+
+let runId = 0;
+async function scenario(game, n) {
+  const id = 'r' + (++runId) + '_', box = document.getElementById('frames'), wins = [];
+  box.innerHTML = '';
+  const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
+  for (let i = 0; i < n; i++) {
+    const f = document.createElement('iframe');
+    f.src = `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
+    box.appendChild(f);
+    await new Promise(r => (f.onload = r));
+    wins.push(f.contentWindow);
+  }
+  const name = (w, v) => { const el = w.document.getElementById('name'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  const host = wins[0], q = (w, s) => w.document.querySelector(s);
+  if (!await until(() => q(host, '#name'))) return fail('home did not render');
+  name(host, 'P0');
+  q(host, '[data-act=create]').click();
+  if (!await until(() => q(host, '.roomcode'))) return fail('room not created');
+  const code = q(host, '.roomcode').textContent.trim();
+  if (!await until(() => q(host, `[data-act=hgame][data-g=${game}]`))) return fail('picker missing');
+  q(host, `[data-act=hgame][data-g=${game}]`).click();
+  for (let i = 1; i < n; i++) {
+    const w = wins[i];
+    if (!await until(() => q(w, '#code'))) return fail('home did not render for P' + i);
+    name(w, 'P' + i);
+    const c = q(w, '#code'); c.value = code; c.dispatchEvent(new Event('input', { bubbles: true }));
+    q(w, '[data-act=join]').click();
+  }
+  if (!await until(() => host.document.querySelectorAll('.players li').length === n, 600)) return fail('not everyone joined');
+  if (!await until(() => q(host, '[data-act=start]') && !q(host, '[data-act=start]').disabled)) return fail('start disabled: ' + (q(host, '.alert')?.textContent || ''));
+  q(host, '[data-act=start]').click();
+  const stuck = wins.map(() => 0), early = [];
+  let ticks = 0, reloads = 0;
+  for (; ticks < MAX_TICKS; ticks++) {
+    if (q(host, '[data-act=again]')) break;
+    if (reloads < CHAOS && ticks > 2 && Math.random() < 0.02) {
+      const i = rnd(n), w = wins[i];
+      early.push(...(w.__errs || []).map(e => `P${i}: ${e}`));
+      reloads++;
+      w.location.reload();
+      await until(() => { try { return w.document.readyState === 'complete' && w.document.querySelector('#app')?.innerHTML; } catch { return false; } }, 300);
+    }
+    if (game === 'mi') mindTurn(wins);
+    for (let i = 0; i < n; i++) {
+      const w = wins[i];
+      act(w, game);
+      stuck[i] = /กำลังรับข้อมูล|กำลังเข้าห้อง/.test(w.document.body.innerText) ? stuck[i] + 1 : 0;
+      if (stuck[i] > 250) return fail(`P${i} stuck on loading screen`, { ticks });
+    }
+    await sleep(TICK);
+  }
+  if (ticks >= MAX_TICKS) return fail('game did not finish', { ticks });
+  // everyone must reach the end screen (not just the host) and nobody may have logged an error
+  const phases = () => wins.map(w => w.document.querySelector('main')?.className || '');
+  if (!await until(() => new Set(phases()).size === 1, 300)) return fail('players ended on different screens: ' + phases().join(' | '), { ticks });
+  const errs = [...early, ...wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`))];
+  if (errs.length) return { ...fail('JS errors', { ticks }), errs: errs.slice(0, 8) };
+  // play again must work too
+  q(host, '[data-act=again]').click();
+  if (!await until(() => !q(host, '[data-act=again]'), 200)) return fail('"play again" did nothing', { ticks });
+  return { game, n, ok: true, ticks, reloads };
+}
+
+(async () => {
+  const out = [], tbl = document.getElementById('tbl'), st = document.getElementById('status');
+  for (const [game, counts] of Object.entries(PLAN)) {
+    if (only && !only.includes(game)) continue;
+    for (const n of counts) for (let r = 0; r < REPS; r++) {
+      st.textContent = `กำลังเล่น ${game} ${n} คน…`;
+      let res;
+      try { res = await scenario(game, n); } catch (e) { res = { game, n, ok: false, why: 'runner exception: ' + (e.stack || e) }; }
+      out.push(res);
+      const tr = tbl.insertRow();
+      tr.innerHTML = `<td>${game}</td><td>${n}</td><td class="${res.ok ? 'ok' : 'bad'}">${res.ok ? 'PASS' : 'FAIL'}</td><td>${res.ticks ?? ''}</td><td></td>`;
+      tr.cells[4].textContent = res.ok ? '' : res.why + ' ' + JSON.stringify(res.errs || []) + ' ' + JSON.stringify(res.screens || []);
+    }
+  }
+  st.textContent = `เสร็จ: ผ่าน ${out.filter(x => x.ok).length}/${out.length}`;
+  document.getElementById('result').textContent = 'E2E_RESULT' + JSON.stringify(out) + 'E2E_END';
+  document.title = 'DONE';
+})();
+</script>
+</body>
+</html>
