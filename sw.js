@@ -1,7 +1,8 @@
 // App shell: network-first (always fresh when online), cache fallback offline. CDN libs: cache-first.
-const V = 'bkk11bg-v16';
+const V = 'bkk11bg-v17';
 const SHELL = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/app.js', 'js/net.js', 'js/rng.js', 'js/onuw.js', 'js/spyfall.js', 'js/undercover.js', 'js/avalon.js', 'js/insider.js', 'js/justone.js', 'js/words.js', 'js/skull.js', 'js/mind.js', 'js/codenames.js', 'js/scout.js',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png'];
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png',
+  ...['assassin', 'brain', 'bulb', 'cards', 'castle', 'coins', 'crown', 'dice', 'drunk', 'fail', 'flag', 'heart', 'hourglass', 'hunter', 'insomniac', 'juggler', 'key', 'magnify', 'masks', 'mason', 'master', 'merlin', 'mic', 'minion', 'moon', 'mordred', 'morgana', 'oberon', 'people', 'percival', 'robber', 'rose', 'seer', 'servant', 'skull', 'spy', 'star', 'sun', 'swap', 'tanner', 'target', 'tophat', 'trophy', 'troublemaker', 'villager', 'vote', 'wolf'].map(n => `icons/g/${n}.svg`)];
 const CDN = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {

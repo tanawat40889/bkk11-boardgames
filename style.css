@@ -424,3 +424,53 @@ button.qcard:active { transform: translateY(4px); }
 .offline.host { background: #8b6cff; color: #fff; }
 .offline.send { background: var(--line); color: var(--text); font-weight: 500; }
 .diag { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* ═════════ icon set (game-icons.net) + polish ═════════ */
+.gi { display: inline-block; flex: none; width: 1em; height: 1em; background: currentColor; vertical-align: -.15em;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: contain; mask-size: contain; }
+.gi.gold { background: linear-gradient(160deg, #ffe58a, #f0a020); } .gi.dim { background: #ffffff33; } .gi.inl { margin-right: 3px; }
+.gi.hp { background: linear-gradient(160deg, #ff8a9c, #d92b4b); width: 1.3em; height: 1.3em; margin: 0 1px; }
+.hps { display: inline-flex; } .jstat .gi.gold { width: 1.3em; height: 1.3em; }
+.mpts .gi { width: 1.1em; height: 1.1em; }
+
+/* game badges */
+.gemo { --gh: 260; display: inline-grid; place-items: center; border-radius: 28%; font-size: 0;
+  background: radial-gradient(circle at 32% 26%, hsl(var(--gh) 78% 64%), hsl(var(--gh) 62% 34%)); box-shadow: inset 0 0 0 2px #ffffff33, 0 3px 0 hsl(var(--gh) 55% 20%), 0 6px 12px #0006; }
+.gemo .gi { width: 62%; height: 62%; background: linear-gradient(170deg, #fff, #ffe9c9); filter: drop-shadow(0 2px 1px #0005); }
+.gemo.xs { width: 40px; height: 40px; } .gemo.xxs { width: 24px; height: 24px; border-radius: 8px; margin-right: 7px; vertical-align: -6px; box-shadow: inset 0 0 0 1px #ffffff33; }
+.gstrip { gap: 10px; margin: 12px 0 6px; }
+.tg { display: flex; align-items: center; }
+
+/* role art medallion */
+.art { --a1: #a48dff; --a2: #5a3fd6; width: 132px; height: 132px; margin: 4px 0 8px; border-radius: 50%; display: grid; place-items: center; font-size: 0;
+  background: radial-gradient(circle at 32% 26%, var(--a1), var(--a2)); box-shadow: inset 0 0 0 5px #ffffff55, inset 0 -8px 16px #0003, 0 6px 14px #0004; }
+.art .gi { width: 84px; height: 84px; background: linear-gradient(170deg, #fff, #fff1cf); filter: drop-shadow(0 3px 2px #0005); }
+.t-wolf .art, .art.red { --a1: #ff8a9c; --a2: #b3223d; } .t-village .art { --a1: #7cc4ff; --a2: #1f6fbd; } .t-tanner .art { --a1: #e3c08a; --a2: #946a2c; }
+.secret.closed .back .gi { width: 58%; height: 58%; background: linear-gradient(170deg, #fff, #d9d0ff); filter: drop-shadow(0 3px 3px #0006); }
+.mini .gi { width: 38px; height: 38px; background: var(--c); } .mini.sm .gi { width: 26px; height: 26px; }
+
+/* Skull discs: engraved art */
+.disc .gi { width: 62%; height: 62%; }
+.d-f { background: radial-gradient(circle at 50% 35%, #fffaf0, #f3e2b8 60%, #d6bb7c); } .d-f .gi { background: linear-gradient(160deg, #e9506a, #8c1a30); }
+.d-s { background: radial-gradient(circle at 50% 35%, #4a4563, #211e2e 62%, #100e18); } .d-s .gi { background: linear-gradient(160deg, #fff, #b9b4d0); }
+.qcard .gi { width: 56px; height: 56px; background: linear-gradient(170deg, #fff, #ffffffb0); filter: drop-shadow(0 3px 3px #0006); } .qcard.sm .gi { width: 28px; height: 28px; }
+.ccell .gi { width: 1.1em; height: 1.1em; }
+.players .gi.gold { width: 1.15em; height: 1.15em; }
+
+/* ambient background + entrance + shine */
+body::before { content: ''; position: fixed; inset: -20%; z-index: -1; pointer-events: none; opacity: .55;
+  background: radial-gradient(40% 30% at 20% 20%, #6a4ff044, transparent 70%), radial-gradient(35% 28% at 85% 30%, #ff5d7326, transparent 70%), radial-gradient(45% 35% at 60% 90%, #4fb4ff22, transparent 70%);
+  animation: drift 26s ease-in-out infinite alternate; }
+@keyframes drift { to { transform: translate3d(4%, -3%, 0) rotate(8deg); } }
+main.enter > * { animation: rise .35s ease-out both; }
+main.enter > *:nth-child(2) { animation-delay: .05s; } main.enter > *:nth-child(3) { animation-delay: .1s; } main.enter > *:nth-child(4) { animation-delay: .15s; } main.enter > *:nth-child(n+5) { animation-delay: .2s; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.banner.win::after { content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; pointer-events: none; transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, #ffffff3d, transparent); animation: shine 2.6s ease-in-out infinite; }
+@keyframes shine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+.btn.primary { background: linear-gradient(135deg, #a08bff, #6a4ff0 60%, #5b3fe6); }
+.roomcode { text-shadow: 0 0 22px #ffb84d66; }
+.brand .logo { animation: floaty 4s ease-in-out infinite; }
+@keyframes floaty { 50% { transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { body::before, .brand .logo, .banner.win::after, main.enter > * { animation: none; } }
+.sheet a { color: var(--accent2); }
