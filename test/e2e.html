@@ -39,12 +39,25 @@ window.BROKER = {
 };
 
 const Q = new URLSearchParams(location.search);
-const SPEED = +Q.get('speed') || 1, REPS = +Q.get('reps') || 1, TICK = +Q.get('tick') || 40;
-const MAX_TICKS = +Q.get('max') || 25000;
+// ?live=1 drives the REAL page (index.html) over the REAL public broker instead of the in-page mock: slower, but it is the real thing.
+const LIVE = Q.has('live');
+const SPEED = +Q.get('speed') || 1, REPS = +Q.get('reps') || 1, TICK = +Q.get('tick') || (LIVE ? 350 : 40);
+const MAX_TICKS = +Q.get('max') || (LIVE ? 3500 : 25000);
+// The real page has no test hooks, so add them from outside once it has loaded.
+function hook(w) {
+  if (!LIVE || w.__hooked) return;
+  w.__hooked = true; w.__errs = [];
+  w.confirm = () => true; w.alert = () => {}; w.prompt = () => null;
+  w.addEventListener('error', e => w.__errs.push('error: ' + (e.message || e.error)));
+  w.addEventListener('unhandledrejection', e => w.__errs.push('rejection: ' + (e.reason?.stack || e.reason)));
+  const ce = w.console.error.bind(w.console);
+  w.console.error = (...a) => { w.__errs.push('console.error: ' + a.map(x => x?.stack || x).join(' ')); ce(...a); };
+}
 // chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
 const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
-const PLAN = { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5] };
+const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3] };
+const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5] };
 const only = Q.get('games')?.split(',');
 // ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
@@ -181,10 +194,11 @@ async function scenario(game, n) {
   const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
   for (let i = 0; i < n; i++) {
     const f = document.createElement('iframe');
-    f.src = `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
+    f.src = LIVE ? `../index.html?ns=${id}p${i}_` : `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
     if (Q.get('w')) f.style.width = +Q.get('w') + 'px';   // ?w=320 audits a small phone
     box.appendChild(f);
     await new Promise(r => (f.onload = r));
+    hook(f.contentWindow);
     wins.push(f.contentWindow);
   }
   const name = (w, v) => { const el = w.document.getElementById('name'); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
@@ -223,7 +237,8 @@ async function scenario(game, n) {
       early.push(...(w.__errs || []).map(e => `P${i}: ${e}`));
       reloads++;
       w.location.reload();
-      await until(() => { try { return w.document.readyState === 'complete' && w.document.querySelector('#app')?.innerHTML; } catch { return false; } }, 300);
+      await until(() => { try { return w.document.readyState === 'complete' && w.document.querySelector('#app')?.innerHTML && !w.__hooked; } catch { return false; } }, 300);
+      hook(w);
     }
     if (game === 'mi') mindTurn(wins);
     for (let i = 0; i < n; i++) {
@@ -245,6 +260,11 @@ async function scenario(game, n) {
   q(host, '[data-act=again]').click();
   if (!await until(() => !q(host, '[data-act=again]'), 200)) return fail('"play again" did nothing', { ticks });
   if (UI) wins.forEach(w => audit(w, found));
+  if (LIVE) {   // tidy up: close the room so nothing is left on the public broker
+    await until(() => q(host, '[data-act=leave]'), 100);
+    q(host, '[data-act=leave]')?.click();
+    await sleep(1500);
+  }
   return { game, n, ok: true, ticks, reloads, ui: uiList() };
 }
 
@@ -255,6 +275,7 @@ async function scenario(game, n) {
     for (const n of counts) for (let r = 0; r < REPS; r++) {
       if (ONLY_N && n !== ONLY_N) continue;
       st.textContent = `กำลังเล่น ${game} ${n} คน…`;
+      if (LIVE) document.title = `RUN ${out.length} ${game}`;
       let res;
       try { res = await scenario(game, n); } catch (e) { res = { game, n, ok: false, why: 'runner exception: ' + (e.stack || e) }; }
       out.push(res);
@@ -265,7 +286,8 @@ async function scenario(game, n) {
   }
   st.textContent = `เสร็จ: ผ่าน ${out.filter(x => x.ok).length}/${out.length}`;
   document.getElementById('result').textContent = 'E2E_RESULT' + JSON.stringify(out) + 'E2E_END';
-  document.title = 'DONE';
+  // live runs are read from the outside through the DevTools page list, which only exposes the title
+  document.title = 'DONE' + (LIVE ? ' ' + JSON.stringify(out) : '');
 })();
 </script>
 </body>
