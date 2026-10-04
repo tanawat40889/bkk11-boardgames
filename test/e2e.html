@@ -6,7 +6,7 @@
 <style>
   body { font: 14px/1.4 system-ui, sans-serif; margin: 12px; background: #111; color: #eee; }
   #frames { display: flex; flex-wrap: wrap; gap: 6px; }
-  iframe { width: 300px; height: 520px; border: 1px solid #444; background: #12101f; }
+  iframe { width: 360px; height: 720px; border: 1px solid #444; background: #12101f; }
   table { border-collapse: collapse; margin: 10px 0; } td, th { border: 1px solid #444; padding: 3px 8px; text-align: left; }
   .ok { color: #3ecf8e; } .bad { color: #ff5d73; } pre { white-space: pre-wrap; }
 </style>
@@ -50,9 +50,9 @@ const rnd = n => Math.floor(Math.random() * n);
 const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
 // Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
 const SKIP = new Set(['leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
-  'show', 'hide', 'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start']);
+  'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start']);
 // Clicked rarely so games still make progress.
-const RARE = { reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
+const RARE = { show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
 
 function fill(doc) {
   const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
@@ -61,6 +61,53 @@ function fill(doc) {
   set('jg', WORDS[rnd(WORDS.length)]);
   set('cw', 'ใบ้' + 'กขคงจฉชซ'[rnd(8)] + 'อ' + 'กขคงจฉชซ'[rnd(8)]);
 }
+// ── UI audit: looks at what is actually drawn on a phone-sized screen and reports layout problems ──
+const UI = Q.get('ui') !== '0';
+const BOXES = '.btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
+function audit(win, found) {
+  const doc = win.document, W = win.innerWidth, main = doc.querySelector('main');
+  if (!main) return;
+  const where = (main.className.match(/phase-\S+/) || ['home'])[0].replace('phase-', '') + (doc.querySelector('.modal') ? '+modal' : '');
+  const add = (type, el, extra = '') => {
+    const cls = typeof el === 'string' ? el : `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''}`;
+    const key = `${where} | ${type} | ${cls}`;
+    const f = found.get(key) || found.set(key, { n: 0, sample: '' }).get(key);
+    f.n++;
+    if (!f.sample) f.sample = (extra || (typeof el === 'string' ? '' : el.textContent.replace(/\s+/g, ' ').trim().slice(0, 50)));
+  };
+  // 1. the page must never scroll sideways
+  if (doc.documentElement.scrollWidth > W + 1) add('page scrolls sideways', 'html', `${doc.documentElement.scrollWidth}px > ${W}px`);
+  // 2. placeholder text that leaked into the UI
+  const txt = doc.body.innerText;
+  const leak = txt.match(/undefined|\bNaN\b|\[object Object\]|\$\{|\bnull\b/);
+  if (leak) add('broken text', 'body', leak[0] + ' … ' + txt.slice(Math.max(0, leak.index - 30), leak.index + 30).replace(/\s+/g, ' '));
+  const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && win.getComputedStyle(el).visibility !== 'hidden' && !el.closest('details:not([open])'); };
+  for (const el of doc.querySelectorAll(BOXES)) {
+    if (!vis(el)) continue;
+    const r = el.getBoundingClientRect(), cs = win.getComputedStyle(el);
+    // 3. sticking out of the screen (side-scrolling strips are fine)
+    if ((r.right > W + 1 || r.left < -1) && !el.closest('.tabs')) add('off screen', el, `left ${Math.round(r.left)} right ${Math.round(r.right)} (screen ${W})`);
+    // 4. content bigger than its box (text cut off or spilling out)
+    if (cs.textOverflow !== 'ellipsis' && (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 3) && cs.display !== 'inline' && el.clientWidth > 0)
+      add('content overflows its box', el, `${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 30)} (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight})`);
+  }
+  // 5. tap targets: too small, empty, or covering each other
+  const acts = [...doc.querySelectorAll('[data-act]')].filter(el => vis(el) && !el.disabled && !['INPUT'].includes(el.tagName) && !el.classList.contains('modal') && !el.classList.contains('sheet'));
+  const rects = acts.map(el => el.getBoundingClientRect());
+  acts.forEach((el, i) => {
+    const r = rects[i];
+    if (r.width < 30 || r.height < 30) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);
+    if (!el.textContent.trim() && !el.querySelector('img, i, span, b') && !el.getAttribute('aria-label')) add('button without label', el);
+    for (let j = i + 1; j < acts.length; j++) {
+      if (el.contains(acts[j]) || acts[j].contains(el)) continue;
+      const q = rects[j], w = Math.min(r.right, q.right) - Math.max(r.left, q.left), h = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
+      if (w > 4 && h > 4 && w * h > 0.25 * Math.min(r.width * r.height, q.width * q.height)) add('buttons overlap', el, `with ${acts[j].dataset.act}: ${acts[j].textContent.trim().slice(0, 20)}`);
+    }
+  });
+  // 6. broken images
+  for (const img of doc.images) if (img.complete && !img.naturalWidth) add('broken image', img, img.src);
+}
+
 // Scout: random clicking never finishes (hands only grow), so play sensibly — show the longest legal set, otherwise scout.
 let SC = null;
 import('../js/scout.js').then(m => (SC = m));
@@ -131,6 +178,7 @@ async function scenario(game, n) {
   for (let i = 0; i < n; i++) {
     const f = document.createElement('iframe');
     f.src = `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
+    if (Q.get('w')) f.style.width = +Q.get('w') + 'px';   // ?w=320 audits a small phone
     box.appendChild(f);
     await new Promise(r => (f.onload = r));
     wins.push(f.contentWindow);
@@ -154,7 +202,8 @@ async function scenario(game, n) {
   if (!await until(() => host.document.querySelectorAll('.players li').length === n, 600)) return fail('not everyone joined');
   if (!await until(() => q(host, '[data-act=start]') && !q(host, '[data-act=start]').disabled)) return fail('start disabled: ' + (q(host, '.alert')?.textContent || ''));
   q(host, '[data-act=start]').click();
-  const stuck = wins.map(() => 0), early = [];
+  const stuck = wins.map(() => 0), early = [], found = new Map();
+  const uiList = () => [...found].map(([k, v]) => `${k} ×${v.n} — ${v.sample}`);
   let ticks = 0, reloads = 0;
   for (; ticks < MAX_TICKS; ticks++) {
     if (q(host, '[data-act=again]')) break;
@@ -176,6 +225,7 @@ async function scenario(game, n) {
     for (let i = 0; i < n; i++) {
       const w = wins[i];
       act(w, game);
+      if (UI && (ticks + i) % 3 === 0) audit(w, found);
       stuck[i] = /กำลังรับข้อมูล|กำลังเข้าห้อง/.test(w.document.body.innerText) ? stuck[i] + 1 : 0;
       if (stuck[i] > 250) return fail(`P${i} stuck on loading screen`, { ticks });
     }
@@ -190,7 +240,8 @@ async function scenario(game, n) {
   // play again must work too
   q(host, '[data-act=again]').click();
   if (!await until(() => !q(host, '[data-act=again]'), 200)) return fail('"play again" did nothing', { ticks });
-  return { game, n, ok: true, ticks, reloads };
+  if (UI) wins.forEach(w => audit(w, found));
+  return { game, n, ok: true, ticks, reloads, ui: uiList() };
 }
 
 (async () => {

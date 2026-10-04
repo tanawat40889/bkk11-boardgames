@@ -419,3 +419,5 @@ button.qcard:active { transform: translateY(4px); }
 .secret.closed .back { margin-top: 14%; width: 48%; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #7a63ee, #4a36b8); box-shadow: inset 0 0 0 4px #ffffff33, 0 4px 12px #0006; }
 .secret.open:has(.spy) { --frame: #e0445c; } .secret.open:has(.spyloc) { --frame: #1fa971; }
 .cteam li { display: flex; align-items: center; gap: 8px; padding: 5px 0; } .cteam .cm { margin-left: auto; }
+.mini em { top: 3px; right: 3px; padding: 0 5px; font-size: .66rem; }
+.sslot { width: 32px; height: 72px; }
