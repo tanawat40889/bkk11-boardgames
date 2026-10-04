@@ -29,14 +29,11 @@ while (Date.now() - t0 < LIMIT) {
   try { pages = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json(); } catch { continue; }
   const page = pages.find(p => p.url.includes('e2e.html'));
   if (!page) continue;
-  const un = t => t.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  if (page.title.startsWith('RUN')) {
-    const m = un(page.title).match(/^RUN (\d+) (\w+) (.*)$/s);
-    if (m && m[1] + m[2] !== last) { last = m[1] + m[2]; console.log(`  [${Math.round((Date.now() - t0) / 1000)}s] เริ่มเกมที่ ${+m[1] + 1}: ${m[2]}`); try { partial = JSON.parse(m[3]); } catch {} }
-  }
+  const data = () => { try { return JSON.parse(decodeURIComponent(page.url.split('#')[1] || '[]')); } catch { return null; } };
+  if (page.title.startsWith('RUN') && page.title !== last) { last = page.title; console.log(`  [${Math.round((Date.now() - t0) / 1000)}s] เริ่มเกมที่ ${+last.split(' ')[1] + 1}: ${last.split(' ')[2]}`); partial = data() || partial; }
   if (page.title.startsWith('DONE')) {
-    const raw = page.title.slice(5).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    try { results = JSON.parse(raw); } catch (e) { stop(); console.log('could not read the result:', e.message, raw.slice(0, 200)); process.exit(2); }
+    results = data();
+    if (!results) { stop(); console.log('could not read the result'); process.exit(2); }
     break;
   }
 }

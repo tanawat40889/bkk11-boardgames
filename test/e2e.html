@@ -275,7 +275,7 @@ async function scenario(game, n) {
     for (const n of counts) for (let r = 0; r < REPS; r++) {
       if (ONLY_N && n !== ONLY_N) continue;
       st.textContent = `กำลังเล่น ${game} ${n} คน…`;
-      if (LIVE) document.title = `RUN ${out.length} ${game} ` + JSON.stringify(out);   // results so far, in case the run is cut short
+      if (LIVE) { document.title = `RUN ${out.length} ${game}`; history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify(out))); }   // results so far go in the URL (a title is cut at 4 KB)
       let res;
       try { res = await scenario(game, n); } catch (e) { res = { game, n, ok: false, why: 'runner exception: ' + (e.stack || e) }; }
       out.push(res);
@@ -287,7 +287,8 @@ async function scenario(game, n) {
   st.textContent = `เสร็จ: ผ่าน ${out.filter(x => x.ok).length}/${out.length}`;
   document.getElementById('result').textContent = 'E2E_RESULT' + JSON.stringify(out) + 'E2E_END';
   // live runs are read from the outside through the DevTools page list, which only exposes the title
-  document.title = 'DONE' + (LIVE ? ' ' + JSON.stringify(out) : '');
+  if (LIVE) history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify(out)));
+  document.title = 'DONE';
 })();
 </script>
 </body>
