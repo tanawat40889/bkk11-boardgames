@@ -44,7 +44,7 @@ const MAX_TICKS = +Q.get('max') || 25000;
 // chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
 const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
-const PLAN = { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8] };
+const PLAN = { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10] };
 const only = Q.get('games')?.split(',');
 // ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
@@ -53,9 +53,9 @@ const rnd = n => Math.floor(Math.random() * n);
 const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
 // Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
 const SKIP = new Set(['leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
-  'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start']);
+  'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
 // Clicked rarely so games still make progress.
-const RARE = { show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
+const RARE = { cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
 
 function fill(doc) {
   const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
@@ -66,7 +66,7 @@ function fill(doc) {
 }
 // ── UI audit: looks at what is actually drawn on a phone-sized screen and reports layout problems ──
 const UI = Q.get('ui') !== '0';
-const BOXES = '.btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
+const BOXES = '.pol, .slot, .cell, .camel, .ltile, .tcard, .tcslap, .gbtn, .smat, .try, .hcard, .btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
 function audit(win, found) {
   const doc = win.document, W = win.innerWidth, main = doc.querySelector('main');
   if (!main) return;
@@ -99,7 +99,7 @@ function audit(win, found) {
   const rects = acts.map(el => el.getBoundingClientRect());
   acts.forEach((el, i) => {
     const r = rects[i];
-    if (r.width < 30 || r.height < 30) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);
+    if ((r.width < 30 || r.height < 30) && !el.classList.contains('flipin')) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);   // (a card mid-flip is briefly narrow)
     if (!el.textContent.trim() && !el.querySelector('img, i, span, b') && !el.getAttribute('aria-label')) add('button without label', el);
     for (let j = i + 1; j < acts.length; j++) {
       if (el.contains(acts[j]) || acts[j].contains(el)) continue;
@@ -163,6 +163,7 @@ function act(win, game) {
     if (game === 'sc' && SC_ACTS.has(a)) return false;
     if (game === 'mi' && a === 'mplay') return false;
     if (a === 'loc' && !doc.querySelector('.locs.guessing')) return false;
+    if (a === 'tslap' && !doc.querySelector('.tcslap.live') && Math.random() > 0.01) return false;   // slapping at the wrong time is a penalty
     if (a in RARE && Math.random() > RARE[a]) return false;
     return true;
   });
@@ -236,7 +237,7 @@ async function scenario(game, n) {
   }
   if (ticks >= MAX_TICKS) return fail('game did not finish', { ticks });
   // everyone must reach the end screen (not just the host) and nobody may have logged an error
-  const phases = () => wins.map(w => w.document.querySelector('main')?.className || '');
+  const phases = () => wins.map(w => (w.document.querySelector('main')?.className || '').replace(/\benter\b/, '').trim());   // 'enter' is just the entrance animation
   if (!await until(() => new Set(phases()).size === 1, 300)) return fail('players ended on different screens: ' + phases().join(' | '), { ticks });
   const errs = [...early, ...wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`))];
   if (errs.length) return { ...fail('JS errors', { ticks }), errs: errs.slice(0, 8) };

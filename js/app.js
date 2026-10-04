@@ -10,6 +10,10 @@ import * as SK from './skull.js';
 import * as MI from './mind.js';
 import * as CN from './codenames.js';
 import * as SC from './scout.js';
+import * as SH from './secrethitler.js';
+import * as CU from './camelup.js';
+import * as TC from './taco.js';
+import * as SA from './salem.js';
 import { norm } from './words.js';
 import { rint } from './rng.js';
 
@@ -36,11 +40,15 @@ const GAMES = {
   mi: { n: 'The Mind', s: 'The Mind', e: '🧠', min: MI.MIN, max: MI.MAX, t: 15, c: ['coop', 'card'], d: 'วางเลขเรียงจากน้อยไปมากโดยห้ามคุยกัน' },
   sc: { n: 'Scout', s: 'Scout', e: '🎪', min: SC.MIN, max: SC.MAX, t: 30, c: ['card'], d: 'ไพ่สองหัว ห้ามสลับมือ ลงชุดให้แรงกว่า หรือขโมยไพ่จากโต๊ะ' },
   sk: { n: 'Skull', s: 'Skull', e: '💀', min: SK.MIN, max: SK.MAX, t: 20, c: ['card'], d: 'บลัฟดอกไม้กับหัวกะโหลก ประมูลแล้วเปิด' },
+  sh: { n: 'Secret Hitler', s: 'Secret Hitler', e: '🏛️', min: SH.MIN, max: SH.MAX, t: 40, c: ['ded'], d: 'เลือกรัฐบาล ออกกฎหมาย หาฟาสซิสต์และฮิตเลอร์ที่แฝงตัว' },
+  sa: { n: 'Salem 1692', s: 'Salem 1692', e: '🧙‍♀️', min: SA.MIN, max: SA.MAX, t: 35, c: ['ded', 'card'], d: 'กล่าวหากันจนเจอแม่มด ระวังกลางคืนและการสมคบคิด' },
+  cu: { n: 'Camel Up', s: 'Camel Up', e: '🐪', min: CU.MIN, max: CU.MAX, t: 25, c: ['card'], d: 'เดิมพันอูฐแข่งที่ขี่ซ้อนกันได้ ทอยเต๋าลุ้นทุกตา' },
+  tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -115,6 +123,28 @@ function pubOf() {
         n: Object.fromEntries(g.sids.map(x => [x, g.hands[x].length])), cap: g.cap, tok: g.tok, used: g.usedSS, total: g.total, res: g.res, over: g.over,
         win: g.over ? SC.winners(g) : null,
       };
+    } else if (H.game === 'sh') {
+      p.sh = {
+        phase: g.phase, lib: g.lib, fas: g.fas, tracker: g.tracker, pres: g.pres, chan: g.chan, nominee: g.nominee, alive: g.alive, lastVote: g.lastVote,
+        power: g.power, deck: g.deck.length, discard: g.discard.length, voted: Object.keys(g.votes), elig: g.sids.filter(x => SH.eligible(g, x)), investigated: g.investigated,
+        invTarget: g.inv?.target || null, canVeto: SH.canVeto(g), log: g.log.slice(-6), winner: g.winner, why: g.why, roles: g.winner ? g.role : null, ready: g.ready,
+      };
+    } else if (H.game === 'cu') {
+      p.cu = {
+        stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
+        fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'tc') {
+      p.tc = {
+        top: g.top, turn: TC.turnSid(g), n: Object.fromEntries(g.sids.map(x => [x, g.hands[x].length])), pile: g.pile.length, next: TC.WORDS[g.word % 5],
+        slap: g.slap ? { special: !!g.slap.special, done: Object.keys(g.slap.times) } : null, last: g.last, winner: g.winner,
+      };
+    } else if (H.game === 'sa') {
+      p.sa = {
+        phase: g.phase, alive: g.alive, turn: SA.turnSid(g), played: g.played, front: g.front, deck: g.deck.length, reveal: g.reveal, cat: g.cat,
+        try: Object.fromEntries(g.sids.map(x => [x, g.tryal[x].map(c => (c.up ? c.t : null))])), hn: Object.fromEntries(g.sids.map(x => [x, g.hand[x].length])),
+        log: g.log.slice(-8), nl: g.log.length, last: g.last, cdone: g.confess ? Object.keys(g.confess) : [], winner: g.winner, team: g.winner ? g.witch : null,
+      };
     } else if (H.game === 'sk') {
       p.sk = {
         pl: Object.fromEntries(g.sids.map(x => [x, { n: g.stacks[x]?.length ?? 0, d: SK.discs(g, x), pts: g.pts[x], fl: g.flipped[x] ?? 0 }])),
@@ -178,6 +208,23 @@ function privOf(sid) {
     if (g.words && CN.isMaster(g, sid)) v.key = g.key;
   } else if (H.game === 'sc') {
     v.hand = g.hands[sid];
+  } else if (H.game === 'sh') {
+    v.role = g.role[sid];
+    v.known = SH.known(g, sid).map(x => ({ sid: x, h: g.role[x] === 'H' }));
+    v.ready = g.ready.includes(sid);
+    if ((g.phase === 'pres' && sid === g.pres) || ((g.phase === 'chan' || g.phase === 'veto') && sid === g.chan)) v.hand = g.hand;
+    if (g.phase === 'power' && sid === g.pres) { v.peek = g.peek; v.inv = g.inv; }
+    if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
+  } else if (H.game === 'cu') {
+    v.cards = g.cards[sid];
+  } else if (H.game === 'tc') {
+    v.n = g.hands[sid].length;
+  } else if (H.game === 'sa') {
+    v.tryal = g.tryal[sid]; v.hand = g.hand[sid]; v.witch = g.witch[sid];
+    v.mates = g.witch[sid] ? g.sids.filter(x => x !== sid && g.witch[x]) : [];
+    v.constable = SA.constable(g) === sid;
+    v.dk = g.dawn?.[sid] || null; v.nk = g.night?.kill[sid] || null; v.ns = g.night ? g.night.saved : false;
+    v.cf = g.confess ? sid in g.confess : false;
   } else if (H.game === 'sk') {
     v.hand = g.hand[sid];
     v.stack = g.stacks[sid] || [];
@@ -242,6 +289,8 @@ function hostTick() {
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
   }
+  // Taco Cat: close the slap window even if someone never slaps
+  if (H.phase === 'tc' && H.g.slap && t - H.g.slap.t0 > TC.WINDOW + 700) { TC.resolve(H.g); return broadcast(); }
   const on = H.players.map(isOn).join();
   if (on !== H._on || (H.endsAt && H.endsAt > t - 3000 && t - lastTimed > 3000)) {
     H._on = on;
@@ -459,7 +508,7 @@ function hostAct(m, p) {
       }
       break;
     case 'ready':
-      if ((H.phase === 'deal' || H.phase === 'uword' || H.phase === 'aroles') && !g.ready.includes(sid)) { g.ready.push(sid); broadcast(); }
+      if ((H.phase === 'deal' || H.phase === 'uword' || H.phase === 'aroles' || (H.phase === 'sh' && g.phase === 'role')) && !g.ready.includes(sid)) { g.ready.push(sid); broadcast(); }
       break;
     case 'act':
       if (H.phase === 'night') {
@@ -513,6 +562,35 @@ function hostAct(m, p) {
         : m.t === 'scshow' ? SC.show(g, sid, m.i, m.j)
         : m.t === 'scscout' ? SC.scout(g, sid, m.end, m.pos, !!m.flip)
         : SC.scoutShow(g, sid, m.end, m.pos, !!m.flip, m.i, m.j);
+      if (ok) broadcast();
+      break;
+    }
+    case 'shnom': case 'shvote': case 'shdisc': case 'shenact': case 'shveto': case 'shvetoans': case 'shpower': {
+      if (H.phase !== 'sh') break;
+      const ok = m.t === 'shnom' ? SH.nominate(g, sid, m.to) : m.t === 'shvote' ? SH.vote(g, sid, m.ja) : m.t === 'shdisc' ? SH.presDiscard(g, sid, m.i)
+        : m.t === 'shenact' ? SH.chanEnact(g, sid, m.i) : m.t === 'shveto' ? SH.askVeto(g, sid) : m.t === 'shvetoans' ? SH.answerVeto(g, sid, m.yes) : SH.usePower(g, sid, m.to);
+      if (ok) broadcast();
+      break;
+    }
+    case 'curoll': case 'cubet': case 'cudes': case 'cufin': {
+      if (H.phase !== 'cu') break;
+      const ok = m.t === 'curoll' ? CU.roll(g, sid) : m.t === 'cubet' ? CU.takeBet(g, sid, m.c) : m.t === 'cudes' ? CU.placeDesert(g, sid, m.sp, m.type) : CU.finalBet(g, sid, m.c, m.kind);
+      if (ok) broadcast();
+      break;
+    }
+    case 'tflip': case 'tslap': {
+      if (H.phase !== 'tc') break;
+      // a slap that was sent for an older card must not count as a false slap on the next one
+      if (m.t === 'tslap' && m.n !== (g.top?.n ?? 0)) break;
+      const ok = m.t === 'tflip' ? TC.flip(g, sid, now()) : TC.slap(g, sid, m.ms, m.g);
+      if (ok) broadcast();
+      break;
+    }
+    case 'sadawn': case 'sadraw': case 'saplay': case 'saend': case 'sarev': case 'sakill': case 'sasave': case 'saconf': {
+      if (H.phase !== 'sa') break;
+      const ok = m.t === 'sadawn' ? SA.dawnPick(g, sid, m.to) : m.t === 'sadraw' ? SA.draw(g, sid) : m.t === 'saplay' ? SA.play(g, sid, m.i, m.a, m.b)
+        : m.t === 'saend' ? SA.endTurn(g, sid) : m.t === 'sarev' ? SA.revealPick(g, sid, m.i) : m.t === 'sakill' ? SA.nightKill(g, sid, m.to)
+        : m.t === 'sasave' ? SA.nightSave(g, sid, m.to) : SA.confess(g, sid, m.i ?? null);
       if (ok) broadcast();
       break;
     }
@@ -657,6 +735,7 @@ const HA = {
     else SC.nextRound(g);
     broadcast();
   },
+  shstart() { if (H.phase === 'sh' && SH.start(H.g)) broadcast(); },
   sknext() {
     const g = H.g;
     if (H.phase !== 'sk' || !g.res?.settled) return;
@@ -737,6 +816,14 @@ const HA = {
       H.g = SC.newGame(sids);
       H.phase = 'scout';
       H.endsAt = null;
+    } else if (H.game === 'sh') {
+      H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
+    } else if (H.game === 'cu') {
+      H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'tc') {
+      H.g = TC.newGame(sids); H.phase = 'tc'; H.endsAt = null;
+    } else if (H.game === 'sa') {
+      H.g = SA.newGame(sids); H.phase = 'sa'; H.endsAt = null;
     } else if (H.game === 'sk') {
       H.g = SK.newGame(sids);
       H.phase = 'sk';
@@ -1073,7 +1160,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, sa: saV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1154,6 +1241,21 @@ function lobby() {
     if (n < SC.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SC.MIN} คน`);
     if (n > SC.MAX) errs.push(`Scout เล่นได้สูงสุด ${SC.MAX} คน`);
     settings = `<p class="muted small">เล่น ${Math.max(SC.MIN, Math.min(SC.MAX, n))} รอบ (เท่าจำนวนผู้เล่น) · คนละ ${SC.handSize(Math.max(SC.MIN, Math.min(SC.MAX, n)))} ใบ</p>`;
+  } else if (p.game === 'sh') {
+    if (n < SH.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SH.MIN} คน`);
+    const st = SH.SETUP[Math.max(SH.MIN, Math.min(SH.MAX, n))];
+    settings = `<p class="muted small">เสรีนิยม ${st[0]} · ฟาสซิสต์ ${st[1]} + ฮิตเลอร์ 1 · นโยบาย: เสรีนิยม 6 ใบ ฟาสซิสต์ 11 ใบ</p>`;
+  } else if (p.game === 'cu') {
+    if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
+    if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
+    settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'tc') {
+    if (n < TC.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${TC.MIN} คน`);
+    if (n > TC.MAX) errs.push(`Taco Cat เล่นได้สูงสุด ${TC.MAX} คน`);
+    settings = '<p class="muted small">ไพ่ 64 ใบแจกเท่ากัน · ใครไพ่หมดแล้วตบได้เป็นคนแรก ชนะ · เกมนี้วัดความไว ควรใช้เน็ตที่นิ่ง</p>';
+  } else if (p.game === 'sa') {
+    if (n < SA.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SA.MIN} คน`);
+    settings = `<p class="muted small">การ์ดตัวตนคนละ ${n >= 10 ? 3 : n >= 8 ? 4 : 5} ใบ · การ์ดแม่มด ${n <= 5 ? 1 : 2} ใบ · นายอำเภอ 1 ใบ</p>`;
   } else if (p.game === 'sk') {
     if (n < SK.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SK.MIN} คน`);
     settings = `<p class="muted small">ทุกคนมี 🌹 ดอกไม้ 3 + 💀 หัวกะโหลก 1 · ชนะ ${SK.WIN} ครั้งก่อน หรือเหลือรอดคนสุดท้าย${n > 6 ? ' · เกิน 6 คน เกมจะยาวขึ้น' : ''}</p>`;
@@ -1496,6 +1598,183 @@ function scEndV() {
   return `<div class="banner ${w ? 'win' : 'lose'}"><div class="bt">${w ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${k.win.map(s => esc(pn(s))).join(', ')}</div></div>
     <section class="panel"><h2>คะแนนรวม</h2><ol class="log">${rows.map(r => `<li>${esc(r.x.name)} — <b>${r.t}</b></li>`).join('')}</ol></section>
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Secret Hitler */
+const SHR = { L: ['เสรีนิยม', 'dove', 'village', 'ออกกฎหมายเสรีนิยมให้ครบ 5 ใบ หรือประหารฮิตเลอร์ให้ได้'], F: ['ฟาสซิสต์', 'eagle', 'wolf', 'ออกกฎหมายฟาสซิสต์ 6 ใบ หรือดันฮิตเลอร์เป็นนายกฯ หลังมีกฎหมายฟาสซิสต์ 3 ใบ'], H: ['ฮิตเลอร์', 'mordred', 'wolf', 'แฝงตัวให้เนียนเหมือนเสรีนิยม ถ้าได้เป็นนายกฯ หลังมีกฎหมายฟาสซิสต์ 3 ใบ ฝ่ายคุณชนะ'] };
+const SHPW = { peek: 'ดูนโยบาย 3 ใบบนสุด', investigate: 'ตรวจฝ่ายของผู้เล่น', special: 'เลือกประธานคนถัดไป', kill: 'ประหาร', invshow: 'ผลการตรวจสอบ' };
+const SHPI = { peek: 'eye', investigate: 'magnify', special: 'crown', kill: 'knife' };
+const pol = (p, attr = 'disabled') => `<button class="pol p-${p}" ${attr}>${gi(p === 'L' ? 'dove' : 'eagle')}<b>${p === 'L' ? 'เสรีนิยม' : 'ฟาสซิสต์'}</b></button>`;
+function shRole() {
+  const v = S.priv, r = SHR[v.role];
+  return `<span class="role t-${r[2]}">${art(r[1])}<span class="rn">${r[0]}</span><span class="team">${v.role === 'L' ? 'ฝ่ายเสรีนิยม' : 'ฝ่ายฟาสซิสต์'}</span><span class="rd">${r[3]}</span>
+    ${v.known?.length ? `<span class="info">พวกเดียวกัน: ${v.known.map(k => `${esc(pn(k.sid))}${k.h ? ' (ฮิตเลอร์)' : ''}`).join(', ')}</span>` : v.role === 'H' ? '<span class="info">คุณไม่รู้ว่าใครเป็นฟาสซิสต์ แต่พวกเขารู้ว่าคุณคือใคร</span>' : ''}</span>`;
+}
+function shBoard() {
+  const h = S.pub.sh, pw = SH.powers(pl().length);
+  const lib = [0, 1, 2, 3, 4].map(i => `<span class="slot l ${i < h.lib ? 'on' : ''}">${i < h.lib ? gi('dove') : i === 4 ? gi('trophy') : ''}</span>`).join('');
+  const fas = [0, 1, 2, 3, 4, 5].map(i => `<span class="slot f ${i < h.fas ? 'on' : ''}">${i < h.fas ? gi('eagle') : i === 5 ? gi('skull') : pw[i] ? gi(SHPI[pw[i]]) : ''}</span>`).join('');
+  return `<section class="panel board shb"><div class="track">${lib}</div><div class="track">${fas}</div>
+    <div class="rej">เลือกตั้งล้มเหลว ${[0, 1, 2].map(i => `<span class="rd2 ${i < h.tracker ? 'on' : ''}"></span>`).join('')} <span class="muted small">(3 = ออกใบบนสุด)</span></div>
+    <div class="small muted">กองจั่ว ${h.deck} · กองทิ้ง ${h.discard}${h.fas >= 3 && !h.winner ? ' · <b class="warn">ฮิตเลอร์เป็นนายกฯ = ฟาสซิสต์ชนะ</b>' : ''}</div>
+    <div class="shgov">${who(h.pres)}<span class="muted small">ประธาน</span>${h.chan || h.nominee ? `${who(h.chan || h.nominee)}<span class="muted small">นายกฯ${h.chan ? '' : ' (เสนอ)'}</span>` : ''}</div></section>`;
+}
+const shMine = () => secret(shRole(), 'แตะเพื่อดูบทบาทของคุณ');
+function shLog() {
+  const h = S.pub.sh, L = h.lastVote;
+  const line = e => e.t === 'policy' ? `ออกกฎหมาย${e.p === 'L' ? 'เสรีนิยม 🕊️' : 'ฟาสซิสต์ 🦅'}${e.gov ? ` (ประธาน ${esc(pn(e.pres))} · นายกฯ ${esc(pn(e.chan))})` : ' (เลือกตั้งล้มเหลว 3 ครั้ง)'}`
+    : e.t === 'vote' ? `เลือกตั้ง ${esc(pn(e.pres))} + ${esc(pn(e.chan))}: ${e.ok ? 'ผ่าน' : 'ไม่ผ่าน'}` : e.t === 'kill' ? `ประธาน ${esc(pn(e.pres))} ประหาร ${esc(pn(e.target))}`
+    : e.t === 'investigate' ? `ประธาน ${esc(pn(e.pres))} ตรวจฝ่ายของ ${esc(pn(e.target))}` : e.t === 'special' ? `ประธาน ${esc(pn(e.pres))} เลือก ${esc(pn(e.target))} เป็นประธานคนถัดไป` : `วีโต้ — ทิ้งนโยบายทั้งคู่`;
+  return `${L ? `<section class="panel"><h2>โหวตล่าสุด: ${esc(pn(L.pres))} + ${esc(pn(L.chan))} — ${L.ok ? 'ผ่าน' : 'ไม่ผ่าน'}</h2><div class="chips">${Object.entries(L.votes).map(([s, v]) => `<span class="who">${av(s, 'sm')}${esc(pn(s))} <b class="${v ? 'ok-text' : 'warn'}">${v ? '✔' : '✘'}</b></span>`).join('')}</div></section>` : ''}
+    ${h.log.length ? `<section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ol class="log">${h.log.map(e => `<li>${line(e)}</li>`).join('')}</ol></section>` : ''}`;
+}
+function shV() {
+  const h = S.pub.sh, v = S.priv, mine = me(), pres = h.pres === mine, chan = h.chan === mine, alive = h.alive.includes(mine), n = pl().length;
+  if (h.phase === 'role') {
+    const rd = h.ready || [];
+    return `<h1 class="ph">ดูบทบาทของคุณ</h1>${shMine()}${v.ready ? '<p class="center ok-text">✔ คุณพร้อมแล้ว</p>' : btn('ready', 'ดูแล้ว พร้อม', 'primary wide big')}
+      <section class="panel"><h2>พร้อม ${rd.length}/${n}</h2>${players({ ready: rd })}</section>
+      ${isHostView() ? btn('shstart', rd.length >= n ? '▶︎ เริ่มเลือกตั้ง' : `▶︎ เริ่มเลือกตั้ง (พร้อม ${rd.length}/${n})`, 'primary wide big') : ''}`;
+  }
+  if (h.winner) {
+    const win = (v.role === 'L') === (h.winner === 'L');
+    const why = { policies: h.winner === 'L' ? 'ออกกฎหมายเสรีนิยมครบ 5 ใบ' : 'ออกกฎหมายฟาสซิสต์ครบ 6 ใบ', 'hitler-chancellor': 'ฮิตเลอร์ได้เป็นนายกรัฐมนตรี', 'hitler-killed': 'ฮิตเลอร์ถูกประหาร' }[h.why];
+    return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${win ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>${h.winner === 'L' ? 'ฝ่ายเสรีนิยมชนะ' : 'ฝ่ายฟาสซิสต์ชนะ'}</div><div class="small">${why}</div></div>${shBoard()}
+      <section class="panel"><h2>บทบาทของทุกคน</h2><table class="res"><tbody>${pl().map(x => `<tr class="${(h.roles[x.sid] === 'L') === (h.winner === 'L') ? 'w' : ''}"><td>${h.alive.includes(x.sid) ? '' : '☠ '}${esc(x.name)}</td><td>${gi(SHR[h.roles[x.sid]][1])} ${SHR[h.roles[x.sid]][0]}</td></tr>`).join('')}</tbody></table></section>
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  const pick = (act, list) => `<div class="picks">${list.map(s => `<button class="pick" data-act="${act}" data-sid="${s}">${esc(pn(s))}</button>`).join('')}</div>`;
+  let body = '';
+  if (h.phase === 'nom') body = pres ? `<p class="ask center">คุณเป็นประธานาธิบดี — เสนอชื่อนายกรัฐมนตรี</p>${pick('shnom', h.elig)}` : `<p class="center big-t">${esc(pn(h.pres))} กำลังเลือกนายกรัฐมนตรี</p>`;
+  else if (h.phase === 'vote') body = `<p class="center big-t">รับรัฐบาลนี้ไหม?</p>
+      ${alive ? `<div class="vtoks"><button class="vtok yes ${v.vote === true ? 'on' : ''}" data-act="shvote" data-ja="1"><i>✔</i>Ja! รับ</button><button class="vtok no ${v.vote === false ? 'on' : ''}" data-act="shvote" data-ja="0"><i>✘</i>Nein ไม่รับ</button></div>` : ''}
+      <p class="center muted small">โหวตแล้ว ${h.voted.length}/${h.alive.length} · เปิดผลพร้อมกันเมื่อครบ</p>`;
+  else if (h.phase === 'pres') body = pres ? `<p class="ask center">เลือก<b>ทิ้ง</b> 1 ใบ — อีก 2 ใบส่งให้นายกฯ</p><div class="pols">${(v.hand || []).map((p, i) => pol(p, `data-act="shdisc" data-i="${i}"`)).join('')}</div>` : `<p class="center big-t">ประธาน ${esc(pn(h.pres))} กำลังเลือกนโยบาย</p><p class="center muted">🤐 ห้ามบอกว่าได้ใบอะไร</p>`;
+  else if (h.phase === 'chan') body = chan ? `<p class="ask center">เลือก<b>ออกกฎหมาย</b> 1 ใบ</p><div class="pols">${(v.hand || []).map((p, i) => pol(p, `data-act="shenact" data-i="${i}"`)).join('')}</div>${h.canVeto ? btn('shveto', '✋ ขอวีโต้ (ทิ้งทั้งคู่)', 'ghost wide') : ''}` : `<p class="center big-t">นายกฯ ${esc(pn(h.chan))} กำลังเลือกกฎหมาย</p>`;
+  else if (h.phase === 'veto') body = pres ? `<p class="ask center">นายกฯ ${esc(pn(h.chan))} ขอวีโต้ — เห็นด้วยไหม?</p><div class="row">${btn('shvetoans', 'ไม่ ต้องออกกฎหมาย', 'ghost', { yes: 0 })}${btn('shvetoans', '✔ เห็นด้วย ทิ้งทั้งคู่', 'primary', { yes: 1 })}</div>` : `<p class="center big-t">นายกฯ ขอวีโต้ รอประธานตัดสิน</p>`;
+  else if (h.phase === 'power') {
+    const head = `<div class="banner lose"><div class="small">อำนาจประธานาธิบดี</div><div class="bt">${gi(SHPI[h.power] || 'magnify')} ${SHPW[h.power]}</div></div>`;
+    const others = h.alive.filter(s => s !== h.pres);
+    if (!pres) body = `${head}<p class="center">${esc(pn(h.pres))} กำลังใช้อำนาจ${h.invTarget ? ` — ตรวจ ${esc(pn(h.invTarget))} แล้ว` : ''}</p>`;
+    else if (h.power === 'peek') body = `${head}<p class="ask center">3 ใบบนสุดของกอง (ซ้าย = ใบบนสุด)</p><div class="pols">${(v.peek || []).map(p => pol(p)).join('')}</div>${btn('shpower', 'รับทราบ', 'primary wide')}`;
+    else if (h.power === 'invshow') body = !v.inv ? head : `${head}<p class="center big-t">${esc(pn(v.inv.target))} อยู่ฝ่าย</p><div class="pols">${pol(v.inv.party)}</div><p class="muted small center">จะบอกความจริงหรือโกหกคนอื่นก็ได้</p>${btn('shpower', 'รับทราบ', 'primary wide')}`;
+    else body = `${head}<p class="ask center">เลือกผู้เล่น</p>${pick('shpower', h.power === 'investigate' ? others.filter(s => !h.investigated.includes(s)) : others)}`;
+  }
+  return `${shBoard()}${alive ? '' : '<p class="alert center">คุณถูกประหารแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>'}${body}${shLog()}${shMine()}`;
+}
+
+/* Camel Up */
+const camel = (c, cls = '') => `<span class="camel c-${c} ${cls}">${gi('camel')}</span>`;
+function cuV() {
+  const k = S.pub.cu, v = S.priv, mine = me(), my = k.turn === mine && !k.over;
+  const cell = i => {
+    const st = k.stacks[i] || [], d = k.desert[i], can = my && S.cuD && CU.canDesert(k, mine, i);
+    return `<${can ? 'button' : 'div'} class="cell ${can ? 'can' : ''} ${i > CU.FINISH ? 'fin' : ''}" ${can ? `data-act="cucell" data-sp="${i}"` : ''}><small>${i > CU.FINISH ? '🏁' : i}</small>
+      ${d ? `<span class="dz ${d.type > 0 ? 'oa' : 'mi'}">${gi(d.type > 0 ? 'palm' : 'mirage')}${d.type > 0 ? '+1' : '−1'}</span>` : ''}<span class="cstack">${[...st].reverse().map(c => camel(c)).join('')}</span></${can ? 'button' : 'div'}>`;
+  };
+  const track = `<div class="ctrack">${Array.from({ length: CU.FINISH + 1 }, (_, i) => cell(i + 1)).join('')}</div>`;
+  const dice = `<div class="cdice">${CU.COLORS.map(c => { const r = k.rolled.find(x => x.c === c); return `<span class="die c-${c} ${r ? '' : 'un'}">${r ? r.v : '?'}</span>`; }).join('')}<span class="muted small">รอบที่ ${k.leg} · เต๋าที่ออกแล้ว</span></div>`;
+  if (k.over) {
+    const R = k.res, rows = pl().map(x => ({ x, c: k.coins[x.sid] })).sort((a, b) => b.c - a.c);
+    return `<div class="banner ${R.winners.includes(mine) ? 'win' : 'lose'}"><div class="bt">${R.winners.includes(mine) ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${R.winners.map(s => esc(pn(s))).join(', ')}</div>
+      <div class="small">แชมป์ ${camel(R.winner, 'sm')} · ที่โหล่ ${camel(R.loser, 'sm')}</div></div>${track}
+      <section class="panel"><h2>เหรียญ</h2><ol class="log">${rows.map(r => `<li>${esc(r.x.name)} — <b>${r.c}</b> เหรียญ</li>`).join('')}</ol></section>
+      <section class="panel"><h2>ทายทั้งเกม</h2><p class="small">แชมป์: ${R.w.map(b => `${esc(pn(b.sid))} ${camel(b.c, 'sm')} ${b.v > 0 ? '+' : ''}${b.v}`).join(' · ') || '—'}</p><p class="small">ที่โหล่: ${R.l.map(b => `${esc(pn(b.sid))} ${camel(b.c, 'sm')} ${b.v > 0 ? '+' : ''}${b.v}`).join(' · ') || '—'}</p></section>
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  const tiles = `<div class="ltiles">${CU.COLORS.map(c => `<button class="ltile c-${c}" data-act="cubet" data-c="${c}" ${my && k.tiles[c].length ? '' : 'disabled'}>${gi('camel')}<b>${k.tiles[c][0] ?? '–'}</b></button>`).join('')}</div>`;
+  const acts = my ? `<section class="panel"><h2>ตาคุณ — เลือก 1 อย่าง</h2>
+      ${btn('curoll', `${gi('dice')} ทอยเต๋า (+1 เหรียญ)`, 'primary wide')}
+      <p class="or">หรือ หยิบป้ายเดิมพันรอบนี้</p>${tiles}
+      <p class="or">หรือ วางแผ่นทะเลทราย</p><div class="row">${btn('cumode', `${gi('palm')} โอเอซิส +1`, S.cuD === 1 ? 'primary' : 'ghost', { t: 1 })}${btn('cumode', `${gi('mirage')} มิราจ −1`, S.cuD === -1 ? 'primary' : 'ghost', { t: -1 })}</div>
+      ${S.cuD ? '<p class="ask center">แตะช่องบนลู่ที่มีกรอบสีทอง</p>' : ''}
+      ${v.cards?.length ? `<p class="or">หรือ ทายผลทั้งเกม (การ์ดคว่ำ)</p><div class="row">${btn('cufmode', '🏆 ทายแชมป์', S.cuF === 'w' ? 'primary' : 'ghost', { k: 'w' })}${btn('cufmode', '🐢 ทายที่โหล่', S.cuF === 'l' ? 'primary' : 'ghost', { k: 'l' })}</div>
+        ${S.cuF ? `<div class="ltiles">${v.cards.map(c => `<button class="ltile c-${c}" data-act="cufin" data-c="${c}">${gi('camel')}</button>`).join('')}</div>` : ''}` : ''}</section>`
+    : `<p class="center skstatus">ตาของ <b>${esc(pn(k.turn))}</b></p><section class="panel"><h2>ป้ายเดิมพันรอบนี้ที่เหลือ</h2>${tiles}</section>`;
+  const L = k.lastLeg;
+  return `${track}${dice}${acts}
+    <section class="panel"><ul class="players sk">${pl().map(x => `<li>${av(x.sid, 'sm')}<span class="pname">${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</span>
+      <span class="skst">${k.bets[x.sid].map(b => `<span class="mtile c-${b.c}">${b.v}</span>`).join('')}</span><span class="skst">${gi('coins', 'gold')} <b>${k.coins[x.sid]}</b></span>${x.sid === k.turn ? '<span class="tag ok">👉</span>' : ''}</li>`).join('')}</ul>
+      <p class="muted small">ทายแชมป์แล้ว ${k.fw.length} ใบ · ทายที่โหล่แล้ว ${k.fl.length} ใบ</p></section>
+    ${L ? `<section class="panel"><h2>ผลรอบที่ ${L.leg}</h2><p class="small">ที่ 1 ${camel(L.first, 'sm')} · ที่ 2 ${camel(L.second, 'sm')} — ${pl().map(x => `${esc(x.name)} ${L.rows[x.sid] > 0 ? '+' : ''}${L.rows[x.sid]}`).join(' · ')}</p></section>` : ''}`;
+}
+
+/* Taco Cat Goat Cheese Pizza */
+function tcV() {
+  const t = S.pub.tc, mine = me(), top = t.top;
+  if (top && S.tcN !== top.n) { S.tcN = top.n; S.tcT = performance.now(); }       // start this player's reaction clock
+  const card = !top ? `<div class="tcard back">${gi('taco')}</div>` : top.card ? `<div class="tcard k-${top.card}">${gi(top.card)}<b>${TC.TH[top.card]}</b></div>` : '<div class="tcard none">ไม่มีไพ่<br>(พูดอย่างเดียว)</div>';
+  const slapped = t.slap?.done.includes(mine);
+  const L = t.last;
+  const last = L ? (L.why === 'false' ? `<div class="alert center">${esc(pn(L.loser))} ตบผิดจังหวะ! เก็บ ${L.took} ใบ</div>`
+    : L.why === 'slow' ? `<div class="info center">${L.first ? `⚡ ${esc(pn(L.first))} ไวสุด · ` : ''}${esc(pn(L.loser))} ช้าสุด เก็บ ${L.took} ใบ</div>` : '') : '';
+  if (t.winner) return `<div class="banner ${t.winner === mine ? 'win' : 'lose'}"><div class="bt">${t.winner === mine ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${esc(pn(t.winner))} ไพ่หมดและตบไวที่สุด</div></div>
+    <section class="panel"><ul class="players">${pl().map(x => `<li>${av(x.sid)}<span class="pname">${esc(x.name)}</span><span class="skst">🂠 ${t.n[x.sid]}</span></li>`).join('')}</ul></section>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  return `<div class="tctable">${top ? `<div class="said">“${TC.TH[top.said]}”<small>${esc(pn(top.by))} พูด</small></div>` : '<div class="said dim">เริ่มที่ “ทาโก้”</div>'}${card}<div class="muted small">กองกลาง ${t.pile} ใบ</div></div>
+    ${last}
+    ${t.slap ? `<p class="center big-t">${slapped ? '✔ ตบแล้ว!' : 'ตบ!!!'}</p>` : `<p class="center skstatus">ตาของ <b>${esc(pn(t.turn))}</b> · คำถัดไป: <b>${TC.TH[t.next]}</b></p>`}
+    ${t.turn === mine && !t.slap ? btn('tflip', '🃏 เปิดไพ่', 'primary wide big') : ''}
+    <button class="tcslap ${t.slap ? 'live' : ''}" data-act="tslap" ${slapped ? 'disabled' : ''}>${gi('hand')}<b>ตบ!</b></button>
+    <div class="gest">${TC.SPECIAL.map(g => `<button class="gbtn" data-act="tslap" data-g="${g}" ${slapped ? 'disabled' : ''}>${gi(g)}<small>${TC.TH[g]}</small></button>`).join('')}</div>
+    <p class="muted small center">ไพ่ตรงกับคำ = กด "ตบ!" · ไพ่พิเศษ = กดปุ่มสัตว์ตัวนั้น · ตบผิดจังหวะต้องเก็บกอง</p>
+    <section class="panel"><ul class="players sk">${pl().map(x => `<li>${av(x.sid, 'sm')}<span class="pname">${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</span><span class="skst">🂠 <b>${t.n[x.sid]}</b></span>${x.sid === t.turn ? '<span class="tag ok">👉</span>' : ''}${t.slap?.done.includes(x.sid) ? '<span class="tag ok">ตบแล้ว</span>' : ''}</li>`).join('')}</ul></section>`;
+}
+
+/* Salem 1692 */
+const SAT = { N: ['ไม่ใช่แม่มด', 'villager'], W: ['แม่มด', 'witchhat'], C: ['นายอำเภอ', 'shield'] };
+const SAI = { acc: 'point', evi: 'scroll', wit: 'eye', alibi: 'shield', stocks: 'stocks', scape: 'goat', arson: 'fire', curse: 'curse', rob: 'robhand', asylum: 'church', piety: 'dove', match: 'ring', cat: 'blackcat' };
+const tryCard = (t, cls = '', attr = '') => `<${attr ? 'button' : 'span'} class="try ${t ? 't-' + t : 'down'} ${cls}" ${attr} ${attr ? 'aria-label="การ์ดตัวตน"' : ''}>${t ? gi(SAT[t][1]) : ''}</${attr ? 'button' : 'span'}>`;
+function saLine(e) {
+  const C = SA.CARDS;
+  return e.t === 'play' ? `${esc(pn(e.sid))} เล่น <b>${C[e.card].n}</b> ใส่ ${esc(pn(e.a))}${e.b ? ` → ${esc(pn(e.b))}` : ''}` : e.t === 'draw' ? `${esc(pn(e.sid))} จั่ว 2 ใบ` : e.t === 'flip' ? `เปิดการ์ดของ ${esc(pn(e.sid))}: <b>${SAT[e.card][0]}</b>`
+    : e.t === 'dead' ? `☠ ${esc(pn(e.sid))} ตาย (${{ witch: 'เป็นแม่มด', tryal: 'การ์ดถูกเปิดหมด', night: 'ถูกฆ่าตอนกลางคืน', match: 'ตายตามคู่แม่สื่อ' }[e.why]})` : e.t === 'skip' ? `${esc(pn(e.sid))} ติดขื่อคา ข้ามตา`
+    : e.t === 'cat' ? `🐈‍⬛ แมวดำอยู่กับ ${esc(pn(e.sid))}` : e.t === 'consp' ? '🕯️ สมคบคิด! ทุกคนได้การ์ดตัวตนใหม่ 1 ใบ — เช็กการ์ดตัวเอง' : e.t === 'night' && !e.target ? '🌙 กลางคืนมาถึง'
+    : e.t === 'night' ? (e.safe ? `🌅 ${esc(pn(e.target))} ถูกหมายหัวแต่รอด (${{ constable: 'นายอำเภอคุ้มครอง', asylum: 'อยู่ในที่ลี้ภัย', confess: 'สารภาพ', gone: 'ตายไปก่อนแล้ว' }[e.safe]})` : `🌅 ${esc(pn(e.target))} ถูกแม่มดฆ่า`) : '';
+}
+function saV() {
+  const k = S.pub.sa, v = S.priv, mine = me(), alive = k.alive.includes(mine), my = k.phase === 'turn' && k.turn === mine;
+  const sel = my ? S.saSel : null, selId = sel ? v.hand[sel.i] : null;
+  // which player mats can be tapped right now, and what the tap does
+  let act = null, okFor = () => false, hint = '';
+  if (sel && selId) { act = 'satarget'; okFor = s => (sel.a ? s !== sel.a && k.alive.includes(s) : SA.canTarget(k, mine, selId, s)); hint = SA.CARDS[selId].t === 2 ? (sel.a ? `ย้ายจาก ${esc(pn(sel.a))} ไปให้ใคร?` : 'เลือกคนต้นทาง') : `เลือกเป้าหมายของ "${SA.CARDS[selId].n}"`; }
+  else if (k.phase === 'dawn' && alive) { act = v.witch && !v.dk ? 'sadawn' : 'sadecoy'; okFor = s => k.alive.includes(s); hint = v.witch ? (v.dk ? `คุณเลือก ${esc(pn(v.dk))} แล้ว รอแม่มดคนอื่น` : '🐈‍⬛ แม่มด: เลือกคนที่จะได้แมวดำ') : 'แม่มดกำลังเลือกคนรับแมวดำ — แตะชื่อใครก็ได้เพื่อพรางตัว'; }
+  else if (k.phase === 'night' && alive) {
+    if (v.witch && !v.nk) { act = 'sakill'; okFor = s => s !== mine && k.alive.includes(s); hint = '🗡️ แม่มด: เลือกคนที่จะฆ่าคืนนี้'; }
+    else if (v.constable && !v.ns) { act = 'sasave'; okFor = s => s !== mine && k.alive.includes(s); hint = '🛡️ นายอำเภอ: เลือกคนที่จะคุ้มครองคืนนี้'; }
+    else { act = 'sadecoy'; okFor = s => k.alive.includes(s); hint = '🌙 กลางคืน… แตะชื่อใครก็ได้เพื่อพรางตัว'; }
+  }
+  const mats = `<div class="smats">${pl().map(x => {
+    const s = x.sid, dead = !k.alive.includes(s), f = k.front[s], pts = f.red.reduce((a, b) => a + b, 0), can = act && !dead && okFor(s);
+    const tag = can ? 'button' : 'div';
+    return `<${tag} class="smat ${dead ? 'out' : ''} ${s === k.turn && k.phase === 'turn' ? 'turn' : ''} ${can ? 'can' : ''} ${S.saDecoy === s && act === 'sadecoy' ? 'pk' : ''}" ${can ? `data-act="${act}" data-sid="${s}"` : ''}>
+      <span class="mhead"><b>${av(s, 'sm')} ${esc(x.name)}${s === mine ? ' <em>(คุณ)</em>' : ''}</b><span class="skst">🂠${k.hn[s]}</span></span>
+      <span class="trys">${k.try[s].map(t => tryCard(t)).join('')}</span>
+      <span class="mfoot"><span class="acc ${pts >= 5 ? 'hot' : ''}">${gi('point')} ${pts}/${SA.LIMIT}</span>${f.blue.map(b => `<span class="bl" title="${SA.CARDS[b].n}">${gi(SAI[b])}</span>`).join('')}${f.stocks ? `<span class="bl st">${gi('stocks')}</span>` : ''}${dead ? '<span class="tag bad">ตาย</span>' : ''}</span></${tag}>`;
+  }).join('')}</div>`;
+  const myCards = `<span class="role"><span class="rn">${v.witch ? '🧙‍♀️ คุณอยู่ฝ่ายแม่มด' : '🏘️ คุณเป็นชาวเมือง'}</span><span class="trys big">${v.tryal.map(c => `<span class="tryw">${tryCard(c.t, c.up ? 'shown' : '')}<small>${SAT[c.t][0]}${c.up ? ' (เปิดแล้ว)' : ''}</small></span>`).join('')}</span>
+    ${v.mates.length ? `<span class="info">แม่มดด้วยกัน: ${v.mates.map(s => esc(pn(s))).join(', ')}</span>` : ''}<span class="rd">${v.witch ? 'กำจัดชาวเมืองให้หมด อย่าให้การ์ดแม่มดถูกเปิด' : 'หาและเปิดการ์ดแม่มดให้ครบทุกใบ'}</span></span>`;
+  if (k.winner) return `<div class="banner ${(k.winner === 'W') === !!v.witch ? 'win' : 'lose'}"><div class="bt">${(k.winner === 'W') === !!v.witch ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>${k.winner === 'T' ? '🏘️ ชาวเมืองชนะ — เปิดการ์ดแม่มดครบแล้ว' : '🧙‍♀️ แม่มดชนะ — ชาวเมืองตายหมด'}</div></div>
+    <section class="panel"><h2>ใครเป็นใคร</h2><table class="res"><tbody>${pl().map(x => `<tr><td>${k.alive.includes(x.sid) ? '' : '☠ '}${esc(x.name)}</td><td>${k.team[x.sid] ? `${gi('witchhat')} แม่มด` : 'ชาวเมือง'}</td></tr>`).join('')}</tbody></table></section>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  let status = '', panel = '';
+  if (k.phase === 'turn') status = my ? '👉 ตาคุณ' : `ตาของ <b>${esc(pn(k.turn))}</b>`;
+  else if (k.phase === 'reveal') {
+    status = `⚖️ ${esc(pn(k.reveal.target))} ถูกกล่าวหาครบ ${SA.LIMIT} แต้ม`;
+    panel = k.reveal.by === mine ? `<section class="panel"><h2>เลือกเปิดการ์ดของ ${esc(pn(k.reveal.target))} 1 ใบ</h2><div class="trys big">${k.try[k.reveal.target].map((t, i) => (t ? tryCard(t) : tryCard(null, '', `data-act="sarev" data-i="${i}"`))).join('')}</div></section>` : `<p class="center">${esc(pn(k.reveal.by))} กำลังเลือกการ์ดที่จะเปิด…</p>`;
+  } else if (k.phase === 'dawn') status = '🌄 รุ่งอรุณ — ทุกคนหลับตา';
+  else if (k.phase === 'night') status = '🌙 กลางคืน — ทุกคนหลับตา';
+  else if (k.phase === 'confess') {
+    status = `🕯️ ใกล้รุ่ง — จะสารภาพไหม? (${k.cdone.length}/${k.alive.length})`;
+    panel = !alive ? '' : v.cf ? '<p class="center ok-text">✔ ตัดสินใจแล้ว รอคนอื่น</p>' : `<section class="panel"><h2>สารภาพเพื่อรอดคืนนี้?</h2><p class="muted small">เลือกเปิดการ์ดตัวเอง 1 ใบ แล้วแม่มดจะฆ่าคุณคืนนี้ไม่ได้ (ถ้าเปิดการ์ดแม่มด คุณตาย)</p>
+      <div class="trys big">${v.tryal.map((c, i) => (c.up ? '' : `<span class="tryw">${tryCard(c.t, '', `data-act="saconf" data-i="${i}"`)}<small>${SAT[c.t][0]}</small></span>`)).join('')}</div>${btn('saconf', 'ไม่สารภาพ', 'ghost wide')}</section>`;
+  }
+  const hand = alive ? `<section class="panel"><h2>การ์ดในมือ ${my ? '<span class="tag ok">ตาคุณ</span>' : ''}</h2>
+      <div class="hcards">${v.hand.map((id, i) => `<button class="hcard k-${SA.CARDS[id].k} ${sel?.i === i ? 'on' : ''}" data-act="sacard" data-i="${i}" ${my ? '' : 'disabled'}>${gi(SAI[id])}<b>${SA.CARDS[id].n}</b><small>${SA.CARDS[id].d}</small></button>`).join('') || '<span class="muted">ไม่มีการ์ด</span>'}</div>
+      ${my ? `<div class="row">${btn('sadraw', '🂠 จั่ว 2 ใบ (จบตา)', 'ghost', {}, k.played > 0)}${btn('saend', 'จบตา', 'primary', {}, k.played === 0)}</div><p class="muted small">แตะการ์ดแล้วแตะผู้เล่นเป้าหมาย · เล่นได้หลายใบ หรือจั่ว 2 ใบแทน</p>` : ''}</section>` : '<p class="alert center">คุณตายแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>';
+  return `<p class="center skstatus">${status}</p>${hint ? `<p class="ask center">${hint}</p>` : ''}${mats}${panel}${hand}
+    ${secret(myCards, 'แตะเพื่อดูการ์ดตัวตนของคุณ')}
+    <section class="panel"><h2>เหตุการณ์ล่าสุด <span class="muted small">กองจั่ว ${k.deck}</span></h2><ol class="log">${k.log.map(e => `<li>${saLine(e)}</li>`).join('')}</ol></section>`;
 }
 
 /* Skull */
@@ -1904,7 +2183,35 @@ function ucEndV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'mi' ? `
+  const body = g === 'sh' ? `
+    <p><b>เป้าหมาย:</b> เสรีนิยมต้องออกกฎหมายเสรีนิยม 5 ใบ หรือประหารฮิตเลอร์ · ฟาสซิสต์ต้องออกกฎหมายฟาสซิสต์ 6 ใบ หรือให้ฮิตเลอร์ได้เป็นนายกฯ หลังมีกฎหมายฟาสซิสต์ 3 ใบ</p>
+    <ol><li><b>ประธานาธิบดี</b> (วนไปทีละคน) เสนอชื่อ<b>นายกรัฐมนตรี</b> — ประธานและนายกฯ ชุดล่าสุดเป็นนายกฯ ซ้ำไม่ได้</li>
+    <li>ทุกคนโหวต ✔/✘ พร้อมกัน ต้องได้เสียงเกินครึ่ง · ไม่ผ่าน 3 ครั้งติด กฎหมายใบบนสุดถูกออกทันที</li>
+    <li>ประธานจั่ว 3 ใบ ทิ้ง 1 ส่ง 2 ใบให้นายกฯ · นายกฯ ทิ้ง 1 ออกกฎหมาย 1 — <b>ห้ามบอกว่าได้ใบอะไร แต่โกหกได้</b></li>
+    <li>กฎหมายฟาสซิสต์บางใบให้อำนาจประธาน: ดูไพ่ 3 ใบบนสุด / ตรวจฝ่าย / เลือกประธานคนถัดไป / ประหาร</li>
+    <li>หลังมีกฎหมายฟาสซิสต์ 5 ใบ นายกฯ ขอ<b>วีโต้</b>ได้ ถ้าประธานเห็นด้วย ทิ้งทั้ง 2 ใบ</li></ol>
+    <p class="muted small">ฟาสซิสต์รู้จักกัน · ฮิตเลอร์รู้จักพวกเฉพาะเกม 5–6 คน · ตรวจฝ่ายแล้วฮิตเลอร์แสดงเป็นฟาสซิสต์<br>Secret Hitler โดย Goat, Wolf, & Cabbage — CC BY-NC-SA 4.0 (ห้ามใช้เชิงพาณิชย์)</p>` : g === 'cu' ? `
+    <p><b>เป้าหมาย:</b> มีเหรียญมากที่สุดตอนอูฐตัวแรกเข้าเส้นชัย</p>
+    <ol><li>ถึงตาคุณ เลือกทำ <b>1 อย่าง</b>:<br>🎲 <b>ทอยเต๋า</b> — สุ่มสีที่ยังไม่ออกในรอบนี้ เดิน 1–3 ช่อง ได้ 1 เหรียญ<br>🎫 <b>หยิบป้ายเดิมพันรอบ</b> ของอูฐตัวหนึ่ง (5 → 3 → 2)<br>🌴 <b>วางแผ่นทะเลทราย</b> โอเอซิส (+1 ช่อง) หรือมิราจ (−1 ช่อง ไปอยู่ใต้กอง) ได้ 1 เหรียญทุกครั้งที่มีอูฐมาเหยียบ<br>🏆 <b>ทายแชมป์ / ที่โหล่</b> ของทั้งเกม ด้วยการ์ดอูฐของคุณ</li>
+    <li>อูฐที่อยู่ช่องเดียวกันจะ<b>ขี่ซ้อนกัน</b> ตัวบนเดินไปพร้อมตัวล่าง และตัวบนถือว่านำ</li>
+    <li>ทอยครบ 5 ลูก = จบรอบ: ป้ายของอูฐที่ 1 ได้ตามเลข ที่ 2 ได้ 1 เหรียญ ตัวอื่นเสีย 1</li>
+    <li>จบเกม: ทายแชมป์/ที่โหล่ถูก ได้ 8, 5, 3, 2, 1 ตามลำดับที่ทาย · ทายผิดเสีย 1</li></ol>` : g === 'tc' ? `
+    <p><b>เป้าหมาย:</b> ทิ้งไพ่ให้หมดมือ แล้วเป็นคนแรกที่ตบถูกจังหวะ</p>
+    <ol><li>ผลัดกันเปิดไพ่ 1 ใบ พร้อมพูดคำตามลำดับ: <b>ทาโก้ → แมว → แพะ → ชีส → พิซซ่า</b> วนไปเรื่อยๆ</li>
+    <li>ถ้า<b>ไพ่ที่เปิดตรงกับคำที่พูด</b> ทุกคนต้องกดปุ่มตบ คนที่ช้าที่สุด (หรือไม่ตบ) เก็บกองทั้งหมด</li>
+    <li><b>ไพ่พิเศษ</b> (กอริลลา / นาร์วาฬ / กราวด์ฮ็อก): ต้องกดปุ่มท่าของสัตว์ตัวนั้นแทนปุ่มตบ กดผิดท่าถือว่าช้าสุด</li>
+    <li>ตบตอนที่ไม่ควรตบ = เก็บกองทั้งหมด</li>
+    <li>ไพ่หมดมือแล้วยังต้องพูดคำและตบต่อ ถ้าตบได้เป็นคนแรก = ชนะ</li></ol>
+    <p class="muted small">แอปจับเวลาปฏิกิริยาที่เครื่องของแต่ละคน เน็ตช้าจึงไม่เสียเปรียบ</p>` : g === 'sa' ? `
+    <p><b>เป้าหมาย:</b> ชาวเมืองต้องเปิดการ์ด<b>แม่มด</b>ให้ครบทุกใบ · แม่มดต้องกำจัดชาวเมืองให้หมด</p>
+    <ol><li>ทุกคนมีการ์ดตัวตนคว่ำอยู่หลายใบ ใครมีการ์ดแม่มดคือฝ่ายแม่มด (เคยมีแล้วก็เป็นตลอดไป)</li>
+    <li>ถึงตาคุณ: <b>จั่ว 2 ใบ</b> หรือ <b>เล่นการ์ดกี่ใบก็ได้</b> แล้วจบตา</li>
+    <li><b>การ์ดแดง</b> กล่าวหา (1 / 3 / 7 แต้ม): ใครโดนครบ 7 แต้ม คนที่เล่นใบสุดท้ายเลือกเปิดการ์ดตัวตนของเขา 1 ใบ</li>
+    <li>เปิดเจอแม่มด หรือถูกเปิดครบทุกใบ = ตาย</li>
+    <li><b>กลางคืน</b> (เมื่อจั่วเจอ): แม่มดเลือกฆ่า 1 คน · นายอำเภอเลือกคุ้มครอง 1 คน · จากนั้นทุกคนเลือก "สารภาพ" (เปิดการ์ดตัวเอง 1 ใบ) เพื่อรอดคืนนี้ได้</li>
+    <li><b>สมคบคิด</b> (เมื่อจั่วเจอ): คนถือแมวดำต้องเปิดการ์ด 1 ใบ แล้วทุกคนหยิบการ์ดคว่ำ 1 ใบจากคนถัดไป — คุณอาจกลายเป็นแม่มด!</li></ol>
+    <ul class="rl">${Object.entries(SA.CARDS).filter(([, c]) => c.k !== 'black').map(([, c]) => `<li><b>${c.n}</b> — ${c.d}</li>`).join('')}</ul>
+    <p class="muted small">ฉบับในแอป: สมคบคิดและการ์ดที่แมวดำ/คำสาปเลือก ระบบสุ่มให้</p>` : g === 'mi' ? `
     <p><b>เกมช่วยกัน:</b> ทุกคนได้เลข 1–100 ต้องวางเรียงจากน้อยไปมากให้หมด <b>โดยห้ามคุย ห้ามส่งสัญญาณ</b> ใช้จังหวะและความรู้สึกเท่านั้น</p>
     <ol><li>ด่านที่ 1 ได้คนละ 1 ใบ ด่าน 2 ได้ 2 ใบ ไปเรื่อยๆ</li>
     <li>ไม่มีตาใคร ใครคิดว่าเลขตัวเองต่ำสุดก็กดวางได้เลย (วางใบต่ำสุดของตัวเองเสมอ)</li>
@@ -1996,9 +2303,9 @@ function render() {
   renderPending = false;
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -2107,6 +2414,44 @@ const ACT = {
     m.pos = +d.pos; S.scSel = []; render();
   },
   scss: () => { const m = S.scM, a = S.scSel; if (m && a.length) send({ t: 'scss', end: m.end, pos: m.pos, flip: m.flip, i: a[0], j: a.at(-1) }); },
+  shnom: d => { if (confirm(`เสนอ ${pn(d.sid)} เป็นนายกรัฐมนตรี?`)) send({ t: 'shnom', to: d.sid }); },
+  shvote: d => send({ t: 'shvote', ja: d.ja === '1' }),
+  shdisc: d => { if (confirm('ทิ้งใบนี้? (อีก 2 ใบจะส่งให้นายกฯ)')) send({ t: 'shdisc', i: +d.i }); },
+  shenact: d => { if (confirm('ออกกฎหมายใบนี้?')) send({ t: 'shenact', i: +d.i }); },
+  shveto: () => { if (confirm('ขอวีโต้? (ทิ้งทั้ง 2 ใบ ถ้าประธานเห็นด้วย)')) send({ t: 'shveto' }); },
+  shvetoans: d => send({ t: 'shvetoans', yes: d.yes === '1' }),
+  shpower: d => { if (!d.sid || confirm(`${SHPW[S.pub.sh.power]}: ${pn(d.sid)} ?`)) send({ t: 'shpower', to: d.sid || null }); },
+  curoll: () => send({ t: 'curoll' }),
+  cubet: d => send({ t: 'cubet', c: d.c }),
+  cumode: d => { S.cuD = S.cuD === +d.t ? 0 : +d.t; S.cuF = null; render(); },
+  cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
+  cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
+  cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  tflip: () => send({ t: 'tflip' }),
+  tslap: d => {
+    const t = S.pub.tc, n = t.top?.n ?? 0;
+    if (S.tcDone === n && t.slap) return;
+    S.tcDone = n;
+    send({ t: 'tslap', n, ms: Math.round(performance.now() - (S.tcT || performance.now())), g: d.g || null });
+  },
+  sacard: d => { S.saSel = S.saSel?.i === +d.i ? null : { i: +d.i, a: null }; render(); },
+  satarget: d => {
+    const sel = S.saSel, id = sel && S.priv.hand[sel.i];
+    if (!id) return;                                   // the card was already played (double tap)
+    const two = SA.CARDS[id].t === 2;
+    if (two && !sel.a) { sel.a = d.sid; return render(); }
+    S.saSel = null;
+    send(two ? { t: 'saplay', i: sel.i, a: sel.a, b: d.sid } : { t: 'saplay', i: sel.i, a: d.sid });
+    render();
+  },
+  sadraw: () => send({ t: 'sadraw' }),
+  saend: () => send({ t: 'saend' }),
+  sarev: d => send({ t: 'sarev', i: +d.i }),
+  sadawn: d => { if (confirm(`ให้แมวดำกับ ${pn(d.sid)} ?`)) send({ t: 'sadawn', to: d.sid }); },
+  sakill: d => { if (confirm(`ฆ่า ${pn(d.sid)} คืนนี้?`)) send({ t: 'sakill', to: d.sid }); },
+  sasave: d => { if (confirm(`คุ้มครอง ${pn(d.sid)} คืนนี้?`)) send({ t: 'sasave', to: d.sid }); },
+  sadecoy: d => { S.saDecoy = d.sid; render(); },
+  saconf: d => { if (d.i == null || confirm('สารภาพ: เปิดการ์ดใบนี้ให้ทุกคนเห็น?')) send({ t: 'saconf', i: d.i == null ? null : +d.i }); },
   skplace: d => send({ t: 'skplace', d: d.d }),
   skn: d => { S.bidN = (S.bidN ?? 0) + +d.d; render(); },
   skbid: () => { if (confirm(`ประมูล ${S.bidN} แผ่น?`)) send({ t: 'skbid', n: S.bidN }); },

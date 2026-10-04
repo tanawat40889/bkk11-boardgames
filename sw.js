@@ -1,8 +1,8 @@
 // App shell: network-first (always fresh when online), cache fallback offline. CDN libs: cache-first.
-const V = 'bkk11bg-v17';
-const SHELL = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/app.js', 'js/net.js', 'js/rng.js', 'js/onuw.js', 'js/spyfall.js', 'js/undercover.js', 'js/avalon.js', 'js/insider.js', 'js/justone.js', 'js/words.js', 'js/skull.js', 'js/mind.js', 'js/codenames.js', 'js/scout.js',
+const V = 'bkk11bg-v18';
+const SHELL = ['./', 'index.html', 'style.css', 'manifest.webmanifest', 'js/app.js', 'js/net.js', 'js/rng.js', 'js/onuw.js', 'js/spyfall.js', 'js/undercover.js', 'js/avalon.js', 'js/insider.js', 'js/justone.js', 'js/words.js', 'js/skull.js', 'js/mind.js', 'js/codenames.js', 'js/scout.js', 'js/secrethitler.js', 'js/camelup.js', 'js/taco.js', 'js/salem.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-64.png',
-  ...['assassin', 'brain', 'bulb', 'cards', 'castle', 'coins', 'crown', 'dice', 'drunk', 'fail', 'flag', 'heart', 'hourglass', 'hunter', 'insomniac', 'juggler', 'key', 'magnify', 'masks', 'mason', 'master', 'merlin', 'mic', 'minion', 'moon', 'mordred', 'morgana', 'oberon', 'people', 'percival', 'robber', 'rose', 'seer', 'servant', 'skull', 'spy', 'star', 'sun', 'swap', 'tanner', 'target', 'tophat', 'trophy', 'troublemaker', 'villager', 'vote', 'wolf'].map(n => `icons/g/${n}.svg`)];
+  ...['assassin', 'blackcat', 'brain', 'bulb', 'camel', 'cards', 'castle', 'cat', 'cauldron', 'cheese', 'church', 'coins', 'crown', 'curse', 'dice', 'dove', 'drunk', 'eagle', 'eye', 'fail', 'fire', 'flag', 'gavel', 'goat', 'gorilla', 'groundhog', 'hand', 'heart', 'hourglass', 'hunter', 'insomniac', 'juggler', 'key', 'knife', 'magnify', 'masks', 'mason', 'master', 'merlin', 'mic', 'minion', 'mirage', 'moon', 'mordred', 'morgana', 'narwhal', 'oberon', 'palm', 'people', 'percival', 'pizza', 'point', 'pyramid', 'ring', 'robber', 'robhand', 'rose', 'scroll', 'seer', 'servant', 'shield', 'skull', 'spy', 'star', 'stocks', 'sun', 'swap', 'swap2', 'taco', 'tanner', 'target', 'tophat', 'trophy', 'troublemaker', 'veto', 'villager', 'vote', 'witchhat', 'wolf'].map(n => `icons/g/${n}.svg`)];
 const CDN = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
