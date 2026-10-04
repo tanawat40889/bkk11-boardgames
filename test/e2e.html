@@ -43,6 +43,8 @@ const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
 const PLAN = { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8] };
 const only = Q.get('games')?.split(',');
+// ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
+const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rnd = n => Math.floor(Math.random() * n);
 const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
@@ -119,9 +121,11 @@ function act(win, game) {
 const text = win => (win.document.querySelector('main')?.innerText || win.document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 160);
 async function until(f, ticks = 400) { for (let i = 0; i < ticks; i++) { if (f()) return true; await sleep(TICK); } return false; }
 
+// Unique per page load, otherwise a re-run in the same tab would resume the previous run's saved sessions.
+const STAMP = 'r' + Date.now().toString(36) + '_';
 let runId = 0;
 async function scenario(game, n) {
-  const id = 'r' + (++runId) + '_', box = document.getElementById('frames'), wins = [];
+  const id = STAMP + (++runId) + '_', box = document.getElementById('frames'), wins = [];
   box.innerHTML = '';
   const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
   for (let i = 0; i < n; i++) {
@@ -154,6 +158,7 @@ async function scenario(game, n) {
   let ticks = 0, reloads = 0;
   for (; ticks < MAX_TICKS; ticks++) {
     if (q(host, '[data-act=again]')) break;
+    if (HOLD && ticks >= HOLD) { await new Promise(() => {}); }
     if (reloads < CHAOS && ticks > 2 && Math.random() < 0.02) {
       const i = rnd(n), w = wins[i];
       early.push(...(w.__errs || []).map(e => `P${i}: ${e}`));
@@ -187,6 +192,7 @@ async function scenario(game, n) {
   for (const [game, counts] of Object.entries(PLAN)) {
     if (only && !only.includes(game)) continue;
     for (const n of counts) for (let r = 0; r < REPS; r++) {
+      if (ONLY_N && n !== ONLY_N) continue;
       st.textContent = `กำลังเล่น ${game} ${n} คน…`;
       let res;
       try { res = await scenario(game, n); } catch (e) { res = { game, n, ok: false, why: 'runner exception: ' + (e.stack || e) }; }

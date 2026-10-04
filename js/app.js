@@ -1143,7 +1143,7 @@ function lobby() {
 
 function secret(inner, label) {
   return S.reveal
-    ? `<button class="secret open" data-act="hide">${inner}<span class="hint">แตะเพื่อซ่อน</span></button>`
+    ? `<button class="secret open ${S.flip ? 'flipin' : ''}" data-act="hide">${inner}<span class="hint">แตะเพื่อซ่อน</span></button>`
     : `<button class="secret closed" data-act="show"><span class="back">🂠</span><span class="hint">${label}</span><span class="muted small">อย่าให้คนอื่นเห็นจอ</span></button>`;
 }
 
@@ -1308,10 +1308,10 @@ function miV() {
         ${holding && !m.prop.yes.includes(me()) ? `<div class="row">${btn('mdecline', 'ไม่เอา', 'ghost')}${btn('magree', '⭐ เห็นด้วย', 'primary')}</div>` : `<div class="row">${btn('mdecline', 'ยกเลิก', 'ghost')}</div>`}</section>`
     : m.stars > 0 && holding ? btn('mprop', '⭐ เสนอใช้ดาว', 'ghost wide') : '';
   return `${miHead()}
-    <div class="mtop"><div class="small muted">ใบล่าสุดบนโต๊ะ</div><div class="mcard big">${m.top ? m.top.card : '–'}</div>${m.top ? `<div class="small muted">โดย ${esc(pn(m.top.sid))}</div>` : '<div class="small muted">ยังไม่มีใครวาง</div>'}</div>
+    <div class="mtop"><div class="small muted">ใบล่าสุดบนโต๊ะ</div><div class="mcard big" data-n="${m.top ? m.top.card : ''}">${m.top ? m.top.card : '–'}</div>${m.top ? `<div class="small muted">โดย ${esc(pn(m.top.sid))}</div>` : '<div class="small muted">ยังไม่มีใครวาง</div>'}</div>
     ${miLast()}
     ${holding ? `<button class="btn primary wide mplay" data-act="mplay">วาง <b>${hand[0]}</b></button>
-      <div class="mhand">${hand.map((c, i) => `<span class="mcard ${i ? '' : 'low'}">${c}</span>`).join('')}</div>` : '<p class="center ok-text">✔ คุณวางหมดแล้ว รอเพื่อน</p>'}
+      <div class="mhand">${hand.map((c, i) => `<span class="mcard ${i ? '' : 'low'}" data-n="${c}">${c}</span>`).join('')}</div>` : '<p class="center ok-text">✔ คุณวางหมดแล้ว รอเพื่อน</p>'}
     ${prop}
     <section class="panel"><ul class="players">${pl().map(x => `<li><span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</span><span class="skst">🂠 ${m.n[x.sid]}</span></li>`).join('')}</ul>
       <p class="muted small">🤫 ห้ามคุย ห้ามบอกเลข ห้ามส่งสัญญาณ</p></section>`;
@@ -1368,7 +1368,7 @@ function cnV() {
 }
 
 /* Scout */
-const scCard = (c, cls = '', attr = '') => `<button class="scard ${cls}" style="--h:${(c[0] - 1) * 36}" ${attr}><b>${c[0]}</b><small>${c[1]}</small></button>`;
+const scCard = (c, cls = '', attr = '') => `<button class="scard ${cls}" style="--h:${(c[0] - 1) * 36};--h2:${(c[1] - 1) * 36}" ${attr}><b>${c[0]}</b><small>${c[1]}</small></button>`;
 function scBoard() {
   const k = S.pub.sc;
   return `<section class="panel"><ul class="players sk">${pl().map(x => `<li><span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</span>
@@ -1434,33 +1434,51 @@ function scEndV() {
 
 /* Skull */
 const DI = d => (d === 'f' ? '🌹' : '💀');
+// A round coaster. kind: 'back' (face down), 'f' (flower), 's' (skull).
+const disc = (kind, cls = '', attr = '', tag = 'span') => `<${tag} class="disc d-${kind} ${cls}" ${attr}>${kind === 'back' ? '' : `<i>${DI(kind)}</i>`}</${tag}>`;
+const skHue = sid => Math.round((pl().findIndex(x => x.sid === sid) * 360) / Math.max(1, pl().length));
+
+// Every player's mat: face-down stack, flipped discs, discs left, points.
 function skBoard() {
-  const k = S.pub.sk;
-  return `<section class="panel"><ul class="players sk">${pl().map(x => {
-    const q = k.pl[x.sid], out = !q.d;
+  const k = S.pub.sk, mine = me(), flipping = k.ch === mine && !k.res;
+  const html = `<div class="mats">${pl().map(x => {
+    const q = k.pl[x.sid], out = !q.d, down = q.n - q.fl;
+    const ups = k.reveals.filter(r => r.sid === x.sid);
+    // Animate a flip only the first time we draw it (re-renders would replay it otherwise).
+    const last = k.reveals.length !== S.skRev ? k.reveals.at(-1) : null;
+    const can = flipping && x.sid !== mine && down > 0;
     const tag = out ? '<span class="tag bad">ตกรอบ</span>' : x.sid === k.ch ? '<span class="tag ok">🎯 ผู้ท้า</span>' : k.passed.includes(x.sid) ? '<span class="tag">หมอบ</span>' : x.sid === k.turn ? '<span class="tag ok">👉 ถึงตา</span>' : '';
-    return `<li class="${out ? 'off' : ''}"><span class="pname">${esc(x.name)}${x.sid === me() ? ' <em>(คุณ)</em>' : ''}</span>
-      <span class="skst">${'⭐'.repeat(q.pts)}${'☆'.repeat(SK.WIN - q.pts)}</span><span class="skst" title="แผ่นที่เหลือ">🔘${q.d}</span><span class="skst" title="วางบนโต๊ะ">🂠${q.n - q.fl}${q.fl ? `+${q.fl}` : ''}</span>${tag}</li>`;
-  }).join('')}</ul><p class="muted small">⭐ แต้ม · 🔘 แผ่นที่เหลือทั้งหมด · 🂠 แผ่นคว่ำบนโต๊ะ (+ที่ถูกเปิดแล้ว)</p></section>`;
+    const stack = `<span class="dstack">${Array.from({ length: down }, (_, i) => disc('back', '', `style="--i:${i}"`)).join('')}${!down && !ups.length ? '<span class="dempty"></span>' : ''}</span>
+      ${ups.length ? `<span class="dups">${ups.map(r => disc(r.d, r === last ? 'flipin' : '')).join('')}</span>` : ''}`;
+    return `<${can ? 'button' : 'div'} class="mat ${out ? 'out' : ''} ${x.sid === k.turn ? 'turn' : ''} ${k.passed.includes(x.sid) ? 'passed' : ''} ${can ? 'can' : ''}" style="--ph:${skHue(x.sid)}" ${can ? `data-act="skflip" data-sid="${x.sid}"` : ''}>
+      <span class="mhead"><b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b><span class="mpts">${'⭐'.repeat(q.pts)}${'☆'.repeat(SK.WIN - q.pts)}</span></span>
+      <span class="mtable">${stack}</span>
+      <span class="mfoot"><span class="mleft" title="แผ่นที่เหลือทั้งหมด">${Array.from({ length: q.d }, () => '<i></i>').join('')}</span>${tag}${can ? '<span class="tag ok">แตะเพื่อเปิด</span>' : ''}</span>
+    </${can ? 'button' : 'div'}>`;
+  }).join('')}</div><p class="muted small center">กองกลางแผ่น = แผ่นคว่ำบนโต๊ะ · จุดเล็ก = จำนวนแผ่นที่ยังเหลือ · ⭐ แต้ม</p>`;
+  S.skRev = k.reveals.length;
+  return html;
 }
 
-function skMine() {
+function skMine(canPlace) {
   const v = S.priv;
   if (!v.hand.f && !v.hand.s) return '<p class="alert center">คุณตกรอบแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>';
   // After a loss is settled, hand shrinks while this round's discs are still on the table.
   const hf = Math.max(0, v.hand.f - v.stack.filter(d => d === 'f').length), hs = Math.max(0, v.hand.s - v.stack.filter(d => d === 's').length);
-  return `<section class="panel"><h2>แผ่นของคุณ <span class="muted small">(อย่าให้ใครเห็น)</span></h2>
-    <p>ในมือ: ${'🌹'.repeat(hf)}${'💀'.repeat(hs)}${!hf && !hs ? '<span class="muted">— หมดแล้ว</span>' : ''}</p>
-    <p>บนโต๊ะ (ล่าง → บน): ${v.stack.length ? v.stack.map(DI).join(' ') : '<span class="muted">—</span>'}</p></section>`;
+  const hand = [...Array(hf).fill('f'), ...Array(hs).fill('s')];
+  return `<section class="panel myhand" style="--ph:${skHue(me())}"><h2>มือของคุณ <span class="muted small">(อย่าให้ใครเห็น)</span></h2>
+    <div class="dhand">${hand.length ? hand.map(d => disc(d, 'lg', canPlace ? `data-act="skplace" data-d="${d}"` : 'disabled', 'button')).join('') : '<span class="muted">ไม่มีแผ่นในมือแล้ว</span>'}</div>
+    ${canPlace ? '<p class="ask center">แตะแผ่นที่จะวางคว่ำ</p>' : ''}
+    <div class="dmine"><span class="small muted">กองของคุณบนโต๊ะ (ล่าง → บน)</span><span class="drow">${v.stack.length ? v.stack.map(d => disc(d, 'sm')).join('') : '<span class="muted small">— ยังไม่ได้วาง —</span>'}</span></div></section>`;
 }
 
 function skV() {
   const k = S.pub.sk, v = S.priv, mine = me(), opening = !k.turn && !k.ch && !k.res;
-  let status = '', act = '';
+  let status = '', act = '', canPlace = false;
   if (opening) {
     const placed = Object.values(k.pl).filter(q => q.n).length, need = Object.values(k.pl).filter(q => q.d).length;
-    status = `🂠 ทุกคนวางแผ่นแรกคว่ำไว้ (${placed}/${need})`;
-    if (v.stack.length === 0 && (v.canF || v.canS)) act = `<p class="ask center">เลือกแผ่นแรกของคุณ</p><div class="row">${btn('skplace', '🌹 ดอกไม้', 'big', { d: 'f' }, !v.canF)}${btn('skplace', '💀 หัวกะโหลก', 'big', { d: 's' }, !v.canS)}</div>`;
+    status = `ทุกคนวางแผ่นแรกคว่ำไว้ (${placed}/${need})`;
+    canPlace = v.stack.length === 0 && (v.canF || v.canS);
   } else if (k.turn) {
     status = k.bid ? `💰 ประมูลสูงสุด <b>${k.bid.n}</b> โดย ${esc(pn(k.bid.by))} · ตาของ <b>${esc(pn(k.turn))}</b>` : `👉 ตาของ <b>${esc(pn(k.turn))}</b> — วางเพิ่ม หรือเริ่มประมูล`;
     if (k.turn === mine) {
@@ -1468,21 +1486,18 @@ function skV() {
       S.bidN = Math.min(max, Math.max(min, S.bidN ?? min));
       const stepper = min <= max ? `<div class="stepper"><span>${k.bid ? 'เพิ่มเป็น' : 'ประมูล'} (เปิดเจอ 🌹 กี่แผ่น)</span><div class="sctl"><button class="sb" data-act="skn" data-d="-1" ${S.bidN <= min ? 'disabled' : ''}>−</button><b>${S.bidN}</b><button class="sb" data-act="skn" data-d="1" ${S.bidN >= max ? 'disabled' : ''}>+</button></div></div>
         ${btn('skbid', k.bid ? `💰 เพิ่มเป็น ${S.bidN}` : `💰 ประมูล ${S.bidN}`, 'primary wide')}` : '';
+      canPlace = !k.bid && (v.canF || v.canS);
       act = k.bid
         ? `<section class="panel"><h2>ตาคุณ</h2>${stepper}${btn('skpass', '🙅 หมอบ', 'ghost wide')}</section>`
-        : `<section class="panel"><h2>ตาคุณ</h2>${v.canF || v.canS ? `<div class="row">${btn('skplace', 'วาง 🌹', '', { d: 'f' }, !v.canF)}${btn('skplace', 'วาง 💀', '', { d: 's' }, !v.canS)}</div><p class="or center">หรือ</p>` : '<p class="muted small">ไม่มีแผ่นในมือแล้ว ต้องประมูล</p>'}${stepper}</section>`;
+        : `<section class="panel"><h2>ตาคุณ</h2><p class="muted small">${canPlace ? 'แตะแผ่นในมือด้านล่างเพื่อวางเพิ่ม หรือเริ่มประมูล' : 'ไม่มีแผ่นในมือแล้ว ต้องประมูล'}</p>${stepper}</section>`;
     }
   } else if (k.ch) {
     const fl = k.reveals.filter(r => r.d === 'f').length;
     status = `🎯 ${esc(pn(k.ch))} ต้องเปิดเจอ 🌹 ให้ได้ <b>${k.bid.n}</b> แผ่น (ตอนนี้ ${fl})`;
-    if (k.ch === mine && !k.res) {
-      const opts = pl().filter(x => x.sid !== mine && k.pl[x.sid].n - k.pl[x.sid].fl > 0);
-      act = `<p class="ask center">เลือกกองที่จะเปิดแผ่นบนสุด</p><div class="picks">${opts.map(x => `<button class="pick" data-act="skflip" data-sid="${x.sid}">${esc(x.name)}<br><small>เหลือ ${k.pl[x.sid].n - k.pl[x.sid].fl}</small></button>`).join('')}</div>`;
-    }
-    if (k.res?.choose && k.ch === mine) act = `<p class="ask center">💀 เจอกะโหลกตัวเอง — เลือกแผ่นที่จะทิ้ง</p><div class="row">${btn('sklose', 'ทิ้ง 🌹', '', { d: 'f' }, !v.hand.f)}${btn('sklose', 'ทิ้ง 💀', 'danger', { d: 's' }, !v.hand.s)}</div>`;
+    if (k.ch === mine && !k.res) act = '<p class="ask center">แตะกองของคนอื่นเพื่อเปิดแผ่นบนสุด</p>';
+    if (k.res?.choose && k.ch === mine) act = `<p class="ask center">💀 เจอกะโหลกตัวเอง — แตะแผ่นที่จะทิ้ง</p><div class="dhand">${v.hand.f ? disc('f', 'lg', 'data-act="sklose" data-d="f"', 'button') : ''}${v.hand.s ? disc('s', 'lg', 'data-act="sklose" data-d="s"', 'button') : ''}</div>`;
     else if (k.res?.choose) act = `<p class="center">${esc(pn(k.ch))} กำลังเลือกแผ่นที่จะทิ้ง…</p>`;
   }
-  const reveals = k.reveals.length ? `<section class="panel"><h2>เปิดแล้ว</h2><div class="clues">${k.reveals.map(r => `<span class="clue ${r.d === 's' ? 'skull' : ''}"><b>${DI(r.d)}</b><small>${esc(pn(r.sid))}</small></span>`).join('')}</div></section>` : '';
   let res = '';
   if (k.res?.settled) {
     const r = k.res, ch = pn(k.ch);
@@ -1492,7 +1507,7 @@ function skV() {
           ${v.lost ? `<div class="small">แผ่นที่คุณเสีย: ${DI(v.lost)} (คนอื่นไม่รู้)</div>` : ''}</div>`;
     act = isHostView() ? btn('sknext', k.winner ? '🏆 ดูผู้ชนะ' : '▶ รอบต่อไป', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>';
   }
-  return `<p class="center skstatus">${status}</p>${res}${act}${reveals}${skBoard()}${skMine()}`;
+  return `<p class="center skstatus">${status}</p>${res}${skBoard()}${act}${skMine(canPlace)}`;
 }
 
 function skEndV() {
@@ -1954,7 +1969,7 @@ const ACT = {
     render();
   },
   qr: () => { S.qr = !S.qr; render(); },
-  show: () => { S.reveal = true; render(); },
+  show: () => { S.reveal = true; S.flip = true; render(); S.flip = false; },
   hide: () => { S.reveal = false; render(); },
   voice: (d, el) => { S.voice = el.checked; LS.set('bg_voice', S.voice); if (S.voice) say('เปิดเสียงบรรยาย'); },
   ready: () => send({ t: 'ready' }),

@@ -225,3 +225,65 @@ details.panel .picks { margin-top: 10px; }
 .scard.on { border-color: var(--accent2); transform: translateY(-8px); box-shadow: 0 6px 14px #0008; } .scard.new { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .sslot { width: 26px; height: 64px; border-radius: 8px; border: 1px dashed var(--accent2); background: #ffb84d22; color: var(--accent2); cursor: pointer; padding: 0; }
 .scrow { align-items: center; flex-wrap: wrap; } .scrow > * { flex: none; }
+
+/* ── real-looking pieces ── */
+/* Skull: round coasters + player mats */
+.disc { --s: 46px; width: var(--s); height: var(--s); flex: none; border-radius: 50%; display: inline-grid; place-items: center; position: relative; border: 0; padding: 0; font: inherit;
+  box-shadow: 0 2px 0 hsl(var(--ph, 260) 30% 20%), 0 4px 0 hsl(var(--ph, 260) 30% 14%), 0 8px 12px #0007; }
+.disc i { font-style: normal; font-size: calc(var(--s) * .52); line-height: 1; filter: drop-shadow(0 1px 1px #0006); }
+.disc::after { content: ''; position: absolute; inset: 9%; border-radius: 50%; border: 2px solid #ffffff55; pointer-events: none; }
+.d-back { background: radial-gradient(circle, hsl(var(--ph, 260) 75% 68%) 0 20%, hsl(var(--ph, 260) 60% 28%) 21% 27%, transparent 28%), repeating-conic-gradient(hsl(var(--ph, 260) 65% 46%) 0 20deg, hsl(var(--ph, 260) 65% 34%) 20deg 40deg); }
+.d-f { background: radial-gradient(circle at 50% 35%, #fff6f9, #ffb3cb 55%, #e0709a); }
+.d-s { background: radial-gradient(circle at 50% 35%, #746d92, #2a2638 60%, #15131f); }
+.disc.lg { --s: 76px; } .disc.sm { --s: 34px; }
+button.disc { cursor: pointer; transition: transform .12s; }
+button.disc:not(:disabled) { outline: 3px solid #ffb84d88; outline-offset: 3px; }
+button.disc:not(:disabled):active { transform: translateY(3px) scale(.95); }
+button.disc:disabled { cursor: default; }
+.flipin { animation: flipin .5s ease-out; }
+@keyframes flipin { from { transform: rotateY(90deg) scale(1.25); } to { transform: none; } }
+
+.mats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0 6px; }
+.mat { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 16px; border: 2px solid hsl(var(--ph) 55% 48%); color: var(--text); text-align: left; font: inherit; min-height: 156px;
+  background: linear-gradient(160deg, hsl(var(--ph) 42% 24%), hsl(var(--ph) 36% 13%)); box-shadow: inset 0 0 0 4px #0003; }
+.mhead { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.mhead b { font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .mhead em { font-style: normal; font-weight: 400; font-size: .75rem; opacity: .7; }
+.mpts { font-size: .8rem; white-space: nowrap; }
+.mtable { flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 74px; flex-wrap: wrap; }
+.dstack { display: inline-flex; flex-direction: column-reverse; align-items: center; }
+.dstack .disc + .disc { margin-bottom: -38px; }
+.dempty { width: 46px; height: 46px; border-radius: 50%; border: 2px dashed #ffffff44; }
+.dups { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center; max-width: 92px; } .dups .disc { --s: 40px; }
+.mfoot { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; }
+.mleft i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: hsl(var(--ph) 70% 60%); margin-right: 3px; box-shadow: 0 1px 0 #0006; }
+.mat.turn { box-shadow: 0 0 0 3px var(--accent2), 0 0 18px #ffb84d66; }
+.mat.passed { opacity: .6; } .mat.out { filter: grayscale(1); opacity: .45; }
+button.mat.can { cursor: pointer; animation: matpulse 1.2s infinite; }
+@keyframes matpulse { 50% { box-shadow: 0 0 0 4px #3ecf8eaa; } }
+.myhand { border-color: hsl(var(--ph) 55% 45%); }
+.dhand { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 12px 0 16px; }
+.dmine { display: flex; flex-direction: column; gap: 6px; align-items: center; } .drow { display: flex; gap: 6px; align-items: center; min-height: 36px; }
+@media (min-width: 700px) { .mats { grid-template-columns: repeat(3, 1fr); } }
+
+/* The Mind: number cards */
+.mcard { position: relative; min-width: 0; width: 58px; height: 84px; padding: 0; border: 0; border-radius: 10px; font-size: 1.6rem; color: #2a2060;
+  background: linear-gradient(160deg, #fff, #e6e0ff); box-shadow: 0 2px 0 #b9b0e0, 0 6px 12px #0006; }
+.mcard::before, .mcard::after { content: attr(data-n); position: absolute; font-size: .62rem; font-weight: 700; color: #6a4ff0; }
+.mcard::before { top: 4px; left: 6px; } .mcard::after { bottom: 4px; right: 6px; transform: rotate(180deg); }
+.mcard.big { width: 132px; height: 186px; font-size: 4.2rem; border-radius: 16px; transform: rotate(-3deg); border: 0; }
+.mcard.big::before, .mcard.big::after { font-size: 1rem; } .mcard.big::before { top: 8px; left: 12px; } .mcard.big::after { bottom: 8px; right: 12px; }
+.mhand .mcard:nth-child(odd) { transform: rotate(-2deg); } .mhand .mcard:nth-child(even) { transform: rotate(2deg); }
+.mcard.low { border: 0; box-shadow: 0 0 0 3px var(--accent2), 0 6px 12px #0006; }
+
+/* Scout: two-ended cards */
+.scard { width: 46px; height: 72px; border-radius: 9px; border: 2px solid #fff; justify-content: space-between; padding: 5px 0 4px;
+  background: linear-gradient(hsl(var(--h) 85% 80%) 0 62%, hsl(var(--h2, 0) 60% 62%) 62%); box-shadow: 0 2px 0 #0005, 0 5px 10px #0005; }
+.scard b { font-size: 1.65rem; } .scard small { font-size: .82rem; font-weight: 700; opacity: .9; }
+.scard.on { border-color: var(--accent2); }
+
+/* role / word cards */
+.secret.closed { border: 3px solid #5a4bb0; background: repeating-linear-gradient(45deg, #2a2350 0 12px, #241e45 12px 24px); box-shadow: inset 0 0 0 6px #1b1830, 0 8px 20px #0006; }
+.secret.closed .back { filter: drop-shadow(0 2px 4px #000a); }
+.secret.open { box-shadow: 0 8px 24px #0006; }
+.secret.flipin { animation: cardflip .45s ease-out; }
+@keyframes cardflip { from { transform: rotateY(90deg); } to { transform: none; } }
