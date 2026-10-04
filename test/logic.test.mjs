@@ -14,6 +14,7 @@ import * as SH from '../js/secrethitler.js';
 import * as CU from '../js/camelup.js';
 import * as TC from '../js/taco.js';
 import * as SA from '../js/salem.js';
+import * as AB from '../js/abraca.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1051,6 +1052,77 @@ t('salem: 200 random games finish with a winner; card totals stay consistent', (
       assert.equal(Object.values(g.tryal).flat().length, tryals);
     }
     assert.ok(['T', 'W'].includes(g.winner));
+  }
+});
+
+t('abraca: 36 stones, deal, secret stones', () => {
+  assert.equal(AB.stones().length, 36);
+  for (let n = AB.MIN; n <= AB.MAX; n++) {
+    const g = AB.newGame(sids(n));
+    assert.ok(g.sids.every(s => g.hands[s].length === 5 && g.life[s] === 6));
+    assert.equal(g.secret.length, 4);
+    assert.deepEqual([...Object.values(g.hands).flat(), ...g.secret, ...g.pile].sort((a, b) => a - b), AB.stones());
+  }
+});
+function abFixed(hands) {
+  const g = AB.newGame(Object.keys(hands));
+  g.hands = JSON.parse(JSON.stringify(hands)); g.turn = 0; g.pile = [8, 8, 8, 8, 8, 8]; g.secret = [7, 6, 5, 4];
+  return g;
+}
+t('abraca: success, ascending rule, stop & refill, failure costs life', () => {
+  const g = abFixed({ a: [2, 5, 5, 8, 8], b: [1, 2, 3, 4, 5], c: [6, 6, 7, 7, 8] });
+  assert.equal(AB.cast(g, 'b', 1), null, 'not your turn');
+  assert.equal(AB.stop(g, 'a'), false, 'must try at least one spell');
+  let e = AB.cast(g, 'a', 5); assert.ok(e.ok); assert.deepEqual(e.hit.sort(), ['b', 'c']); assert.equal(g.life.b, 5); assert.equal(g.life.c, 5); assert.equal(g.board[5], 1);
+  assert.equal(AB.cast(g, 'a', 2), null, 'next spell must be the same number or higher');
+  e = AB.cast(g, 'a', 8); assert.ok(e.ok); assert.equal(g.life.a, 6, 'life is capped at 6');
+  assert.ok(AB.stop(g, 'a')); assert.equal(g.hands.a.length, 5); assert.equal(AB.turnSid(g), 'b');
+  e = AB.cast(g, 'b', 8); assert.equal(e.ok, false); assert.equal(g.life.b, 4); assert.equal(AB.turnSid(g), 'c', 'a miss ends the turn');
+});
+t('abraca: each spell effect', () => {
+  let g = abFixed({ a: [1, 2, 3, 4, 6], b: [8, 8, 8, 8, 8], c: [8, 8, 8, 8, 7] });
+  g.life.a = 3;
+  AB.cast(g, 'a', 1, () => 2); assert.equal(g.life.b, 4); assert.equal(g.life.c, 4);
+  AB.cast(g, 'a', 2); assert.equal(g.life.b, 3); assert.equal(g.life.a, 4);
+  AB.cast(g, 'a', 3, () => 3); assert.equal(g.life.a, 6);
+  AB.cast(g, 'a', 4); assert.deepEqual(g.owned.a, [7]); assert.equal(g.secret.length, 3);
+  AB.cast(g, 'a', 6); assert.equal(g.life.b, 2, '6 hits the player on the left (next in order)');
+  assert.equal(g.res.why, 'empty', 'using all five stones ends the round'); assert.equal(g.res.rows.a, 3 + 1); assert.equal(g.res.rows.b, 1);
+  g = abFixed({ a: [7, 7, 7, 7, 7], b: [8, 8, 8, 8, 8], c: [8, 8, 8, 8, 8] });
+  AB.cast(g, 'a', 7); assert.equal(g.life.c, 5, '7 hits the player on the right'); assert.equal(g.life.b, 6);
+  g = abFixed({ a: [2, 2, 2, 2, 2], b: [8, 8, 8, 8, 8], c: [8, 8, 8, 8, 8] });
+  const e = AB.cast(g, 'a', 1, () => 3); assert.equal(e.ok, false); assert.equal(g.life.a, 3, 'a failed Dragon costs the die roll');
+  g = abFixed({ a: [5, 5, 5, 5, 5], b: [8, 8, 8, 8, 8] });
+  AB.cast(g, 'a', 5); assert.equal(g.life.b, 5, 'with 2 players the neighbour is hit once');
+});
+t('abraca: kills and scoring, 8 points wins, next round', () => {
+  let g = abFixed({ a: [1, 5, 5, 8, 8], b: [1, 2, 3, 4, 5], c: [6, 6, 7, 7, 8] });
+  g.life.b = 1; g.owned.c = [3];
+  AB.cast(g, 'a', 5);
+  assert.equal(g.res.why, 'kill'); assert.deepEqual(g.res.dead, ['b']);
+  assert.deepEqual(g.res.rows, { a: 3, b: 0, c: 2 }, 'killer 3, survivor 1 (+1 secret stone), dead 0');
+  assert.equal(AB.cast(g, 'c', 6), null, 'round is over');
+  assert.ok(AB.nextRound(g)); assert.equal(g.round, 2); assert.equal(g.life.b, 6); assert.equal(g.pts.a, 3);
+  g = abFixed({ a: [2, 2, 2, 2, 2], b: [8, 8, 8, 8, 8], c: [8, 8, 8, 8, 8] });
+  g.life.a = 1; AB.cast(g, 'a', 8);
+  assert.equal(g.res.why, 'dead'); assert.deepEqual(g.res.rows, { a: 0, b: 1, c: 1 }, 'killing yourself gives everyone else 1');
+  g = abFixed({ a: [5, 5, 5, 5, 5], b: [8, 8, 8, 8, 8] }); g.pts.a = 6; g.life.b = 1;
+  AB.cast(g, 'a', 5); assert.ok(g.over); assert.deepEqual(g.winners, ['a']); assert.equal(AB.nextRound(g), false);
+});
+t('abraca: 300 random games finish; stones are conserved', () => {
+  for (let k = 0; k < 300; k++) {
+    const g = AB.newGame(sids(AB.MIN + (k % 4)));
+    let steps = 0;
+    while (!g.over) {
+      assert.ok(++steps < 5000, 'stuck');
+      if (g.res) { AB.nextRound(g); continue; }
+      const s = AB.turnSid(g);
+      if (g.casts && !rint(3)) assert.ok(AB.stop(g, s));
+      else assert.ok(AB.cast(g, s, g.min + rint(9 - g.min)));
+      const all = [...Object.values(g.hands).flat(), ...g.secret, ...g.pile, ...Object.values(g.owned).flat(), ...Object.entries(g.board).flatMap(([n, c]) => Array(c).fill(+n))];
+      assert.deepEqual(all.sort((a, b) => a - b), AB.stones());
+    }
+    assert.ok(g.winners.length >= 1);
   }
 });
 

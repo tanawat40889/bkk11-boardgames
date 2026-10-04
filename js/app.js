@@ -14,6 +14,7 @@ import * as SH from './secrethitler.js';
 import * as CU from './camelup.js';
 import * as TC from './taco.js';
 import * as SA from './salem.js';
+import * as AB from './abraca.js';
 import { norm } from './words.js';
 import { rint } from './rng.js';
 
@@ -42,13 +43,14 @@ const GAMES = {
   sk: { n: 'Skull', s: 'Skull', e: '💀', min: SK.MIN, max: SK.MAX, t: 20, c: ['card'], d: 'บลัฟดอกไม้กับหัวกะโหลก ประมูลแล้วเปิด' },
   sh: { n: 'Secret Hitler', s: 'Secret Hitler', e: '🏛️', min: SH.MIN, max: SH.MAX, t: 40, c: ['ded'], d: 'เลือกรัฐบาล ออกกฎหมาย หาฟาสซิสต์และฮิตเลอร์ที่แฝงตัว' },
   sa: { n: 'Salem 1692', s: 'Salem 1692', e: '🧙‍♀️', min: SA.MIN, max: SA.MAX, t: 35, c: ['ded', 'card'], d: 'กล่าวหากันจนเจอแม่มด ระวังกลางคืนและการสมคบคิด' },
+  ab: { n: 'Abraca…what?', s: 'Abraca…what?', e: '🪄', min: AB.MIN, max: AB.MAX, t: 20, c: ['card'], d: 'เห็นหินคาถาของทุกคนยกเว้นของตัวเอง เดาให้ถูกแล้วร่าย' },
   cu: { n: 'Camel Up', s: 'Camel Up', e: '🐪', min: CU.MIN, max: CU.MAX, t: 25, c: ['card'], d: 'เดิมพันอูฐแข่งที่ขี่ซ้อนกันได้ ทอยเต๋าลุ้นทุกตา' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -122,6 +124,12 @@ function pubOf() {
         round: g.round, rounds: g.rounds, ready: g.ready, started: SC.allReady(g), turn: g.turn, active: g.active,
         n: Object.fromEntries(g.sids.map(x => [x, g.hands[x].length])), cap: g.cap, tok: g.tok, used: g.usedSS, total: g.total, res: g.res, over: g.over,
         win: g.over ? SC.winners(g) : null,
+      };
+    } else if (H.game === 'ab') {
+      p.ab = {
+        life: g.life, pts: g.pts, n: Object.fromEntries(g.sids.map(x => [x, g.hands[x].length])), board: g.board, pile: g.pile.length, secret: g.secret.length,
+        own: Object.fromEntries(g.sids.map(x => [x, g.owned[x].length])), turn: AB.turnSid(g), min: g.min, casts: g.casts, last: g.last, round: g.round, ln: g.log.length,
+        res: g.res, over: g.over, winners: g.winners,
       };
     } else if (H.game === 'sh') {
       p.sh = {
@@ -208,6 +216,10 @@ function privOf(sid) {
     if (g.words && CN.isMaster(g, sid)) v.key = g.key;
   } else if (H.game === 'sc') {
     v.hand = g.hands[sid];
+  } else if (H.game === 'ab') {
+    // everyone's stones except your own
+    v.see = Object.fromEntries(g.sids.filter(x => x !== sid).map(x => [x, g.hands[x]]));
+    v.own = g.owned[sid];
   } else if (H.game === 'sh') {
     v.role = g.role[sid];
     v.known = SH.known(g, sid).map(x => ({ sid: x, h: g.role[x] === 'H' }));
@@ -565,6 +577,11 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'abcast': case 'abstop': {
+      if (H.phase !== 'ab') break;
+      if (m.t === 'abcast' ? AB.cast(g, sid, m.n) : AB.stop(g, sid)) broadcast();
+      break;
+    }
     case 'shnom': case 'shvote': case 'shdisc': case 'shenact': case 'shveto': case 'shvetoans': case 'shpower': {
       if (H.phase !== 'sh') break;
       const ok = m.t === 'shnom' ? SH.nominate(g, sid, m.to) : m.t === 'shvote' ? SH.vote(g, sid, m.ja) : m.t === 'shdisc' ? SH.presDiscard(g, sid, m.i)
@@ -735,6 +752,12 @@ const HA = {
     else SC.nextRound(g);
     broadcast();
   },
+  abnext() {
+    const g = H.g;
+    if (H.phase !== 'ab' || !g.res || g.over) return;
+    AB.nextRound(g);
+    broadcast();
+  },
   shstart() { if (H.phase === 'sh' && SH.start(H.g)) broadcast(); },
   sknext() {
     const g = H.g;
@@ -816,6 +839,8 @@ const HA = {
       H.g = SC.newGame(sids);
       H.phase = 'scout';
       H.endsAt = null;
+    } else if (H.game === 'ab') {
+      H.g = AB.newGame(sids); H.phase = 'ab'; H.endsAt = null;
     } else if (H.game === 'sh') {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
@@ -1160,7 +1185,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, sa: saV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1241,6 +1266,10 @@ function lobby() {
     if (n < SC.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SC.MIN} คน`);
     if (n > SC.MAX) errs.push(`Scout เล่นได้สูงสุด ${SC.MAX} คน`);
     settings = `<p class="muted small">เล่น ${Math.max(SC.MIN, Math.min(SC.MAX, n))} รอบ (เท่าจำนวนผู้เล่น) · คนละ ${SC.handSize(Math.max(SC.MIN, Math.min(SC.MAX, n)))} ใบ</p>`;
+  } else if (p.game === 'ab') {
+    if (n < AB.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${AB.MIN} คน`);
+    if (n > AB.MAX) errs.push(`Abraca…what? เล่นได้สูงสุด ${AB.MAX} คน`);
+    settings = `<p class="muted small">หินคาถา 36 ก้อน (เลข N มี N ก้อน) · คนละ ${AB.HAND} ก้อน ${AB.LIFE} ชีวิต · ใครถึง ${AB.WIN} แต้มก่อนชนะ</p>`;
   } else if (p.game === 'sh') {
     if (n < SH.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${SH.MIN} คน`);
     const st = SH.SETUP[Math.max(SH.MIN, Math.min(SH.MAX, n))];
@@ -1598,6 +1627,60 @@ function scEndV() {
   return `<div class="banner ${w ? 'win' : 'lose'}"><div class="bt">${w ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${k.win.map(s => esc(pn(s))).join(', ')}</div></div>
     <section class="panel"><h2>คะแนนรวม</h2><ol class="log">${rows.map(r => `<li>${esc(r.x.name)} — <b>${r.t}</b></li>`).join('')}</ol></section>
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Abraca…what? */
+const stone = (n, cls = '') => `<span class="stone ${cls}" style="--h:${AB.SPELLS[n].c}">${gi('ab' + n)}<b>${n}</b></span>`;
+const mystery = (cls = '') => `<span class="stone myst ${cls}">${gi('qmark')}</span>`;
+const abHearts = n => `<span class="abhp">${[0, 1, 2, 3, 4, 5].map(i => gi('heart', i < n ? 'hp' : 'hp off')).join('')}</span>`;
+function abEvent(e) {
+  if (!e) return '';
+  const sp = AB.SPELLS[e.n], who2 = esc(pn(e.by));
+  if (!e.ok) return `<div class="abev fail">${stone(e.n)}<div><b>${who2} ไม่มี "${sp.n}"!</b><span>${e.roll ? `ทอยได้ ${e.roll} — ` : ''}เสีย ${e.lost} ชีวิต</span></div></div>`;
+  const parts = [];
+  if (e.roll) parts.push(`ทอยได้ ${e.roll}`);
+  if (e.hit.length) parts.push(`${e.hit.map(s => esc(pn(s))).join(', ')} เสีย ${e.dmg}`);
+  if (e.gain) parts.push(`${who2} ได้ ${e.gain} ชีวิต`);
+  if (e.n === 4) parts.push(e.owl ? 'ได้หินลับ 1 ก้อน' : 'หินลับหมดแล้ว');
+  return `<div class="abev ok">${stone(e.n)}<div><b>${who2} ร่าย "${sp.n}" สำเร็จ ✨</b><span>${parts.join(' · ')}</span></div></div>`;
+}
+function abBoard() {
+  const a = S.pub.ab;
+  return `<section class="abboard"><h2>${gi('sparkle', 'gold')} กระดานคาถา <span class="muted small">กองหิน ${a.pile} · หินลับ ${a.secret}</span></h2>
+    <div class="abrows">${Object.keys(AB.SPELLS).map(n => `<div class="abrow">${stone(+n, 'sm')}<span class="pips">${Array.from({ length: +n }, (_, i) => `<i class="${i < a.board[n] ? 'on' : ''}" style="--h:${AB.SPELLS[n].c}"></i>`).join('')}</span></div>`).join('')}</div>
+    <p class="muted small">จุดที่สว่าง = หินเลขนั้นที่ถูกร่ายไปแล้ว</p></section>`;
+}
+function abMats(reveal) {
+  const a = S.pub.ab, v = S.priv, mine = me();
+  return `<div class="abmats">${pl().map(x => {
+    const s = x.sid, hand = reveal ? reveal[s] : s === mine ? null : v.see?.[s];
+    const stones = hand ? hand.map(n => stone(n)).join('') : Array.from({ length: a.n[s] }, () => mystery()).join('');
+    return `<div class="abmat ${s === a.turn && !a.res ? 'turn' : ''} ${a.life[s] <= 0 ? 'out' : ''}" style="--ph:${hueOf(s)}">
+      <span class="mhead"><b>${av(s, 'sm')} ${esc(x.name)}${s === mine ? ' <em>(คุณ)</em>' : ''}</b><span class="abpts">${gi('star', 'gold')} ${a.pts[s]}/${AB.WIN}</span></span>
+      ${abHearts(a.life[s])}
+      <span class="abstones">${stones || '<span class="muted small">ไม่มีหิน</span>'}</span>
+      ${a.own[s] ? `<span class="abown">${gi('ab4')} หินลับ ×${a.own[s]}${s === mine && v.own?.length ? ` <b>(${v.own.join(', ')})</b>` : ''}</span>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+function abV() {
+  const a = S.pub.ab, mine = me(), my = a.turn === mine && !a.res;
+  if (a.res) {
+    const r = a.res, why = r.why === 'empty' ? `${esc(pn(r.actor))} ร่ายหินหมดมือ!` : r.why === 'kill' ? `${r.dead.map(s => esc(pn(s))).join(', ')} ชีวิตหมด` : `${esc(pn(r.actor))} ร่ายพลาดจนชีวิตหมด`;
+    const win = a.over && a.winners.includes(mine);
+    return `${a.over ? `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${win ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${a.winners.map(s => esc(pn(s))).join(', ')} ถึง ${AB.WIN} แต้ม</div></div>` : `<div class="banner"><div class="bt">จบรอบ ${a.round}</div><div>${why}</div></div>`}
+      ${abEvent(a.last)}
+      <section class="panel"><h2>แต้มรอบนี้</h2><table class="res"><tbody>${pl().map(x => `<tr class="${r.dead.includes(x.sid) ? '' : 'w'}"><td>${r.dead.includes(x.sid) ? '☠ ' : ''}${esc(x.name)}</td><td class="c">+${r.rows[x.sid]}</td><td class="c"><b>${a.pts[x.sid]}</b> / ${AB.WIN}</td></tr>`).join('')}</tbody></table></section>
+      <h2 class="center">เฉลยหินของทุกคน</h2>${abMats(r.hands)}
+      <p class="center small muted">หินลับที่เหลือ: ${r.secret.map(n => stone(n, 'sm')).join(' ') || '—'}</p>
+      ${isHostView() ? (a.over ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : btn('abnext', `▶ รอบ ${a.round + 1}`, 'primary wide big')) : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
+  }
+  const spells = my ? `<section class="panel abcast"><h2>${gi('wand', 'gold')} ตาคุณ — ร่ายคาถาที่คิดว่าตัวเองมี</h2>
+      ${a.casts ? `<p class="muted small">ร่ายต่อได้เฉพาะเลข ${a.min} ขึ้นไป หรือกดหยุดเพื่อเติมหิน</p>` : ''}
+      <div class="spells">${Object.entries(AB.SPELLS).map(([n, sp]) => `<button class="spell" style="--h:${sp.c}" data-act="abcast" data-n="${n}" ${+n < a.min ? 'disabled' : ''}>${stone(+n)}<span><b>${sp.n}</b><small>${sp.d}</small></span></button>`).join('')}</div>
+      ${btn('abstop', '✋ หยุด แล้วเติมหิน', 'ghost wide', {}, !a.casts)}</section>`
+    : `<p class="center skstatus">${gi('wand', 'gold')} ตาของ <b>${esc(pn(a.turn))}</b>${a.casts ? ` · ร่ายไปแล้ว ${a.casts} (ต่อได้ตั้งแต่เลข ${a.min})` : ''}</p>`;
+  return `<p class="center muted small">รอบ ${a.round} · ถึง ${AB.WIN} แต้มชนะ</p>${abEvent(a.last)}${spells}${abMats()}${abBoard()}`;
 }
 
 /* Secret Hitler */
@@ -2183,7 +2266,16 @@ function ucEndV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'sh' ? `
+  const body = g === 'ab' ? `
+    <p><b>เป้าหมาย:</b> เก็บให้ได้ ${AB.WIN} แต้มก่อนใคร</p>
+    <ol><li>ทุกคนมีหินคาถา ${AB.HAND} ก้อน <b>คุณเห็นหินของทุกคน ยกเว้นของตัวเอง</b></li>
+    <li>หินเลข 1 มี 1 ก้อน เลข 2 มี 2 ก้อน … เลข 8 มี 8 ก้อน · กระดานคาถาบอกว่าแต่ละเลขถูกร่ายไปแล้วกี่ก้อน</li>
+    <li>ถึงตาคุณ: ประกาศเลขคาถาที่คิดว่าตัวเองมี — ถ้ามี คาถาทำงาน และร่ายต่อได้ด้วย<b>เลขเท่าเดิมหรือสูงกว่า</b> หรือจะหยุดก็ได้</li>
+    <li>ถ้าไม่มี: เสีย 1 ชีวิตและจบตา (ร่ายเลข 1 พลาด เสียตามเต๋า)</li>
+    <li>จบตาเติมหินให้ครบ ${AB.HAND}</li>
+    <li><b>จบรอบ</b> เมื่อมีคนชีวิตหมด หรือมีคนร่ายหินหมดมือ: คนที่ทำให้จบได้ 3 แต้ม คนที่รอดได้ 1 แต้ม คนตายได้ 0 · หินลับจากนกฮูก +1 แต้มต่อก้อน</li></ol>
+    <ul class="rl">${Object.entries(AB.SPELLS).map(([n, sp]) => `<li>${stone(+n, 'sm')} <b>${sp.n}</b> — ${sp.d}</li>`).join('')}</ul>
+    <p class="muted small">"ซ้าย" คือคนถัดไปในลำดับตา · "ขวา" คือคนก่อนหน้า</p>` : g === 'sh' ? `
     <p><b>เป้าหมาย:</b> เสรีนิยมต้องออกกฎหมายเสรีนิยม 5 ใบ หรือประหารฮิตเลอร์ · ฟาสซิสต์ต้องออกกฎหมายฟาสซิสต์ 6 ใบ หรือให้ฮิตเลอร์ได้เป็นนายกฯ หลังมีกฎหมายฟาสซิสต์ 3 ใบ</p>
     <ol><li><b>ประธานาธิบดี</b> (วนไปทีละคน) เสนอชื่อ<b>นายกรัฐมนตรี</b> — ประธานและนายกฯ ชุดล่าสุดเป็นนายกฯ ซ้ำไม่ได้</li>
     <li>ทุกคนโหวต ✔/✘ พร้อมกัน ต้องได้เสียงเกินครึ่ง · ไม่ผ่าน 3 ครั้งติด กฎหมายใบบนสุดถูกออกทันที</li>
@@ -2303,7 +2395,7 @@ function render() {
   renderPending = false;
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
       S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1;
       S.enter = true;   // new screen: play the entrance animation once
@@ -2414,6 +2506,8 @@ const ACT = {
     m.pos = +d.pos; S.scSel = []; render();
   },
   scss: () => { const m = S.scM, a = S.scSel; if (m && a.length) send({ t: 'scss', end: m.end, pos: m.pos, flip: m.flip, i: a[0], j: a.at(-1) }); },
+  abcast: d => { if (confirm(`ร่าย ${d.n} · ${AB.SPELLS[d.n].n}?`)) send({ t: 'abcast', n: +d.n }); },
+  abstop: () => send({ t: 'abstop' }),
   shnom: d => { if (confirm(`เสนอ ${pn(d.sid)} เป็นนายกรัฐมนตรี?`)) send({ t: 'shnom', to: d.sid }); },
   shvote: d => send({ t: 'shvote', ja: d.ja === '1' }),
   shdisc: d => { if (confirm('ทิ้งใบนี้? (อีก 2 ใบจะส่งให้นายกฯ)')) send({ t: 'shdisc', i: +d.i }); },

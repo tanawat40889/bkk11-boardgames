@@ -552,3 +552,49 @@ button.smat.can { cursor: pointer; border-color: var(--ok); animation: matpulse 
 .hcard.k-red { background: linear-gradient(160deg, #e8546c, #8c1a30); } .hcard.k-green { background: linear-gradient(160deg, #2bbd80, #0f6b46); } .hcard.k-blue { background: linear-gradient(160deg, #53a8ee, #1f5fa8); }
 .hcard.on { outline: 3px solid var(--accent2); outline-offset: 2px; transform: translateY(-3px); } .hcard:disabled { cursor: default; filter: saturate(.6); }
 @media (min-width: 700px) { .smats, .hcards { grid-template-columns: repeat(3, 1fr); } .ctrack { grid-template-columns: repeat(9, 1fr); } }
+
+/* ═════════ Abraca…what? — spell stones ═════════ */
+main.game-ab { background: radial-gradient(120% 50% at 50% 0%, #4b1f8a55, transparent 70%); border-radius: 0 0 28px 28px; }
+.stone { --s: 46px; position: relative; display: inline-grid; place-items: center; width: var(--s); height: var(--s); flex: none; font-size: 0; vertical-align: middle;
+  border-radius: 34% 34% 40% 40% / 30% 30% 46% 46%;
+  background: radial-gradient(circle at 32% 24%, hsl(var(--h) 95% 82%), hsl(var(--h) 78% 52%) 48%, hsl(var(--h) 72% 26%));
+  box-shadow: inset 0 2px 3px #ffffffaa, inset 0 -5px 8px hsl(var(--h) 80% 16% / .8), 0 3px 0 hsl(var(--h) 70% 16%), 0 6px 12px #0007, 0 0 14px hsl(var(--h) 90% 60% / .35); }
+.stone::before { content: ''; position: absolute; top: 9%; left: 16%; width: 34%; height: 20%; border-radius: 50%; background: #ffffff66; filter: blur(1px); transform: rotate(-18deg); }
+.stone .gi { width: 58%; height: 58%; background: linear-gradient(170deg, #fff, #ffffffb8); filter: drop-shadow(0 1px 1px #0008); }
+.stone b { position: absolute; right: -4px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; display: grid; place-items: center; font-size: .72rem; font-weight: 700; color: #1b1830; background: #fff; box-shadow: 0 1px 3px #0008; }
+.stone.sm { --s: 30px; } .stone.sm b { min-width: 14px; height: 14px; font-size: .6rem; right: -3px; bottom: -3px; }
+.stone.myst { background: radial-gradient(circle at 32% 24%, #6f66a8, #2c2752 55%, #14112b); box-shadow: inset 0 2px 3px #ffffff55, inset 0 -5px 8px #0009, 0 3px 0 #0b0920, 0 6px 12px #0007, 0 0 14px #8b6cff55; animation: mystglow 2.4s ease-in-out infinite; }
+.stone.myst .gi { background: linear-gradient(170deg, #d9d0ff, #8b6cff); }
+@keyframes mystglow { 50% { box-shadow: inset 0 2px 3px #ffffff55, inset 0 -5px 8px #0009, 0 3px 0 #0b0920, 0 6px 12px #0007, 0 0 22px #b9a4ffaa; } }
+
+.abev { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; margin: 10px 0; border: 2px solid; animation: rise .3s ease-out; }
+.abev div { display: flex; flex-direction: column; } .abev span { font-size: .88rem; opacity: .9; }
+.abev.ok { border-color: #ffe58a; background: linear-gradient(135deg, #5a3fd633, #ffb84d22); box-shadow: 0 0 22px #ffb84d33; }
+.abev.fail { border-color: var(--bad); background: #ff5d7322; animation: shake .4s; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+
+.abmats { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 10px 0; }
+.abmat { display: flex; flex-direction: column; gap: 8px; padding: 11px 12px; border-radius: 16px; border: 2px solid hsl(var(--ph) 45% 40%); background: linear-gradient(160deg, hsl(var(--ph) 38% 20%), #17142c 80%); box-shadow: inset 0 0 0 3px #0003; }
+.abmat .mhead b { display: inline-flex; align-items: center; gap: 6px; }
+.abmat.turn { border-color: var(--accent2); box-shadow: 0 0 0 2px var(--accent2), 0 0 20px #ffb84d55; } .abmat.out { opacity: .5; filter: grayscale(.8); }
+.abpts { font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; } .abpts .gi { width: 1.1em; height: 1.1em; }
+.abhp { display: inline-flex; gap: 2px; } .gi.hp.off { background: #ffffff22; }
+.abstones { display: flex; gap: 9px; flex-wrap: wrap; min-height: 50px; align-items: center; }
+.abown { font-size: .8rem; color: var(--accent2); display: inline-flex; align-items: center; gap: 5px; } .abown .gi { width: 1.1em; height: 1.1em; }
+
+.abboard { margin: 12px 0; padding: 14px; border-radius: 18px; border: 2px solid #8b6cff66; background: linear-gradient(160deg, #2a1f55, #17142c); box-shadow: inset 0 0 30px #8b6cff22, 0 6px 18px #0005; }
+.abboard h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.abrows { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px; margin: 8px 0; }
+.abrow { display: flex; align-items: center; gap: 10px; }
+.pips { display: flex; gap: 3px; flex-wrap: wrap; }
+.pips i { width: 11px; height: 11px; border-radius: 50%; background: #ffffff1c; box-shadow: inset 0 1px 2px #0008; }
+.pips i.on { background: radial-gradient(circle at 35% 30%, hsl(var(--h) 95% 80%), hsl(var(--h) 80% 50%)); box-shadow: 0 0 6px hsl(var(--h) 90% 60%); }
+
+.spells { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.spell { display: flex; align-items: center; gap: 10px; padding: 9px; min-height: 76px; border-radius: 14px; border: 1px solid hsl(var(--h) 60% 45%); text-align: left; font: inherit; color: var(--text); cursor: pointer;
+  background: linear-gradient(160deg, hsl(var(--h) 45% 24%), hsl(var(--h) 40% 13%)); box-shadow: 0 3px 0 #0007; transition: transform .1s; }
+.spell > span:last-child { display: flex; flex-direction: column; min-width: 0; } .spell b { font-size: .88rem; line-height: 1.2; } .spell small { font-size: .66rem; line-height: 1.25; color: #ffffffb0; }
+.spell:active { transform: translateY(2px); } .spell:disabled { opacity: .3; cursor: default; filter: grayscale(.7); }
+.rl .stone { margin-right: 6px; }
+@media (min-width: 700px) { .abmats { grid-template-columns: 1fr 1fr; } }
+.stone b { right: -2px; bottom: -2px; } .stone.sm b { right: -1px; bottom: -1px; }
