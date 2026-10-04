@@ -158,7 +158,12 @@ async function scenario(game, n) {
   let ticks = 0, reloads = 0;
   for (; ticks < MAX_TICKS; ticks++) {
     if (q(host, '[data-act=again]')) break;
-    if (HOLD && ticks >= HOLD) { await new Promise(() => {}); }
+    if (HOLD && ticks >= HOLD) {
+      // ?show=3 keeps only the first 3 screens at phone size (handy for screenshots)
+      const show = +Q.get('show') || 0;
+      if (show) { document.querySelectorAll('h3, table').forEach(e => (e.style.display = 'none')); [...box.children].forEach((f, i) => { f.style.cssText = i < show ? 'width:375px;height:780px' : 'display:none'; }); }
+      await new Promise(() => {});
+    }
     if (reloads < CHAOS && ticks > 2 && Math.random() < 0.02) {
       const i = rnd(n), w = wins[i];
       early.push(...(w.__errs || []).map(e => `P${i}: ${e}`));
