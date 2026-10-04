@@ -47,7 +47,7 @@ let bad = 0;
 const ui = new Set();
 for (const r of results) {
   console.log(`${r.ok ? '✓' : '✗'} ${r.game.padEnd(8)} ${String(r.n).padStart(2)} คน  ${r.ok ? `(รีเฟรชกลางเกม ${r.reloads} ครั้ง)` : r.why}`);
-  if (!r.ok) { bad++; for (const e of r.errs || []) console.log('    ' + String(e).split('\n').slice(0, 3).join('\n    ')); (r.screens || []).forEach((s, i) => console.log(`    P${i}: ${s}`)); }
+  if (!r.ok) { bad++; for (const e of r.errs || []) console.log('    ' + String(e).split('\n').slice(0, 3).join('\n    ')); (r.screens || []).forEach((s, i) => console.log(`    P${i}: ${s}`)); (r.diag || []).forEach((s, i) => console.log(`    P${i} state: ${s}`)); }
   for (const u of r.ui || []) ui.add(`${r.game} | ${u}`);
 }
 if (ui.size) { console.log(`\nUI audit: ${ui.size} problems`); for (const u of ui) console.log('  ⚠ ' + u); } else console.log('\nUI audit: no layout problems found');

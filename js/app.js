@@ -2380,6 +2380,8 @@ function rulesView() {
 /* ───────────── render & events ───────────── */
 // Replacing the DOM while a finger is down swallows that tap, so wait for the finger to lift.
 let pressing = false, renderPending = false, lastHtml = null, pressTimer = 0;
+// Connection + state snapshot for the test bots (test/e2e.html) and for debugging from the console.
+window.__bg = () => ({ host: S.isHost, online: S.online, hostDown: S.hostDown, broker: S.conn?.bi, drops: S.conn?.drops, err: S.conn?.lastErr, phase: S.pub?.phase, pub: S.pub?.[S.pub?.game], out: outbox && { t: outbox.m?.t ?? outbox.t, tries: outbox.tries }, priv: S.priv && { ack: S.priv.ack, round: S.priv.round }, pressing, renderPending });
 const pressEnd = () => {
   if (!pressing) return;
   pressing = false;

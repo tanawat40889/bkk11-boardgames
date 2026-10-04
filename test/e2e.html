@@ -191,7 +191,7 @@ let runId = 0;
 async function scenario(game, n) {
   const id = STAMP + (++runId) + '_', box = document.getElementById('frames'), wins = [];
   box.innerHTML = '';
-  const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
+  const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), diag: wins.map(w => { try { return JSON.stringify(w.__bg?.()).slice(0, 700); } catch (e) { return String(e); } }), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
   for (let i = 0; i < n; i++) {
     const f = document.createElement('iframe');
     f.src = LIVE ? `../index.html?ns=${id}p${i}_` : `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
