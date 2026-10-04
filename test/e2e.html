@@ -275,7 +275,7 @@ async function scenario(game, n) {
     for (const n of counts) for (let r = 0; r < REPS; r++) {
       if (ONLY_N && n !== ONLY_N) continue;
       st.textContent = `กำลังเล่น ${game} ${n} คน…`;
-      if (LIVE) document.title = `RUN ${out.length} ${game}`;
+      if (LIVE) document.title = `RUN ${out.length} ${game} ` + JSON.stringify(out);   // results so far, in case the run is cut short
       let res;
       try { res = await scenario(game, n); } catch (e) { res = { game, n, ok: false, why: 'runner exception: ' + (e.stack || e) }; }
       out.push(res);
