@@ -95,7 +95,7 @@ const outQ = new Map(), want = {};
 let outTok = OUT_BURST, outAt = 0, outTimer = 0;
 const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 function hsend(k, v) {
-  outQ.delete(k); outQ.set(k, v);
+  outQ.set(k, v);   // a topic already waiting keeps its place in line (newest content, oldest position)
   drain();
 }
 const hdrop = pid => { outQ.delete('p/' + pid); delete want['p/' + pid]; S.conn.send('p/' + pid, null, true); };   // forget a player's private topic
@@ -105,7 +105,8 @@ function drain() {
   const t = now();
   outTok = Math.min(OUT_BURST, outTok + (t - outAt) * OUT_RATE / 1000); outAt = t;
   while (outQ.size && outTok >= 1) {
-    const k = outQ.has('pub') ? 'pub' : outQ.keys().next().value, v = outQ.get(k);
+    // strictly first-come-first-served per topic: giving the public state priority starved private messages in a busy room
+    const k = outQ.keys().next().value, v = outQ.get(k);
     outQ.delete(k); outTok--;
     S.conn.send(k, v, true);
     want[k] = hash(JSON.stringify(v));   // fingerprint of what was really sent, for the heartbeat

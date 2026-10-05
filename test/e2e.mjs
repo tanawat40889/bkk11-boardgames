@@ -37,7 +37,7 @@ const server = http.createServer(async (req, res) => {
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 let results;
 try {
-  const url = `http://localhost:${PORT}/test/e2e.html?reps=${opt.reps || 1}${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.ui != null ? '&ui=' + opt.ui : ''}${opt.w ? '&w=' + opt.w : ''}${opt.loss ? '&loss=' + opt.loss : ''}${opt.down ? '&down=' + opt.down : ''}`;
+  const url = `http://localhost:${PORT}/test/e2e.html?reps=${opt.reps || 1}${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.ui != null ? '&ui=' + opt.ui : ''}${opt.w ? '&w=' + opt.w : ''}${opt.loss ? '&loss=' + opt.loss : ''}${opt.down ? '&down=' + opt.down : ''}${opt.n ? '&n=' + opt.n : ''}`;
   // async on purpose: the server above lives in this same process
   const { stdout: dom } = await promisify(execFile)(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', `--virtual-time-budget=${opt.budget || 40000000}`, '--dump-dom', url],
     { encoding: 'utf8', maxBuffer: 1 << 28, timeout: (+opt.timeout || 900) * 1000 });
