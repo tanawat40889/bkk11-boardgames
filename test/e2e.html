@@ -58,8 +58,8 @@ function hook(w) {
 // chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
 const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
-const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3], ct: [6] };
-const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5], ct: [4, 6, 8] };
+const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3], ct: [6], bd: [5] };
+const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5], ct: [4, 6, 8], bd: [4, 6, 8] };
 const only = Q.get('games')?.split(',');
 // ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
@@ -81,7 +81,7 @@ function fill(doc) {
 }
 // ── UI audit: looks at what is actually drawn on a phone-sized screen and reports layout problems ──
 const UI = Q.get('ui') !== '0';
-const BOXES = '.stone, .spell, .abmat, .abev, .pol, .slot, .cell, .camel, .ltile, .tcard, .tcslap, .gbtn, .smat, .try, .hcard, .btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
+const BOXES = '.bdie, .bdmat, .cdie, .stone, .spell, .abmat, .abev, .pol, .slot, .cell, .camel, .ltile, .tcard, .tcslap, .gbtn, .smat, .try, .hcard, .btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
 function audit(win, found) {
   const doc = win.document, W = win.innerWidth, main = doc.querySelector('main');
   if (!main) return;

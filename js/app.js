@@ -14,6 +14,7 @@ import * as SH from './secrethitler.js';
 import * as CU from './camelup.js';
 import * as TC from './taco.js';
 import * as CZ from './cheese.js';
+import * as BD from './bangdice.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -58,12 +59,13 @@ const GAMES = {
   ab: { n: 'Abraca…what?', s: 'Abraca…what?', e: '🪄', min: AB.MIN, max: AB.MAX, t: 20, c: ['card'], d: 'เห็นหินคาถาของทุกคนยกเว้นของตัวเอง เดาให้ถูกแล้วร่าย' },
   cu: { n: 'Camel Up', s: 'Camel Up', e: '🐪', min: CU.MIN, max: CU.MAX, t: 25, c: ['card'], d: 'เดิมพันอูฐแข่งที่ขี่ซ้อนกันได้ ทอยเต๋าลุ้นทุกตา' },
   ct: { n: 'Cheese Thief', s: 'Cheese Thief', e: '🧀', min: CZ.MIN, max: CZ.MAX, t: 10, c: ['ded'], d: 'ทอยเต๋าลับว่าจะตื่นตีไหน ใครตื่นมาเห็นอะไรบ้าง? ช่วยกันจับโจรขโมยชีส' },
+  bd: { n: 'Bang! The Dice Game', s: 'Bang! Dice', e: '🎲', min: BD.MIN, max: BD.MAX, t: 20, c: ['ded', 'card'], d: 'นายอำเภอ vs โจร ทอยเต๋า 5 ลูก ยิง รักษา หลบธนูอินเดียนแดง บทบาทลับจนกว่าจะตาย' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -78,7 +80,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -182,6 +184,13 @@ function pubOf() {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
       };
+    } else if (H.game === 'bd') {
+      const shown = x => !!g.winner || x === g.sheriff || !g.alive.includes(x);   // roles are public only for the Sheriff and the dead
+      p.bd = {
+        life: g.life, max: g.max, arrows: g.arrows, pile: g.pile, alive: g.alive, turn: g.turn, dice: g.dice, rolls: g.rolls, phase: g.phase, need: BD.need(g), todo: g.todo, n: g.n,
+        roles: Object.fromEntries(g.sids.filter(shown).map(x => [x, g.role[x]])), tg: g.phase === 'resolve' && BD.need(g) !== 'beer' && BD.need(g) ? BD.targets(g, g.turn, BD.need(g) === 'one' ? 1 : 2) : [],
+        log: g.log.slice(-6), nl: g.log.length, winner: g.winner, wsids: g.wsids, mix: BD.SETUP[g.sids.length],
+      };
     } else if (H.game === 'ct') {
       const end = g.phase === 'end';
       p.ct = {
@@ -275,6 +284,8 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'bd') {
+    v.role = g.role[sid];
   } else if (H.game === 'ct') {
     v.ready = g.ready.includes(sid);
     v.role = sid === g.thief ? 'thief' : sid === g.follower && g.phase !== 'pick' ? 'follower' : 'mouse';
@@ -664,6 +675,12 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'bdroll': case 'bdstop': case 'bdshoot': case 'bdheal': {
+      if (H.phase !== 'bd' || m.n !== g.n) break;   // m.n: ignore a tap that was made on an older screen
+      const ok = m.t === 'bdroll' ? BD.roll(g, sid, Array.isArray(m.keep) ? m.keep : []) : m.t === 'bdstop' ? BD.stop(g, sid) : m.t === 'bdshoot' ? BD.shoot(g, sid, m.sid) : BD.heal(g, sid, m.sid);
+      if (ok) broadcast();
+      break;
+    }
     case 'ctpick': case 'ctpeek': case 'ctvote': {
       if (H.phase !== 'ct') break;
       const ok = m.t === 'ctpick' ? CZ.pickFollower(g, sid, m.sid) : m.t === 'ctpeek' ? CZ.peek(g, sid, m.sid) : CZ.vote(g, sid, m.sid);
@@ -920,6 +937,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'bd') {
+      H.g = BD.newGame(sids); H.phase = 'bd'; H.endsAt = null;
     } else if (H.game === 'ct') {
       H.g = CZ.newGame(sids); H.phase = 'ct'; H.endsAt = null;
     } else if (H.game === 'tc') {
@@ -1278,7 +1297,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1369,6 +1388,11 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'bd') {
+    if (n < BD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${BD.MIN} คน`);
+    if (n > BD.MAX) errs.push(`Bang! Dice เล่นได้สูงสุด ${BD.MAX} คน`);
+    const mix = BD.SETUP[n];
+    settings = `<p class="muted small">${mix ? `นายอำเภอ 1 · ผู้ช่วย ${mix.split('D').length - 1} · โจร ${mix.split('O').length - 1} · คนทรยศ ${mix.split('R').length - 1} · ` : ''}ทุกคน 8 ชีวิต นายอำเภอ 10 · ยังไม่มีการ์ดตัวละคร</p>`;
   } else if (p.game === 'ct') {
     if (n < CZ.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CZ.MIN} คน`);
     if (n > CZ.MAX) errs.push(`Cheese Thief เล่นได้สูงสุด ${CZ.MAX} คน`);
@@ -2363,6 +2387,50 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Bang! The Dice Game ──
+const BD_ROLE = { S: ['นายอำเภอ', 'star', 'กำจัดโจรและคนทรยศให้หมด'], D: ['ผู้ช่วยนายอำเภอ', 'shield', 'ปกป้องนายอำเภอ กำจัดโจรและคนทรยศ'], O: ['โจร', 'skull', 'ฆ่านายอำเภอ'], R: ['คนทรยศ', 'masks', 'เป็นคนสุดท้ายที่รอด (นายอำเภอต้องตายเป็นคนสุดท้าย)'] };
+const BD_FACE = { arrow: ['bdarrow', 'ธนู'], dyn: ['bddyn', 'ระเบิด'], one: ['target', 'ยิงระยะ 1'], two: ['target', 'ยิงระยะ 2'], beer: ['bdbeer', 'เบียร์'], gat: ['bdgat', 'แกตลิง'] };
+const bdDie = (f, cls = '', attr = '') => `<button class="bdie f-${f} ${cls}" ${attr || 'disabled'} title="${BD_FACE[f][1]}">${gi(BD_FACE[f][0])}${f === 'one' ? '<b>1</b>' : f === 'two' ? '<b>2</b>' : ''}</button>`;
+function bdLog(e) {
+  const P = s => `<b>${esc(pn(s))}</b>`;
+  return e.t === 'roll' ? `${P(e.sid)} ทอยครั้งที่ ${e.k}` : e.t === 'shot' ? `${P(e.sid)} ยิง ${P(e.to)} (ระยะ ${e.d})` : e.t === 'beer' ? (e.sid === e.to ? `${P(e.sid)} ดื่มเบียร์ +1` : `${P(e.sid)} ให้เบียร์ ${P(e.to)} +1`)
+    : e.t === 'boom' ? `💥 ระเบิดใส่ ${P(e.sid)} −1` : e.t === 'gatling' ? `${P(e.sid)} ยิงแกตลิง! ทุกคน −1` : e.t === 'indians' ? '🏹 อินเดียนแดงบุก! เสียชีวิตเท่าจำนวนธนูที่ถือ'
+    : e.t === 'dead' ? `☠️ ${P(e.sid)} ตาย — เป็น<b>${BD_ROLE[e.role][0]}</b>` : '';
+}
+function bdV() {
+  const b = S.pub.bd, v = S.priv, mine = me(), my = b.turn === mine && !b.winner, R = BD_ROLE[v.role];
+  const targets = my && b.need ? (b.need === 'beer' ? b.alive : b.tg) : [];
+  const mats = `<div class="bdmats">${pl().map(x => {
+    const dead = !b.alive.includes(x.sid), r = b.roles[x.sid], can = targets.includes(x.sid);
+    return `<${can ? 'button' : 'div'} class="bdmat ${dead ? 'dead' : ''} ${x.sid === b.turn && !b.winner ? 'turn' : ''} ${can ? 'can' : ''} ${b.wsids.includes(x.sid) ? 'won' : ''}" style="--ph:${hueOf(x.sid)}" ${can ? `data-act="bdtarget" data-sid="${x.sid}"` : ''}>
+      <span class="bdname">${av(x.sid, 'sm')}<b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b></span>
+      <span class="bdrole">${r ? `${gi(BD_ROLE[r][1], r === 'S' ? 'gold inl' : 'inl')}${BD_ROLE[r][0]}` : `${gi('qmark', 'dim inl')}ยังไม่เปิดเผย`}</span>
+      <span class="bdstat">${dead ? `${gi('skull', 'inl')} ตายแล้ว` : `<span class="bdlife">${gi('heart', 'hp')}<b>${b.life[x.sid]}</b><small>/${b.max[x.sid]}</small></span><span class="bdarr">${gi('bdarrow', 'inl')}<b>${b.arrows[x.sid]}</b></span>`}</span>
+    </${can ? 'button' : 'div'}>`; }).join('')}</div>`;
+  const roleLine = `<section class="panel bdmine"><span>${gi(R[1], v.role === 'S' ? 'gold inl' : 'inl')}คุณคือ <b>${R[0]}</b></span><small class="muted">${R[2]}</small></section>`;
+  if (b.winner) {
+    const iWin = b.wsids.includes(mine);
+    return `<div class="banner ${iWin ? 'win' : 'lose'}"><div class="bt">${b.winner === 'S' ? 'ฝ่ายกฎหมายชนะ!' : b.winner === 'O' ? 'โจรชนะ!' : 'คนทรยศชนะ!'}</div><div>${b.wsids.map(s => esc(pn(s))).join(', ')}</div></div>
+      ${mats}<section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ul class="bdlog">${b.log.map(e => `<li>${bdLog(e)}</li>`).join('')}</ul></section>
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  const rolling = b.phase === 'roll', left = BD.ROLLS - b.rolls, keep = S.bdKeep;
+  const dice = b.dice ? `<div class="bdice">${b.dice.map((f, i) => bdDie(f, `${my && rolling && keep.includes(i) ? 'keep' : ''} ${f === 'dyn' ? 'lock' : ''}`, my && rolling && f !== 'dyn' ? `data-act="bdsel" data-i="${i}"` : '')).join('')}</div>` : `<div class="bdice empty">${gi('dice')}</div>`;
+  let act = '';
+  if (my && rolling) {
+    const re = b.dice ? b.dice.filter((f, i) => f !== 'dyn' && !keep.includes(i)).length : 0;
+    act = !b.dice ? btn('bdroll', '🎲 ทอยเต๋า', 'primary wide big')
+      : `<p class="muted small center">แตะลูกที่จะ<b>เก็บไว้</b> · ระเบิดทอยใหม่ไม่ได้ · ธนูต้องหยิบทันทีทุกครั้งที่ทอยได้</p>
+         <div class="row">${btn('bdstop', '✔ พอแล้ว ใช้เต๋า', 'ghost')}${btn('bdroll', `🎲 ทอยใหม่ ${re} ลูก (เหลือ ${left})`, 'primary', {}, !re)}</div>`;
+  } else if (my && b.need) {
+    const k = b.need, nleft = b.todo[k];
+    act = `<p class="ask center">${k === 'beer' ? `🍺 เบียร์ ${nleft} แก้ว — แตะคนที่จะรักษา (รวมตัวเองได้)` : `🎯 ยิงระยะ ${k === 'one' ? 1 : 2} อีก ${nleft} นัด — แตะเป้าที่มีกรอบสว่าง`}</p>`;
+  } else if (!my) act = `<p class="muted center">${rolling ? `รอ ${esc(pn(b.turn))} ทอยเต๋า…` : `รอ ${esc(pn(b.turn))} เลือกเป้า…`}</p>`;
+  return `<p class="center skstatus">ตาของ <b>${esc(pn(b.turn))}</b>${my ? ' (คุณ)' : ''} · กองธนู ${gi('bdarrow', 'inl')}<b>${b.pile}</b></p>
+    <section class="panel bdtable">${dice}${act}</section>${mats}${roleLine}
+    <section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ul class="bdlog">${[...b.log].reverse().map(e => `<li>${bdLog(e)}</li>`).join('')}</ul></section>`;
+}
+
 // ── Cheese Thief ──
 const ctDie = (n, cls = '') => `<span class="cdie ${cls}">${n}</span>`;
 const CT_ROLE = { thief: ['โจรขโมยชีส', 'robber', 'ขโมยชีสตอนที่คุณตื่น แล้วอย่าให้โดนโหวตจับ'], follower: ['ลูกสมุนของโจร', 'minion', 'คุณชนะพร้อมโจร ช่วยปั่นให้คนอื่นโหวตผิด (คุณไม่รู้ว่าโจรคือใคร)'], mouse: ['หนูขี้เซา', 'moon', 'ช่วยกันหาว่าใครขโมยชีส แล้วโหวตจับให้ถูก'] };
@@ -2424,7 +2492,18 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'ct' ? `
+  const body = g === 'bd' ? `
+    <p><b>เป้าหมาย:</b> นายอำเภอและผู้ช่วยต้องกำจัดโจรกับคนทรยศให้หมด · โจรต้องฆ่านายอำเภอ · คนทรยศต้องเหลือรอดคนสุดท้าย</p>
+    <ol><li>เห็นบทบาทเฉพาะของนายอำเภอ คนอื่นลับจนกว่าจะตาย · ทุกคน 8 ชีวิต นายอำเภอ 10 · นายอำเภอเริ่มก่อน</li>
+    <li>ตาคุณ: ทอยเต๋า 5 ลูก ทอยใหม่ได้อีก 2 ครั้ง เลือกเก็บลูกไหนก็ได้</li>
+    <li><b>ธนู</b> หยิบธนูจากกองทันทีทุกครั้งที่ทอยได้ · ธนูหมดกอง = อินเดียนแดงบุก ทุกคนเสียชีวิตเท่าจำนวนธนูที่ถือ แล้วคืนธนูทั้งหมด</li>
+    <li><b>ระเบิด</b> ทอยใหม่ไม่ได้ · ครบ 3 ลูก เสีย 1 ชีวิตและหยุดทอยทันที</li>
+    <li><b>ยิงระยะ 1 / 2</b> ยิงคนที่นั่งห่างพอดี 1 หรือ 2 ที่ ซ้ายหรือขวาก็ได้ (นับเฉพาะคนที่ยังอยู่) · เหลือ 3 คนหรือน้อยกว่า ระยะ 2 ใช้เป็นระยะ 1</li>
+    <li><b>เบียร์</b> ให้ใครก็ได้ +1 ชีวิต ไม่เกินค่าเริ่มต้น</li>
+    <li><b>แกตลิง</b> ครบ 3 ลูก คนอื่นทุกคนเสีย 1 ชีวิต และคุณทิ้งธนูทั้งหมด</li>
+    <li>ใช้เต๋าตามลำดับ: ยิงระยะ 1 → ยิงระยะ 2 → เบียร์ → แกตลิง</li>
+    <li>นายอำเภอตาย: ถ้าเหลือคนทรยศคนเดียว คนทรยศชนะ ไม่งั้นโจรชนะ</li></ol>
+    <p class="muted small">เวอร์ชันนี้ยังไม่มีการ์ดตัวละคร (ความสามารถพิเศษ)</p>` : g === 'ct' ? `
     <p><b>เป้าหมาย:</b> หนูขี้เซาต้องโหวตจับโจรขโมยชีสให้ได้ · โจร (และลูกสมุน) ต้องรอด</p>
     <ol><li>ทุกคนได้บทบาทลับ และ<b>ลูกเต๋าลับ 1–6</b> = ชั่วโมงที่คุณจะตื่นกลางดึก</li>
     <li>6 คนขึ้นไป: ก่อนนอน โจรเลือก<b>ลูกสมุน</b> 1 คน (ลูกสมุนชนะพร้อมโจร แต่ไม่รู้ว่าโจรคือใคร)</li>
@@ -2566,7 +2645,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = [];
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -2692,6 +2771,10 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  bdsel: d => { const i = +d.i; S.bdKeep = S.bdKeep.includes(i) ? S.bdKeep.filter(x => x !== i) : [...S.bdKeep, i]; render(); },
+  bdroll: () => { send({ t: 'bdroll', n: S.pub.bd.n, keep: S.bdKeep }); S.bdKeep = []; },
+  bdstop: () => { send({ t: 'bdstop', n: S.pub.bd.n }); S.bdKeep = []; },
+  bdtarget: d => send({ t: S.pub.bd.need === 'beer' ? 'bdheal' : 'bdshoot', n: S.pub.bd.n, sid: d.sid }),
   ctpick: d => send({ t: 'ctpick', sid: d.sid }),
   ctpeek: d => send({ t: 'ctpeek', sid: d.sid }),
   ctvote: d => send({ t: 'ctvote', sid: d.sid }),

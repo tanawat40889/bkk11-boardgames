@@ -16,6 +16,7 @@ import * as TC from '../js/taco.js';
 import * as SA from '../js/salem.js';
 import * as AB from '../js/abraca.js';
 import * as CZ from '../js/cheese.js';
+import * as BD from '../js/bangdice.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1172,6 +1173,105 @@ t('cheese thief: thief escapes when someone else has more votes; no follower -> 
   assert.ok(h.follower && h.follower !== h.thief);
   const e = CZ.newGame(sids(4)); CZ.start(e); for (let i = 0; i < 6; i++) CZ.advance(e); CZ.toVote(e); CZ.finish(e);
   assert.equal(e.res.winner, 'thief', 'nobody voted');
+});
+
+const bdSeq = arr => { let i = 0; return () => arr[i++ % arr.length]; };
+function bdFixed(n, roles) {
+  const g = BD.newGame(sids(n));
+  if (roles) { roles.split('').forEach((r, i) => { g.role['s' + i] = r; g.max['s' + i] = g.life['s' + i] = 8 + (r === 'S' ? 2 : 0); }); g.sheriff = 's' + roles.indexOf('S'); g.turn = g.sheriff; }
+  return g;
+}
+t('bang dice: setup — role mix per table size, sheriff has 10 life and starts, roles dealt fairly', () => {
+  const mix = { 4: [1, 0, 2, 1], 5: [1, 1, 2, 1], 6: [1, 1, 3, 1], 7: [1, 2, 3, 1], 8: [1, 2, 3, 2] };
+  for (let n = 4; n <= 8; n++) {
+    const g = BD.newGame(sids(n)), c = r => g.sids.filter(s => g.role[s] === r).length;
+    assert.deepEqual([c('S'), c('D'), c('O'), c('R')], mix[n], 'mix ' + n);
+    assert.equal(g.turn, g.sheriff); assert.equal(g.life[g.sheriff], 10); assert.equal(g.pile, 9);
+    for (const s of g.sids) if (s !== g.sheriff) assert.equal(g.life[s], 8);
+  }
+  const seat = {};
+  for (let k = 0; k < 4000; k++) { const g = BD.newGame(sids(4)); seat[g.sheriff] = (seat[g.sheriff] || 0) + 1; }
+  for (const s of sids(4)) assert.ok(seat[s] > 850 && seat[s] < 1150, 'sheriff seat spread ' + seat[s]);
+});
+t('bang dice: distances, re-rolls, dynamite lock, 3 dynamite ends the roll', () => {
+  const g = bdFixed(6, 'SOORDO');
+  assert.deepEqual(BD.targets(g, 's0', 1).sort(), ['s1', 's5']); assert.deepEqual(BD.targets(g, 's0', 2).sort(), ['s2', 's4']);
+  g.alive = ['s0', 's1', 's2', 's3']; assert.deepEqual(BD.targets(g, 's0', 2), ['s2'], 'both directions meet');
+  g.alive = ['s0', 's1', 's2']; assert.deepEqual(BD.targets(g, 's0', 2).sort(), ['s1', 's2'], '2 works as 1 with three left');
+  g.alive = ['s0', 's1']; assert.deepEqual(BD.targets(g, 's0', 2), ['s1']);
+  g.alive = [...g.sids];
+  assert.ok(!BD.roll(g, 's1'), 'not your turn'); assert.ok(!BD.stop(g, 's0'), 'nothing rolled yet');
+  assert.ok(BD.roll(g, 's0', [], bdSeq(['dyn', 'one', 'beer', 'gat', 'two'])));
+  assert.equal(g.rolls, 1); assert.equal(g.phase, 'roll');
+  assert.ok(!BD.roll(g, 's0', [1, 2, 3, 4], bdSeq(['arrow'])), 'keeping everything but the dynamite leaves nothing to roll');
+  assert.equal(g.rolls, 1); assert.equal(g.dice[0], 'dyn');
+});
+t('bang dice: dynamite cannot be re-rolled; three of them cost a life and stop the turn', () => {
+  const g = bdFixed(6, 'SOORDO');
+  BD.roll(g, 's0', [], bdSeq(['dyn', 'one', 'beer', 'gat', 'two']));
+  assert.ok(!BD.roll(g, 's0', [1, 2, 3, 4]), 'only dynamite left to roll');
+  assert.ok(BD.roll(g, 's0', [1], bdSeq(['dyn', 'dyn', 'beer'])));     // dice 2,3,4 re-rolled -> dyn dyn beer
+  assert.deepEqual(g.dice, ['dyn', 'one', 'dyn', 'dyn', 'beer']);
+  assert.equal(g.life.s0, 9, 'boom'); assert.equal(g.phase, 'resolve'); assert.equal(BD.need(g), 'one');
+  assert.ok(!BD.roll(g, 's0', []), 'no more rolling');
+  assert.ok(!BD.shoot(g, 's0', 's2'), 'wrong distance'); assert.ok(!BD.heal(g, 's0', 's0'), 'shots first');
+  assert.ok(BD.shoot(g, 's0', 's1')); assert.equal(g.life.s1, 7); assert.equal(BD.need(g), 'beer');
+  assert.ok(BD.heal(g, 's0', 's0')); assert.equal(g.life.s0, 10);
+  assert.equal(g.turn, 's1'); assert.equal(g.phase, 'roll'); assert.equal(g.dice, null);
+});
+t('bang dice: arrows, Indians, gatling, beer cap', () => {
+  const g = bdFixed(5, 'SOORD');
+  g.pile = 2; g.arrows.s1 = 4; g.arrows.s2 = 3; g.life.s2 = 3;
+  BD.roll(g, 's0', [], bdSeq(['arrow', 'arrow', 'arrow', 'gat', 'gat']));
+  // two arrows empty the pile -> Indians: s0 loses 2, s1 loses 4, s2 dies; then the third arrow is taken from the fresh pile
+  assert.equal(g.life.s0, 8); assert.equal(g.life.s1, 4); assert.ok(!g.alive.includes('s2')); assert.equal(g.arrows.s1, 0);
+  assert.equal(g.arrows.s0, 1); assert.equal(g.pile, 8);
+  BD.roll(g, 's0', [3, 4], bdSeq(['gat', 'beer', 'beer']));
+  assert.equal(g.phase, 'roll'); BD.stop(g, 's0');
+  assert.equal(BD.need(g), 'beer'); BD.heal(g, 's0', 's3'); assert.equal(g.life.s3, 8, 'never above the starting life');
+  BD.heal(g, 's0', 's0');
+  // gatling fired after the beers: everyone else -1, shooter drops arrows
+  assert.equal(g.life.s1, 3); assert.equal(g.life.s3, 7); assert.equal(g.life.s4, 7); assert.equal(g.life.s0, 9);
+  assert.equal(g.arrows.s0, 0); assert.equal(g.pile, 9); assert.equal(g.turn, 's1');
+});
+t('bang dice: who wins', () => {
+  let g = bdFixed(4, 'SROO'); g.life.s0 = 1; g.turn = 's1';
+  BD.roll(g, 's1', [], bdSeq(['one', 'beer', 'beer', 'beer', 'beer'])); BD.stop(g, 's1'); BD.shoot(g, 's1', 's0');
+  assert.equal(g.winner, 'O', 'sheriff dead, others alive'); assert.deepEqual(g.wsids, ['s2', 's3']); assert.equal(g.phase, 'end');
+  g = bdFixed(4, 'SROO'); g.alive = ['s0', 's1']; g.life.s0 = 1; g.turn = 's1';
+  BD.roll(g, 's1', [], bdSeq(['two', 'beer', 'beer', 'beer', 'beer'])); BD.stop(g, 's1'); BD.shoot(g, 's1', 's0');
+  assert.equal(g.winner, 'R', 'renegade alone with the sheriff'); assert.deepEqual(g.wsids, ['s1']);
+  g = bdFixed(5, 'SROOD'); g.alive = ['s0', 's1', 's4']; g.life.s1 = 1;
+  BD.roll(g, 's0', [], bdSeq(['one', 'beer', 'beer', 'beer', 'beer'])); BD.stop(g, 's0'); BD.shoot(g, 's0', 's1');
+  assert.equal(g.winner, 'S'); assert.deepEqual(g.wsids, ['s0', 's4']);
+  g = bdFixed(4, 'SROO'); for (const s of g.sids) { g.life[s] = 1; g.arrows[s] = 1; } g.pile = 1;
+  BD.roll(g, 's0', [], bdSeq(['arrow', 'beer', 'beer', 'beer', 'beer']));
+  assert.equal(g.winner, 'O', 'everybody dead at once -> outlaws'); assert.equal(g.alive.length, 0);
+});
+t('bang dice: 3000 random games always finish with consistent state', () => {
+  for (let k = 0; k < 3000; k++) {
+    const g = BD.newGame(sids(4 + rint(5)));
+    let steps = 0;
+    while (!g.winner) {
+      assert.ok(++steps < 5000, 'game never ends');
+      const s = g.turn; assert.ok(g.alive.includes(s), 'dead player to move');
+      if (g.phase === 'roll') {
+        if (!g.dice) assert.ok(BD.roll(g, s));
+        else if (rint(3) && BD.roll(g, s, g.dice.map((_, i) => i).filter(() => rint(2)))) { /* re-rolled */ }
+        else if (g.phase === 'roll' && g.turn === s) assert.ok(BD.stop(g, s));
+      } else {
+        const need = BD.need(g); assert.ok(need, 'resolve with nothing to do');
+        if (need === 'beer') assert.ok(BD.heal(g, s, g.alive[rint(g.alive.length)]));
+        else { const tg = BD.targets(g, s, need === 'one' ? 1 : 2); assert.ok(tg.length, 'no target'); assert.ok(BD.shoot(g, s, tg[rint(tg.length)])); }
+      }
+      const held = g.sids.reduce((a, x) => a + g.arrows[x], 0);
+      assert.equal(held + g.pile, 9, 'arrows conserved');
+      for (const x of g.sids) { assert.ok(g.life[x] >= 0 && g.life[x] <= g.max[x]); assert.equal(g.life[x] > 0, g.alive.includes(x)); }
+    }
+    assert.ok(['S', 'O', 'R'].includes(g.winner));
+    if (g.winner === 'S') assert.ok(g.alive.includes(g.sheriff));
+    else assert.ok(!g.alive.includes(g.sheriff));
+  }
 });
 
 console.log(`\n${pass} tests passed`);
