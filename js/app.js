@@ -1183,8 +1183,12 @@ function home() {
       <div class="gstrip">${Object.keys(GAMES).map(k => gbadge(k, 'xs')).join('')}</div>
       <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
     ${installHint()}
-    ${lastOk && !S.busy ? `<section class="panel"><button class="btn ghost wide" data-act="resume">↩︎ กลับเข้าห้อง ${esc(last.room)}${last.host ? ' (เจ้าของห้อง)' : ''}</button></section>` : ''}
-  </main>`;
+  </main>
+  ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">
+    <div class="dicon">${gi('key')}</div><h2>กลับเข้าห้องเดิมไหม?</h2>
+    <p>คุณยังอยู่ในห้อง <b class="droom">${esc(last.room)}</b>${last.host ? ' ในฐานะเจ้าของห้อง' : ''}</p>
+    ${btn('resume', '↩︎ กลับเข้าห้อง', 'primary wide big')}${btn('noresume', 'ไม่ใช่ตอนนี้', 'ghost wide')}
+  </div></div>` : ''}`;
 }
 
 // Install as a home-screen app.
@@ -2489,6 +2493,7 @@ const ACT = {
   leave: () => { if (confirm(S.isHost ? 'ออกและปิดห้องนี้? ทุกคนจะหลุดจากห้อง' : 'ออกจากห้อง?')) leave(); },
   rules: () => { S.rules = !S.rules; render(); },
   noop: () => {},
+  noresume: () => { S.noResume = true; render(); },
   share: async () => {
     const url = location.origin + location.pathname + '?r=' + S.pub.room;
     try { if (navigator.share) return await navigator.share({ title: 'BKK11 Boardgames', text: `เข้าห้อง ${S.pub.room}`, url }); } catch { return; }

@@ -598,3 +598,11 @@ main.game-ab { background: radial-gradient(120% 50% at 50% 0%, #4b1f8a55, transp
 .rl .stone { margin-right: 6px; }
 @media (min-width: 700px) { .abmats { grid-template-columns: 1fr 1fr; } }
 .stone b { right: -2px; bottom: -2px; } .stone.sm b { right: -1px; bottom: -1px; }
+
+/* Centered question dialog (e.g. "go back to your room?") */
+.modal.mid { align-items: center; padding: 20px; }
+.dialog { background: var(--bg2); border: 1px solid var(--line); border-radius: 22px; width: 100%; max-width: 360px; padding: 24px 20px 18px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 50px #000a; animation: dpop .18s ease-out; }
+.dialog h2 { margin: 0; font-size: 1.25rem; } .dialog p { margin: 0 0 6px; color: var(--muted); }
+.dialog .droom { color: var(--accent2); font-size: 1.15em; letter-spacing: .12em; }
+.dicon { width: 64px; height: 64px; margin: 0 auto 2px; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; color: #fff; background: radial-gradient(circle at 32% 26%, #a48dff, #5a3fd6); box-shadow: 0 4px 0 #3b2a99; }
+@keyframes dpop { from { transform: scale(.92); opacity: 0; } }
