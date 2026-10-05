@@ -13,6 +13,7 @@ import * as SC from './scout.js';
 import * as SH from './secrethitler.js';
 import * as CU from './camelup.js';
 import * as TC from './taco.js';
+import * as CZ from './cheese.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -56,12 +57,13 @@ const GAMES = {
   sa: { n: 'Salem 1692', s: 'Salem 1692', e: '🧙‍♀️', min: SA.MIN, max: SA.MAX, t: 35, c: ['ded', 'card'], d: 'กล่าวหากันจนเจอแม่มด ระวังกลางคืนและการสมคบคิด' },
   ab: { n: 'Abraca…what?', s: 'Abraca…what?', e: '🪄', min: AB.MIN, max: AB.MAX, t: 20, c: ['card'], d: 'เห็นหินคาถาของทุกคนยกเว้นของตัวเอง เดาให้ถูกแล้วร่าย' },
   cu: { n: 'Camel Up', s: 'Camel Up', e: '🐪', min: CU.MIN, max: CU.MAX, t: 25, c: ['card'], d: 'เดิมพันอูฐแข่งที่ขี่ซ้อนกันได้ ทอยเต๋าลุ้นทุกตา' },
+  ct: { n: 'Cheese Thief', s: 'Cheese Thief', e: '🧀', min: CZ.MIN, max: CZ.MAX, t: 10, c: ['ded'], d: 'ทอยเต๋าลับว่าจะตื่นตีไหน ใครตื่นมาเห็นอะไรบ้าง? ช่วยกันจับโจรขโมยชีส' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -117,7 +119,7 @@ function newHost(room, game, name) {
   return {
     room, game, phase: 'lobby', round: 0, endsAt: null, paused: null, g: null, recent: [],
     players: [{ sid: 's' + uid(6), pid: S.pid, name, seen: now() }],
-    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 } },
+    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 } },
   };
 }
 
@@ -179,6 +181,12 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'ct') {
+      const end = g.phase === 'end';
+      p.ct = {
+        phase: g.phase, hour: g.hour, ready: g.ready, voted: Object.keys(g.votes), nf: CZ.followers(g.sids.length), res: g.res,
+        thief: end ? g.thief : null, follower: end ? g.follower : null, die: end ? g.die : null, votes: end ? g.votes : null, peeks: end ? g.peek : null,
       };
     } else if (H.game === 'tc') {
       p.tc = {
@@ -267,6 +275,16 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'ct') {
+    v.ready = g.ready.includes(sid);
+    v.role = sid === g.thief ? 'thief' : sid === g.follower && g.phase !== 'pick' ? 'follower' : 'mouse';
+    v.die = g.die[sid];
+    v.picked = sid === g.thief ? g.follower : null;
+    v.awake = CZ.awake(g).includes(sid);
+    v.memo = CZ.memo(g, sid);
+    v.thief = v.memo?.cheese === 'steal' ? g.thief : null;   // caught in the act by whoever is awake at that hour
+    v.canPeek = CZ.canPeek(g, sid);
+    v.vote = g.votes[sid] || null;
   } else if (H.game === 'tc') {
     v.n = g.hands[sid].length;
   } else if (H.game === 'sa') {
@@ -339,6 +357,7 @@ function hostTick() {
   }
   if (H.endsAt && t >= H.endsAt) {
     if (H.phase === 'night') return nextNight();
+    if (H.phase === 'ct') { CZ.advance(H.g); ctClock(); return broadcast(); }
     if (H.phase === 'day') return startVote();
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
@@ -391,6 +410,9 @@ function say(txt) {
     speechSynthesis.speak(u);
   } catch {}
 }
+
+// Cheese Thief: the follower pick and every night hour last exactly the same time.
+function ctClock() { const ph = H.g.phase; H.endsAt = ph === 'pick' || ph === 'night' ? now() + (H.settings.ct?.sec || 8) * 1000 : null; }
 
 function nextNight() {
   const g = H.g;
@@ -567,7 +589,7 @@ function hostAct(m, p) {
       }
       break;
     case 'ready':
-      if ((H.phase === 'deal' || H.phase === 'uword' || H.phase === 'aroles' || (H.phase === 'sh' && g.phase === 'role')) && !g.ready.includes(sid)) { g.ready.push(sid); broadcast(); }
+      if ((H.phase === 'deal' || H.phase === 'uword' || H.phase === 'aroles' || (H.phase === 'sh' && g.phase === 'role') || (H.phase === 'ct' && g.phase === 'role')) && !g.ready.includes(sid)) { g.ready.push(sid); broadcast(); }
       break;
     case 'act':
       if (H.phase === 'night') {
@@ -639,6 +661,12 @@ function hostAct(m, p) {
     case 'curoll': case 'cubet': case 'cudes': case 'cufin': {
       if (H.phase !== 'cu') break;
       const ok = m.t === 'curoll' ? CU.roll(g, sid) : m.t === 'cubet' ? CU.takeBet(g, sid, m.c) : m.t === 'cudes' ? CU.placeDesert(g, sid, m.sp, m.type) : CU.finalBet(g, sid, m.c, m.kind);
+      if (ok) broadcast();
+      break;
+    }
+    case 'ctpick': case 'ctpeek': case 'ctvote': {
+      if (H.phase !== 'ct') break;
+      const ok = m.t === 'ctpick' ? CZ.pickFollower(g, sid, m.sid) : m.t === 'ctpeek' ? CZ.peek(g, sid, m.sid) : CZ.vote(g, sid, m.sid);
       if (ok) broadcast();
       break;
     }
@@ -851,7 +879,7 @@ const HA = {
     }
   },
   set(d) {
-    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1] }[d.k];
+    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2] }[d.k];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
     const v = H.settings[g][k] + lim[2] * +d.d;
     if (v < lim[0] || v > lim[1]) return;
@@ -892,6 +920,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'ct') {
+      H.g = CZ.newGame(sids); H.phase = 'ct'; H.endsAt = null;
     } else if (H.game === 'tc') {
       H.g = TC.newGame(sids); H.phase = 'tc'; H.endsAt = null;
     } else if (H.game === 'sa') {
@@ -976,6 +1006,9 @@ const HA = {
   },
   reveal() { if (H.phase === 'play' && confirm('เฉลยสถานที่และสปาย?')) endSpy(null); },
   again() { HA.start(); },
+  ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
+  cttovote() { if (H.phase === 'ct' && CZ.toVote(H.g)) broadcast(); },
+  ctfinish() { if (H.phase === 'ct' && CZ.finish(H.g)) broadcast(); },
   abort() { if (H.phase !== 'lobby' && confirm('หยุดเกมนี้แล้วกลับล็อบบี้?')) HA.lobby(); },
   lobby() { H.phase = 'lobby'; H.g = null; H.endsAt = null; H.paused = null; broadcast(); },
 };
@@ -1076,6 +1109,7 @@ function startHost() {
   H.settings.uc ||= { auto: true, uc: 1, white: 0 };
   H.settings.av ||= AV.defaults();
   H.settings.ins ||= { min: 5 };
+  H.settings.ct ||= { sec: 8 };
   H.settings.jo ||= { rounds: 13 };
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
@@ -1244,7 +1278,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1335,6 +1369,12 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'ct') {
+    if (n < CZ.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CZ.MIN} คน`);
+    if (n > CZ.MAX) errs.push(`Cheese Thief เล่นได้สูงสุด ${CZ.MAX} คน`);
+    const sec = p.set.ct?.sec || 8;
+    settings = (host ? stepper('ct.sec', 'เวลาต่อ 1 ชั่วโมงกลางคืน', sec, ' วิ') : `<p class="muted small">กลางคืนชั่วโมงละ ${sec} วินาที</p>`)
+      + `<p class="muted small">โจร 1 คน${n >= 6 ? ' + ลูกสมุน 1 คน (โจรเลือกเอง)' : ' · 6 คนขึ้นไปจะมีลูกสมุน'} · ที่เหลือเป็นหนูขี้เซา</p>`;
   } else if (p.game === 'tc') {
     if (n < TC.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${TC.MIN} คน`);
     if (n > TC.MAX) errs.push(`Taco Cat เล่นได้สูงสุด ${TC.MAX} คน`);
@@ -2323,9 +2363,76 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Cheese Thief ──
+const ctDie = (n, cls = '') => `<span class="cdie ${cls}">${n}</span>`;
+const CT_ROLE = { thief: ['โจรขโมยชีส', 'robber', 'ขโมยชีสตอนที่คุณตื่น แล้วอย่าให้โดนโหวตจับ'], follower: ['ลูกสมุนของโจร', 'minion', 'คุณชนะพร้อมโจร ช่วยปั่นให้คนอื่นโหวตผิด (คุณไม่รู้ว่าโจรคือใคร)'], mouse: ['หนูขี้เซา', 'moon', 'ช่วยกันหาว่าใครขโมยชีส แล้วโหวตจับให้ถูก'] };
+function ctMemo(v) {
+  const m = v.memo;
+  if (!m) return `<p class="muted">คุณจะตื่นตอน <b>ตี ${v.die}</b></p>`;
+  const cheese = m.cheese === 'here' ? `${gi('cheese', 'gold inl')} ชีส<b>ยังอยู่</b>` : m.cheese === 'gone' ? `${gi('cheese', 'dim inl')} ชีส<b>หายไปแล้ว</b>`
+    : v.role === 'thief' ? `${gi('robber', 'inl')} <b>คุณขโมยชีส</b>ตอนนี้` : `${gi('robber', 'inl')} เห็น <b>${esc(pn(v.thief))}</b> กำลังขโมยชีส!`;
+  return `<ul class="ctmemo"><li>${gi('eye', 'inl')} ตื่นตอน <b>ตี ${m.h}</b></li>
+    <li>${gi('people', 'inl')} ${m.with.length ? `ตื่นพร้อมกับ ${m.with.map(s => `<b>${esc(pn(s))}</b>`).join(', ')}` : 'ตื่น<b>คนเดียว</b>'}</li>
+    <li>${cheese}</li>${m.peek ? `<li>${gi('dice', 'inl')} แอบดูเต๋าของ <b>${esc(pn(m.peek.t))}</b> ได้เลข <b>${m.peek.d}</b></li>` : ''}</ul>`;
+}
+function ctV() {
+  const c = S.pub.ct, v = S.priv, mine = me(), n = pl().length, others = pl().filter(x => x.sid !== mine);
+  const R = CT_ROLE[v.role] || CT_ROLE.mouse;
+  const mineCard = () => secret(`<span class="role t-${v.role === 'mouse' ? 'village' : 'wolf'}">${art(R[1])}<span class="rn">${R[0]}</span><span class="rd">${R[2]}</span></span>
+    <span class="ctdrow">ลูกเต๋าของคุณ ${ctDie(v.die, 'big')}<small>ตื่นตอนตี ${v.die}</small></span>`, 'แตะเพื่อดูบทบาทและลูกเต๋า');
+  if (c.phase === 'role') {
+    const rd = c.ready || [];
+    return `<h1 class="ph">ดูบทบาทและลูกเต๋า</h1>${mineCard()}${v.ready ? '<p class="center ok-text">✔ คุณพร้อมแล้ว</p>' : btn('ready', 'ดูแล้ว พร้อม', 'primary wide big')}
+      <section class="panel"><h2>พร้อม ${rd.length}/${n}</h2>${players({ ready: rd })}</section>
+      ${isHostView() ? btn('ctstart', rd.length >= n ? '🌙 เริ่มกลางคืน' : `🌙 เริ่มกลางคืน (พร้อม ${rd.length}/${n})`, 'primary wide big') : ''}`;
+  }
+  if (c.phase === 'pick') {
+    return `<h1 class="ph">${gi('moon', 'inl')} ค่ำแล้ว…</h1><div class="timer big" data-timer></div>
+      ${v.role === 'thief' ? `<section class="panel"><h2>เลือกลูกสมุน 1 คน</h2><p class="muted small">เขาจะรู้ว่าตัวเองเป็นลูกสมุน แต่ไม่รู้ว่าคุณคือโจร · ไม่เลือกจะสุ่มให้</p>
+        <div class="picks">${others.map(x => `<button class="pick ${v.picked === x.sid ? 'on' : ''}" data-act="ctpick" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div></section>`
+        : '<section class="panel center"><p>ทุกคนกำลังเข้านอน</p><p class="muted small">เก็บจอไว้ให้ดี อย่าให้ใครเห็น</p></section>'}`;
+  }
+  if (c.phase === 'night') {
+    const hours = `<div class="cthours">${Array.from({ length: CZ.HOURS }, (_, i) => `<span class="${i + 1 < c.hour ? 'past' : i + 1 === c.hour ? 'now' : ''}">${i + 1}</span>`).join('')}</div>`;
+    const body = v.awake
+      ? `<section class="panel ctawake"><h2>${gi('eye', 'inl')} คุณตื่น!</h2>${ctMemo(v)}
+          ${v.canPeek ? `<p class="ask">ตื่นคนเดียว — แอบดูเต๋าได้ 1 คน</p><div class="picks">${others.map(x => `<button class="pick" data-act="ctpeek" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div>` : ''}</section>`
+      : `<section class="panel center ctsleep"><div class="zzz">${gi('moon')}</div><p>คุณหลับอยู่</p>${v.memo ? '' : `<p class="muted small">จะตื่นตอนตี ${v.die}</p>`}</section>${v.memo ? `<section class="panel"><h2>สิ่งที่คุณเห็น</h2>${ctMemo(v)}</section>` : ''}`;
+    return `<h1 class="ph">${gi('moon', 'inl')} ตี ${c.hour}</h1>${hours}<div class="timer big" data-timer></div>${body}`;
+  }
+  if (c.phase === 'day' || c.phase === 'vote') {
+    const mem = `<section class="panel"><h2>สิ่งที่คุณรู้ <span class="muted small">(${R[0]} · เต๋า ${v.die})</span></h2>${ctMemo(v)}</section>`;
+    if (c.phase === 'day') return `<h1 class="ph">${gi('sun', 'inl')} เช้าแล้ว ชีสหาย!</h1>
+      <p class="center muted">คุยกันว่าใครตื่นตีไหน เห็นอะไร — จะพูดจริงหรือโกหกก็ได้</p>${mem}
+      ${isHostView() ? btn('cttovote', '🗳️ เริ่มโหวต', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องเปิดโหวต…</p>'}`;
+    const voted = c.voted || [];
+    return `<h1 class="ph">🗳️ ใครขโมยชีส?</h1><p class="center muted small">เปลี่ยนใจได้จนกว่าจะครบทุกคน</p>
+      <div class="picks">${others.map(x => `<button class="pick ${v.vote === x.sid ? 'on' : ''}" data-act="ctvote" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div>
+      <p class="center">${v.vote ? `คุณโหวต <b>${esc(pn(v.vote))}</b>` : 'ยังไม่ได้โหวต'}</p>${mem}
+      <section class="panel"><h2>โหวตแล้ว ${voted.length}/${n}</h2>${players({ voted })}</section>
+      ${isHostView() ? btn('ctfinish', 'สรุปผลเลย', 'ghost wide') : ''}`;
+  }
+  const r = c.res, win = r.winner === 'mice', iWin = (v.role === 'mouse') === win;
+  return `<div class="banner ${iWin ? 'win' : 'lose'}"><div class="bt">${win ? 'จับโจรได้! หนูขี้เซาชนะ' : 'โจรรอดไปได้! โจรชนะ'}</div>
+      <div>${gi('robber', 'inl')} โจรคือ <b>${esc(pn(c.thief))}</b>${c.follower ? ` · ลูกสมุน <b>${esc(pn(c.follower))}</b>` : ''}</div></div>
+    <section class="panel"><table class="res"><thead><tr><th>ผู้เล่น</th><th>เต๋า</th><th>โหวต</th><th>ได้</th></tr></thead><tbody>
+      ${pl().map(x => `<tr><td>${esc(x.name)}${x.sid === c.thief ? ` ${gi('robber', 'inl')}` : x.sid === c.follower ? ` ${gi('minion', 'inl')}` : ''}</td><td class="c">${ctDie(c.die[x.sid])}</td>
+        <td>${c.votes[x.sid] ? esc(pn(c.votes[x.sid])) : '–'}</td><td class="c"><b>${r.tally[x.sid] || 0}</b></td></tr>`).join('')}</tbody></table>
+      ${Object.keys(c.peeks).length ? `<p class="muted small">แอบดูเต๋า: ${Object.entries(c.peeks).map(([s, k]) => `${esc(pn(s))} → ${esc(pn(k.t))}`).join(' · ')}</p>` : ''}</section>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'ab' ? `
+  const body = g === 'ct' ? `
+    <p><b>เป้าหมาย:</b> หนูขี้เซาต้องโหวตจับโจรขโมยชีสให้ได้ · โจร (และลูกสมุน) ต้องรอด</p>
+    <ol><li>ทุกคนได้บทบาทลับ และ<b>ลูกเต๋าลับ 1–6</b> = ชั่วโมงที่คุณจะตื่นกลางดึก</li>
+    <li>6 คนขึ้นไป: ก่อนนอน โจรเลือก<b>ลูกสมุน</b> 1 คน (ลูกสมุนชนะพร้อมโจร แต่ไม่รู้ว่าโจรคือใคร)</li>
+    <li>กลางคืนนับตี 1 ถึงตี 6 ทีละชั่วโมง ถึงเลขของใคร คนนั้นตื่น และเห็นว่า<b>ใครตื่นพร้อมกัน</b></li>
+    <li><b>โจรขโมยชีสตอนชั่วโมงที่ตัวเองตื่น</b> — คนที่ตื่นชั่วโมงเดียวกันเห็นคาตา · คนที่ตื่นก่อนเห็นชีสยังอยู่ · คนที่ตื่นทีหลังเห็นชีสหายแล้ว</li>
+    <li>ถ้าตื่น<b>คนเดียว</b> แอบดูลูกเต๋าของคนอื่นได้ 1 คน</li>
+    <li>เช้า: คุยกัน (โกหกได้) แล้วโหวตพร้อมกัน คนละ 1 เสียง ห้ามโหวตตัวเอง</li>
+    <li>โจรได้คะแนนโหวตมากที่สุด (เสมอที่หนึ่งก็นับ) = หนูขี้เซาชนะ · ไม่งั้นโจรชนะ</li></ol>` : g === 'ab' ? `
     <p><b>เป้าหมาย:</b> เก็บให้ได้ ${AB.WIN} แต้มก่อนใคร</p>
     <ol><li>ทุกคนมีหินคาถา ${AB.HAND} ก้อน <b>คุณเห็นหินของทุกคน ยกเว้นของตัวเอง</b></li>
     <li>หินเลข 1 มี 1 ก้อน เลข 2 มี 2 ก้อน … เลข 8 มี 8 ก้อน · กระดานคาถาบอกว่าแต่ละเลขถูกร่ายไปแล้วกี่ก้อน</li>
@@ -2585,6 +2692,9 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  ctpick: d => send({ t: 'ctpick', sid: d.sid }),
+  ctpeek: d => send({ t: 'ctpeek', sid: d.sid }),
+  ctvote: d => send({ t: 'ctvote', sid: d.sid }),
   tflip: () => send({ t: 'tflip' }),
   tslap: d => {
     const t = S.pub.tc, n = t.top?.n ?? 0;

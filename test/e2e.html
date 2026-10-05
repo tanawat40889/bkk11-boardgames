@@ -58,8 +58,8 @@ function hook(w) {
 // chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
 const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
-const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3] };
-const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5] };
+const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3], ct: [6] };
+const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5], ct: [4, 6, 8] };
 const only = Q.get('games')?.split(',');
 // ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
@@ -70,7 +70,7 @@ const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ
 const SKIP = new Set(['leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
   'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
 // Clicked rarely so games still make progress.
-const RARE = { cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3 };
+const RARE = { cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3, ctfinish: 0.02, cttovote: 0.3, ctstart: 0.3 };
 
 function fill(doc) {
   const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };

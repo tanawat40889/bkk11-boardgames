@@ -15,6 +15,7 @@ import * as CU from '../js/camelup.js';
 import * as TC from '../js/taco.js';
 import * as SA from '../js/salem.js';
 import * as AB from '../js/abraca.js';
+import * as CZ from '../js/cheese.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1124,6 +1125,53 @@ t('abraca: 300 random games finish; stones are conserved', () => {
     }
     assert.ok(g.winners.length >= 1);
   }
+});
+
+t('cheese thief: setup — one thief, dice 1–6 fairly spread, follower only at 6+', () => {
+  const thief = {}, die = [0, 0, 0, 0, 0, 0, 0];
+  for (let k = 0; k < 6000; k++) {
+    const g = CZ.newGame(sids(5));
+    thief[g.thief] = (thief[g.thief] || 0) + 1;
+    for (const s of g.sids) { assert.ok(g.die[s] >= 1 && g.die[s] <= 6); die[g.die[s]]++; }
+  }
+  for (const s of sids(5)) assert.ok(thief[s] > 1000 && thief[s] < 1400, 'thief spread ' + thief[s]);
+  for (let d = 1; d <= 6; d++) assert.ok(die[d] > 4600 && die[d] < 5400, 'die spread ' + die[d]);
+  assert.equal(CZ.followers(5), 0); assert.equal(CZ.followers(6), 1); assert.equal(CZ.followers(8), 1);
+});
+t('cheese thief: night — who sees what, lone waker peeks once, votes decide', () => {
+  const g = CZ.newGame(sids(6));
+  g.thief = 's0'; g.die = { s0: 3, s1: 1, s2: 3, s3: 5, s4: 5, s5: 6 };
+  assert.ok(!CZ.pickFollower(g, 's0', 's1'), 'not before the night');
+  assert.ok(CZ.start(g)); assert.equal(g.phase, 'pick');
+  assert.ok(!CZ.pickFollower(g, 's1', 's2'), 'only the thief picks'); assert.ok(!CZ.pickFollower(g, 's0', 's0'));
+  assert.ok(CZ.pickFollower(g, 's0', 's4')); assert.equal(CZ.memo(g, 's1'), null);
+  CZ.advance(g); assert.equal(g.phase, 'night'); assert.equal(g.hour, 1); assert.equal(g.follower, 's4');
+  assert.deepEqual(CZ.awake(g), ['s1']); assert.equal(CZ.memo(g, 's1').cheese, 'here'); assert.equal(CZ.memo(g, 's2'), null);
+  assert.ok(!CZ.peek(g, 's2', 's1'), 'asleep'); assert.ok(!CZ.peek(g, 's1', 's1'));
+  assert.ok(CZ.peek(g, 's1', 's3')); assert.deepEqual(g.peek.s1, { t: 's3', d: 5 }); assert.ok(!CZ.peek(g, 's1', 's2'), 'only once');
+  CZ.advance(g); assert.deepEqual(CZ.awake(g), []);
+  CZ.advance(g); assert.deepEqual(CZ.awake(g), ['s0', 's2']); assert.equal(CZ.memo(g, 's2').cheese, 'steal'); assert.deepEqual(CZ.memo(g, 's2').with, ['s0']);
+  assert.ok(!CZ.peek(g, 's2', 's5'), 'not alone');
+  CZ.advance(g); CZ.advance(g); assert.equal(CZ.memo(g, 's3').cheese, 'gone'); assert.ok(!CZ.canPeek(g, 's3'));
+  CZ.advance(g); assert.ok(CZ.canPeek(g, 's5'));
+  CZ.advance(g); assert.equal(g.phase, 'day'); assert.ok(!CZ.vote(g, 's1', 's0'));
+  assert.ok(CZ.toVote(g)); assert.ok(!CZ.vote(g, 's1', 's1'), 'no self vote');
+  for (const s of ['s1', 's2', 's3']) CZ.vote(g, s, 's0');
+  CZ.vote(g, 's0', 's1'); CZ.vote(g, 's4', 's1'); assert.equal(g.phase, 'vote');
+  CZ.vote(g, 's5', 's1');
+  assert.equal(g.phase, 'end'); assert.equal(g.res.caught, true, 'a tie that includes the thief counts'); assert.equal(g.res.winner, 'mice');
+  assert.equal(CZ.team(g, 's4'), 'thief'); assert.equal(CZ.team(g, 's1'), 'mice');
+});
+t('cheese thief: thief escapes when someone else has more votes; no follower -> random pick; early finish', () => {
+  const g = CZ.newGame(sids(4)); g.thief = 's0';
+  CZ.start(g); assert.equal(g.phase, 'night'); assert.equal(g.follower, null);
+  for (let i = 0; i < 6; i++) CZ.advance(g);
+  CZ.toVote(g); CZ.vote(g, 's0', 's1'); CZ.vote(g, 's2', 's1'); CZ.vote(g, 's3', 's0');
+  assert.ok(CZ.finish(g)); assert.equal(g.res.winner, 'thief');
+  const h = CZ.newGame(sids(7)); CZ.start(h); CZ.advance(h);
+  assert.ok(h.follower && h.follower !== h.thief);
+  const e = CZ.newGame(sids(4)); CZ.start(e); for (let i = 0; i < 6; i++) CZ.advance(e); CZ.toVote(e); CZ.finish(e);
+  assert.equal(e.res.winner, 'thief', 'nobody voted');
 });
 
 console.log(`\n${pass} tests passed`);
