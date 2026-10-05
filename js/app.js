@@ -1648,6 +1648,8 @@ function scV() {
       actions = `<p class="ask center">เลือกไพ่ติดกันที่จะลง (ต้องแรงกว่าชุดที่เหลือบนโต๊ะ)</p><div class="row">${btn('sccancel', 'ยกเลิก', 'ghost')}${btn('scss', '⚡ Scout & Show', 'primary', {}, !ok)}</div>`;
     }
   } else {
+    // a selection left over from an earlier turn may point past the end of a hand that has since shrunk
+    if (!myTurn || S.scSel.some(i => i >= hand.length)) S.scSel = [];
     const a = S.scSel, sel = a.length ? hand.slice(a[0], a.at(-1) + 1) : [];
     const ok = myTurn && sel.length && SC.beats(SC.classify(sel), act ? SC.classify(act.cards) : null);
     handHtml = `<div class="shand">${hand.map((x, i) => scCard(x, a.includes(i) ? 'on' : '', myTurn ? `data-act="sccard" data-i="${i}"` : 'disabled')).join('')}</div>`;
@@ -2539,7 +2541,7 @@ const ACT = {
     else S.scSel = a.length === 1 && a[0] === i ? [] : [i];
     render();
   },
-  scshow: () => { const a = S.scSel; if (a.length) send({ t: 'scshow', i: a[0], j: a.at(-1) }); },
+  scshow: () => { const a = S.scSel; if (a.length) { send({ t: 'scshow', i: a[0], j: a.at(-1) }); S.scSel = []; } },
   scpick: d => { S.scM = { end: d.end, flip: false, ss: d.ss === '1', pos: null }; S.scSel = []; render(); },
   scturn: () => { S.scM.flip = !S.scM.flip; render(); },
   sccancel: () => { S.scM = null; S.scSel = []; render(); },
