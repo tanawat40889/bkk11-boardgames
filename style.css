@@ -191,7 +191,7 @@ details.panel .picks { margin-top: 10px; }
 .gcard .gemo { font-size: 1.9rem; width: 46px; height: 46px; margin-bottom: 4px; }
 .gcard b { font-size: 1.02rem; } .gcard small { color: var(--accent2); font-size: .78rem; }
 .gcard .gd { color: var(--muted); font-size: .8rem; line-height: 1.35; flex: 1; margin-bottom: 6px; }
-.gcard.on { border-color: var(--accent); background: #8b6cff22; } .gcard.unfit { border-style: dashed; } .gcard.unfit b, .gcard.unfit .gd { opacity: .75; }
+.gcard.on { border-color: var(--accent); background: #8b6cff22; }
 @media (min-width: 700px) { .gcards { grid-template-columns: repeat(3, 1fr); } }
 
 /* The Mind */

@@ -1269,13 +1269,11 @@ const fitBadge = (G, n) => (n < G.min ? `<span class="tag bad">ต้องก�
 function pickerView() {
   const p = S.pub, n = pl().length;
   const keys = Object.keys(GAMES).filter(k => S.cat === 'all' || GAMES[k].c.includes(S.cat));
-  const fit = k => n >= GAMES[k].min && n <= GAMES[k].max;
-  keys.sort((a, b) => fit(b) - fit(a));
   return `<div class="modal" data-act="pick"><div class="sheet picker" data-act="noop">
     <div class="sh"><h2>เลือกเกม <span class="muted small">ตอนนี้ ${n} คน</span></h2><button class="ib" data-act="pick">✕</button></div>
     <div class="tabs">${Object.entries(CATS).map(([k, v]) => `<button class="${S.cat === k ? 'on' : ''}" data-act="cat" data-c="${k}">${v}</button>`).join('')}</div>
-    <div class="gcards">${keys.map(k => { const G = GAMES[k]; return `<button class="gcard ${k === p.game ? 'on' : ''} ${fit(k) ? '' : 'unfit'}" data-act="hgame" data-g="${k}">
-      ${gbadge(k)}<b>${G.s}</b><small>${playersTxt(G)} · ~${G.t} นาที</small><span class="gd">${G.d}</span>${fitBadge(G, n)}</button>`; }).join('')}</div>
+    <div class="gcards">${keys.map(k => { const G = GAMES[k]; return `<button class="gcard ${k === p.game ? 'on' : ''}" data-act="hgame" data-g="${k}">
+      ${gbadge(k)}<b>${G.s}</b><small>${playersTxt(G)} · ~${G.t} นาที</small><span class="gd">${G.d}</span></button>`; }).join('')}</div>
   </div></div>`;
 }
 
