@@ -3,6 +3,7 @@
 //   node test/e2e.mjs sk,sc reps=3    only some games, each scenario 3 times
 //   node test/e2e.mjs chaos=0         without the random mid-game browser refreshes
 //   node test/e2e.mjs w=320           audit at a small-phone width (default 360)
+//   node test/e2e.mjs down=0.3        lose 30% of host → player updates (players must notice and ask again)
 //   node test/e2e.mjs loss=0.4        drop 40% of player actions on the way to the host (they must be retried)
 //   node test/e2e.mjs ui=0            skip the layout audit (overflowing text, off-screen or overlapping buttons, …)
 import { execFile } from 'node:child_process';
@@ -13,6 +14,9 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+import { spawn as _spawn } from 'node:child_process';
+// macOS: headless Chrome stops ticking while the display sleeps, so keep it awake for as long as this script runs.
+if (process.platform === 'darwin') try { _spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 8791;
 const args = process.argv.slice(2);
@@ -33,7 +37,7 @@ const server = http.createServer(async (req, res) => {
 await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 let results;
 try {
-  const url = `http://localhost:${PORT}/test/e2e.html?reps=${opt.reps || 1}${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.ui != null ? '&ui=' + opt.ui : ''}${opt.w ? '&w=' + opt.w : ''}${opt.loss ? '&loss=' + opt.loss : ''}`;
+  const url = `http://localhost:${PORT}/test/e2e.html?reps=${opt.reps || 1}${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.ui != null ? '&ui=' + opt.ui : ''}${opt.w ? '&w=' + opt.w : ''}${opt.loss ? '&loss=' + opt.loss : ''}${opt.down ? '&down=' + opt.down : ''}`;
   // async on purpose: the server above lives in this same process
   const { stdout: dom } = await promisify(execFile)(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', `--virtual-time-budget=${opt.budget || 40000000}`, '--dump-dom', url],
     { encoding: 'utf8', maxBuffer: 1 << 28, timeout: (+opt.timeout || 900) * 1000 });
@@ -46,7 +50,7 @@ try {
 let bad = 0;
 for (const r of results) {
   console.log(`${r.ok ? '✓' : '✗'} ${r.game.padEnd(8)} ${String(r.n).padStart(2)} คน  ${r.ok ? `(${r.ticks} ticks, รีเฟรช ${r.reloads} ครั้ง)` : r.why}`);
-  if (!r.ok) { bad++; for (const e of r.errs || []) console.log('    ' + String(e).split('\n').slice(0, 3).join('\n    ')); (r.screens || []).forEach((s, i) => console.log(`    P${i}: ${s}`)); }
+  if (!r.ok) { bad++; for (const e of r.errs || []) console.log('    ' + String(e).split('\n').slice(0, 3).join('\n    ')); (r.screens || []).forEach((s, i) => console.log(`    P${i}: ${s}`)); if (opt.diag) (r.diag || []).forEach((s, i) => console.log(`    P${i} state: ${s}`)); }
 }
 // UI audit findings, merged across scenarios: "screen | problem | element"
 const ui = new Map();

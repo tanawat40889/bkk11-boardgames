@@ -30,10 +30,12 @@ window.BROKER = {
   unsub(id, t) { this.subs.get(id)?.delete(t); },
   bye(id) { this.subs.delete(id); this.clients.delete(id); },
   // ?loss=0.4 silently drops that share of player → host actions (what happens while a real host is reconnecting)
-  loss: +new URLSearchParams(location.search).get('loss') || 0, dropped: 0,
+  loss: +new URLSearchParams(location.search).get('loss') || 0, down: +new URLSearchParams(location.search).get('down') || 0, dropped: 0,
   pub(t, p, r) {
     if (this.loss && t.endsWith('/in') && !/"t":"(join|ping)"/.test(p) && Math.random() < this.loss) { this.dropped++; return; }
     if (r) p ? this.retained.set(t, p) : this.retained.delete(t);
+    // ?down=0.3 loses that share of host → player updates in transit (a throttling broker); the heartbeat must repair it
+    if (this.down && p && /\/(pub|p\/[^/]+)$/.test(t) && Math.random() < this.down) { this.dropped++; return; }
     for (const [id, ts] of this.subs) if (ts.has(t)) this.deliver(id, t, p);
   },
 };
@@ -191,7 +193,7 @@ let runId = 0;
 async function scenario(game, n) {
   const id = STAMP + (++runId) + '_', box = document.getElementById('frames'), wins = [];
   box.innerHTML = '';
-  const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), diag: wins.map(w => { try { return JSON.stringify(w.__bg?.()).slice(0, 700); } catch (e) { return String(e); } }), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
+  const fail = (why, extra = {}) => ({ game, n, ok: false, why, screens: wins.map(text), diag: wins.map(w => { try { return JSON.stringify(w.__bg?.()).slice(0, LIVE ? 700 : 1500); } catch (e) { return String(e); } }), errs: wins.flatMap((w, i) => (w.__errs || []).map(e => `P${i}: ${e}`)).slice(0, 8), ...extra });
   for (let i = 0; i < n; i++) {
     const f = document.createElement('iframe');
     f.src = LIVE ? `../index.html?ns=${id}p${i}_` : `e2e-player.html?ns=${id}p${i}_&speed=${SPEED}`;
@@ -246,7 +248,7 @@ async function scenario(game, n) {
       act(w, game);
       if (UI && (ticks + i) % 3 === 0) audit(w, found);
       stuck[i] = /กำลังรับข้อมูล|กำลังเข้าห้อง/.test(w.document.body.innerText) ? stuck[i] + 1 : 0;
-      if (stuck[i] > 250) return fail(`P${i} stuck on loading screen`, { ticks });
+      if (stuck[i] > (BROKER.down ? 1500 : 250)) return fail(`P${i} stuck on loading screen`, { ticks });
     }
     await sleep(TICK);
   }

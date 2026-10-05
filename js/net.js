@@ -58,7 +58,7 @@ export class Room {
       const s = b.toString();
       let v = null;
       if (s) try { v = JSON.parse(s); } catch { return; }
-      try { f(v); } catch (e) { console.error(e); }
+      try { f(v, s); } catch (e) { console.error(e); }
     });
     const down = () => { if (!this.online) return; this.online = false; this.drops++; this.onStatus?.(false); };
     c.on('offline', down);

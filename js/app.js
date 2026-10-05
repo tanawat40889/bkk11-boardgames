@@ -70,6 +70,33 @@ const S = {
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
 const sentPriv = {};
+let sentPub = '';
+
+// Host → players goes through a small queue. Public brokers throttle a connection that publishes more than a few
+// messages a second (after that everything arrives late or not at all), so bursts are merged: only the newest
+// public state / newest private view per player is sent, at a steady rate the broker accepts.
+const OUT_RATE = 4, OUT_BURST = 8;
+const outQ = new Map(), want = {};
+let outTok = OUT_BURST, outAt = 0, outTimer = 0;
+const hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+function hsend(k, v) {
+  outQ.delete(k); outQ.set(k, v);
+  drain();
+}
+const hdrop = pid => { outQ.delete('p/' + pid); delete want['p/' + pid]; S.conn.send('p/' + pid, null, true); };   // forget a player's private topic
+function drain() {
+  clearTimeout(outTimer); outTimer = 0;
+  if (!S.conn || !S.isHost) return outQ.clear();
+  const t = now();
+  outTok = Math.min(OUT_BURST, outTok + (t - outAt) * OUT_RATE / 1000); outAt = t;
+  while (outQ.size && outTok >= 1) {
+    const k = outQ.has('pub') ? 'pub' : outQ.keys().next().value, v = outQ.get(k);
+    outQ.delete(k); outTok--;
+    S.conn.send(k, v, true);
+    want[k] = hash(JSON.stringify(v));   // fingerprint of what was really sent, for the heartbeat
+  }
+  if (outQ.size) outTimer = setTimeout(drain, Math.ceil((1 - outTok) * 1000 / OUT_RATE) + 5);
+}
 
 /* ───────────── host engine ───────────── */
 const hn = sid => H.players.find(p => p.sid === sid)?.name || '?';
@@ -269,16 +296,16 @@ function privOf(sid) {
   return v;
 }
 
-function broadcast() {
+function broadcast(force) {
   LS.set('bg_host_' + H.room, H);
-  const pub = pubOf();
-  S.conn?.send('pub', pub, true);
+  const pub = pubOf(), pj = JSON.stringify({ ...pub, left: 0 });
+  if (force || pj !== sentPub) { sentPub = pj; hsend('pub', pub); }   // an action that changed nothing is not re-sent
   for (const p of H.players) {
     const v = privOf(p.sid);
     // Host's own private view changed (e.g. flipped hand) -> force a re-render even if the public state is identical.
     if (p.pid === S.pid) { if (JSON.stringify(S.priv) !== JSON.stringify(v)) lastPub = ''; S.priv = v; continue; }
     const j = JSON.stringify(v);
-    if (sentPriv[p.pid] !== j) { sentPriv[p.pid] = j; S.conn?.send('p/' + p.pid, v, true); }
+    if (sentPriv[p.pid] !== j) { sentPriv[p.pid] = j; hsend('p/' + p.pid, v); }
   }
   applyPub(pub, true);
 }
@@ -287,14 +314,18 @@ function broadcast() {
 function ackOnly(p) {
   if (p.pid === S.pid || !H.players.includes(p)) return;
   const v = privOf(p.sid), j = JSON.stringify(v);
-  if (sentPriv[p.pid] !== j) { sentPriv[p.pid] = j; S.conn?.send('p/' + p.pid, v, true); }
+  if (sentPriv[p.pid] !== j) { sentPriv[p.pid] = j; hsend('p/' + p.pid, v); }
 }
 
 function hostTick() {
   if (!H) return;
   const t = now();
   // heartbeat, so players can tell "the host dropped" apart from "nothing is happening"
-  if (t - lastHb > 4000) { lastHb = t; S.conn?.send('hb', { t }); }
+  // It also carries a fingerprint of the newest state, so a player who missed an update notices and asks again.
+  if (t - lastHb > 3000) {
+    lastHb = t;
+    S.conn?.send('hb', { t, v: want.pub, p: Object.fromEntries(H.players.filter(p => p.pid !== S.pid && want['p/' + p.pid]).map(p => [p.sid, want['p/' + p.pid]])) });
+  }
   if (H.endsAt && t >= H.endsAt) {
     if (H.phase === 'night') return nextNight();
     if (H.phase === 'day') return startVote();
@@ -307,7 +338,7 @@ function hostTick() {
   if (on !== H._on || (H.endsAt && H.endsAt > t - 3000 && t - lastTimed > 3000)) {
     H._on = on;
     lastTimed = t;
-    broadcast();
+    broadcast(true);
   }
 }
 
@@ -477,7 +508,7 @@ function reject(pid, msg) { S.conn.send('p/' + pid, { error: msg }); }
 function hostJoin(m) {
   const name = cleanName(m.name) || 'ผู้เล่น';
   const p = H.players.find(x => x.pid === m.pid);
-  if (p) { delete sentPriv[p.pid]; return broadcast(); }
+  if (p) { delete sentPriv[p.pid]; return broadcast(true); }
   if (H.phase === 'lobby') {
     if (H.players.length >= 10) return reject(m.pid, 'ห้องเต็มแล้ว (สูงสุด 10 คน)');
     let n = name, i = 2;
@@ -488,7 +519,7 @@ function hostJoin(m) {
   // Mid-game: reclaim an offline seat by using the same name.
   const q = H.players.find(x => x.name.toLowerCase() === name.toLowerCase() && x.pid !== S.pid);
   if (q && !isOn(q)) {
-    S.conn.send('p/' + q.pid, null, true);
+    hdrop(q.pid);
     delete sentPriv[q.pid];
     q.pid = m.pid;
     q.seen = now();
@@ -503,8 +534,13 @@ function hostIn(m) {
   if (p) p.seen = now();
   if (m.t === 'join') return hostJoin(m);
   if (!p) return;
+  if (m.t === 'sync') {   // this player's screen is behind: send everything again (at most every 1.5 s)
+    if (now() - (p.sync || 0) < 1500) return;
+    p.sync = now(); delete sentPriv[p.pid];
+    return broadcast(true);
+  }
   // Players resend an action until it is acknowledged; never apply the same one twice.
-  if (m.id) { if (p.ack === m.id) return ackOnly(p); p.ack = m.id; }
+  if (m.id) { if (p.ack === m.id) { delete sentPriv[p.pid]; return ackOnly(p); } p.ack = m.id; }   // a repeat means our ack never arrived: send it again
   hostAct(m, p);
   if (m.id) ackOnly(p);
 }
@@ -515,7 +551,7 @@ function hostAct(m, p) {
     case 'leave':
       if (H.phase === 'lobby' && p.pid !== S.pid) {
         H.players = H.players.filter(x => x !== p);
-        S.conn.send('p/' + p.pid, null, true);
+        hdrop(p.pid);
         broadcast();
       }
       break;
@@ -713,7 +749,7 @@ const HA = {
     if (!p || p.pid === S.pid || H.phase !== 'lobby') return;
     if (!confirm(`เชิญ ${p.name} ออกจากห้อง?`)) return;
     H.players = H.players.filter(x => x !== p);
-    S.conn.send('p/' + p.pid, null, true);
+    hdrop(p.pid);
     S.conn.send('p/' + p.pid, { kicked: true });
     broadcast();
   },
@@ -956,7 +992,7 @@ const bootId = uid(6);
 let seq = 0, outbox = null, retryTimer = 0;
 function flush() {
   if (!outbox || !S.conn) return;
-  if (outbox.tries >= 10) { outbox = null; S.sending = false; return toast('ส่งไม่ถึงเจ้าของห้อง ลองกดอีกครั้ง'); }
+  if (outbox.tries >= 10) { outbox = null; S.sending = false; render(); return toast('ส่งไม่ถึงเจ้าของห้อง ลองกดอีกครั้ง'); }
   if (++outbox.tries === 2) { S.sending = true; render(); }
   S.conn.send('in', outbox.m);
   clearTimeout(retryTimer);
@@ -995,9 +1031,10 @@ function hello() { S.conn?.send('in', { t: 'join', pid: S.pid, name: S.name }); 
 
 function startClient() {
   const c = S.conn;
-  c.sub('pub', v => { S.hostSeen = now(); return !v || v.closed ? leave('เจ้าของห้องปิดห้องแล้ว') : applyPub(v); });
-  c.sub('p/' + S.pid, v => {
+  c.sub('pub', (v, raw) => { S.hostSeen = now(); S.pubH = hash(raw); return !v || v.closed ? leave('เจ้าของห้องปิดห้องแล้ว') : applyPub(v); });
+  c.sub('p/' + S.pid, (v, raw) => {
     if (!v) return;
+    S.privH = hash(raw);
     if (v.kicked) return leave('คุณถูกเชิญออกจากห้อง');
     if (v.error) { S.joinErr = v.error; S.priv = null; return render(); }
     S.joinErr = '';
@@ -1006,7 +1043,13 @@ function startClient() {
     acked(v.ack);
     render();
   });
-  c.sub('hb', () => { S.hostSeen = now(); if (S.hostDown) { S.hostDown = false; render(); } });
+  c.sub('hb', hb => {
+    S.hostSeen = now();
+    if (S.hostDown) { S.hostDown = false; render(); }
+    // Our copy differs from what the host last sent -> an update got lost on the way: ask for it again.
+    const mine = me(), stale = (!S.priv && !S.joinErr) || (hb?.v && hb.v !== S.pubH) || (mine && hb?.p?.[mine] && hb.p[mine] !== S.privH);
+    if (stale) { S.resyncs = (S.resyncs || 0) + 1; S.priv ? c.send('in', { t: 'sync', pid: S.pid }) : hello(); }
+  });
   c.onStatus = on => { setOnline(on); if (on) { hello(); flush(); } };
   S.hostSeen = now(); S.hostDown = false;
   hello();
@@ -1026,7 +1069,7 @@ function startHost() {
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
     setOnline(on);
-    if (on) { for (const k in sentPriv) delete sentPriv[k]; broadcast(); }
+    if (on) { for (const k in sentPriv) delete sentPriv[k]; broadcast(true); }
   };
   hostTimer = setInterval(hostTick, 1000);
   saveSess();
@@ -1110,7 +1153,7 @@ function leave(msg = '') {
   clearInterval(hostTimer); clearInterval(pingTimer);
   outbox = null; clearTimeout(retryTimer); S.sending = false; S.hostDown = false; S.online = true;
   SS.del('bg_sess'); LS.del('bg_last');
-  H = null; lastPub = '';
+  H = null; lastPub = ''; sentPub = ''; outQ.clear(); clearTimeout(outTimer); outTimer = 0; for (const k in want) delete want[k];
   Object.assign(S, { conn: null, room: null, pid: null, isHost: false, pub: null, priv: null, pick: false, joinErr: '', err: msg, key: '', round: -1 });
   setRoomParam(null);
   render();
@@ -2381,7 +2424,7 @@ function rulesView() {
 // Replacing the DOM while a finger is down swallows that tap, so wait for the finger to lift.
 let pressing = false, renderPending = false, lastHtml = null, pressTimer = 0;
 // Connection + state snapshot for the test bots (test/e2e.html) and for debugging from the console.
-window.__bg = () => ({ host: S.isHost, online: S.online, hostDown: S.hostDown, broker: S.conn?.bi, drops: S.conn?.drops, err: S.conn?.lastErr, phase: S.pub?.phase, pub: S.pub?.[S.pub?.game], out: outbox && { t: outbox.m?.t ?? outbox.t, tries: outbox.tries }, priv: S.priv && { ack: S.priv.ack, round: S.priv.round }, pressing, renderPending });
+window.__bg = () => ({ resyncs: S.resyncs || 0, pubH: S.pubH, privH: S.privH, want: S.isHost ? { ...want } : undefined, sending: S.sending, out: outbox && { t: outbox.m?.t, tries: outbox.tries }, priv: S.priv, queued: outQ.size, host: S.isHost, online: S.online, hostDown: S.hostDown, broker: S.conn?.bi, drops: S.conn?.drops, err: S.conn?.lastErr, phase: S.pub?.phase, pub: S.pub?.[S.pub?.game], out: outbox && { t: outbox.m?.t ?? outbox.t, tries: outbox.tries }, priv: S.priv && { ack: S.priv.ack, round: S.priv.round }, pressing, renderPending });
 const pressEnd = () => {
   if (!pressing) return;
   pressing = false;

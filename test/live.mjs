@@ -7,6 +7,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
+// macOS: headless Chrome stops ticking while the display sleeps, so keep it awake for as long as this script runs.
+if (process.platform === 'darwin') try { spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const args = process.argv.slice(2);
 const games = args.find(a => !a.includes('='));
