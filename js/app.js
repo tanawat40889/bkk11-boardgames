@@ -30,6 +30,17 @@ const mkStore = get => ({
 });
 const LS = mkStore(() => localStorage), SS = mkStore(() => sessionStorage);
 
+// Colour themes (hue per theme; the shades live in style.css). Kept per device, shared by every room.
+const THEMES = { violet: ['ม่วง', 250], blue: ['น้ำเงิน', 218], teal: ['ฟ้าเขียว', 186], green: ['เขียว', 150], orange: ['ส้ม', 24], red: ['แดง', 352], pink: ['ชมพู', 322] };
+function setTheme(t) {
+  if (!THEMES[t]) t = 'violet';
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem('bg_theme', t); } catch {}
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', getComputedStyle(document.documentElement).backgroundColor);
+}
+const themePicker = () => `<div class="themes">${Object.entries(THEMES).map(([k, [n, h]]) =>
+  `<button class="tsw ${(document.documentElement.dataset.theme || 'violet') === k ? 'on' : ''}" style="--th:${h}" data-act="theme" data-t="${k}" aria-label="ธีมสี${n}" title="${n}"></button>`).join('')}</div>`;
+
 const GAMES = {
   onuw: { n: 'One Night Ultimate Werewolf', s: 'Werewolf', e: '🐺', min: WW.MIN, max: WW.MAX, t: 10, c: ['ded'], d: 'หาหมาป่าให้เจอในคืนเดียว บทบาทสลับกันได้ตอนกลางคืน' },
   spyfall: { n: 'Spyfall', s: 'Spyfall', e: '🕵️', min: SF.MIN, max: SF.MAX, t: 8, c: ['ded'], d: 'ทุกคนรู้สถานที่ ยกเว้นสปาย ถามตอบจับพิรุธ' },
@@ -1182,6 +1193,7 @@ function home() {
       ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}
       <div class="gstrip">${Object.keys(GAMES).map(k => gbadge(k, 'xs')).join('')}</div>
       <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
+    <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
     ${installHint()}
   </main>
   ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">
@@ -2420,6 +2432,7 @@ function rulesView() {
     <li>หมดเวลา: คุยแล้วโหวตหาสปายรอบสุดท้าย</li></ol>
     <p class="muted small">บทบาทในสถานที่ไม่ซ้ำกัน · สถานที่จะไม่วนซ้ำภายใน ${SF.RECENT} รอบ</p>`;
   return `<div class="modal" data-act="rules"><div class="sheet" data-act="noop"><div class="sh"><h2>กติกา ${GAMES[g].s}</h2><button class="ib" data-act="rules">✕</button></div>${body}
+    <h3>สีธีม</h3>${themePicker()}
     <p class="muted small diag">การเชื่อมต่อ: เซิร์ฟเวอร์ ${S.conn ? S.conn.bi + 1 : '-'} · หลุด ${S.conn?.drops ?? 0} ครั้งใน ${S.conn?.since ? Math.round((Date.now() - S.conn.since) / 60000) : 0} นาที${S.conn?.lastErr ? ` · ล่าสุด: ${esc(S.conn.lastErr)}` : ''}${S.isHost ? ' · คุณเป็นเจ้าของห้อง' : ''}</p>
     <p class="muted small">ไอคอน: <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite, Skoll — CC BY 3.0) · ไอคอนแอป: Font Awesome Free (CC BY 4.0)</p></div></div>`;
 }
@@ -2493,6 +2506,7 @@ const ACT = {
   leave: () => { if (confirm(S.isHost ? 'ออกและปิดห้องนี้? ทุกคนจะหลุดจากห้อง' : 'ออกจากห้อง?')) leave(); },
   rules: () => { S.rules = !S.rules; render(); },
   noop: () => {},
+  theme: d => { setTheme(d.t); render(); },
   noresume: () => { S.noResume = true; render(); },
   share: async () => {
     const url = location.origin + location.pathname + '?r=' + S.pub.room;
