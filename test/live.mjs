@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 // macOS: headless Chrome stops ticking while the display sleeps, so keep it awake for as long as this script runs.
-if (process.platform === 'darwin') try { spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
+if (process.platform === 'darwin') try { spawn('caffeinate', ['-d', '-i', '-m', '-s', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const args = process.argv.slice(2);
 const games = args.find(a => !a.includes('='));
@@ -18,7 +18,7 @@ const PORT = 9333, LIMIT = (+opt.minutes || 45) * 60000;
 const url = `${base}test/e2e.html?live=1${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.n ? '&n=' + opt.n : ''}&max=${opt.max || 900}`;   // max = bot turns per game before it counts as stuck (900 ≈ 5 min)
 
 const profile = mkdtempSync(path.join(tmpdir(), 'bkk11-live-'));
-const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, '--window-size=1400,900', url], { stdio: 'ignore' });
+const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=IntensiveWakeUpThrottling,CalculateNativeWinOcclusion', `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, '--window-size=1400,900', url], { stdio: 'ignore' });
 const stop = () => { try { chrome.kill('SIGKILL'); } catch {} try { rmSync(profile, { recursive: true, force: true }); } catch {} };
 process.on('SIGINT', () => { stop(); process.exit(130); });
 

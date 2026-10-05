@@ -16,7 +16,7 @@ import { readFile } from 'node:fs/promises';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 import { spawn as _spawn } from 'node:child_process';
 // macOS: headless Chrome stops ticking while the display sleeps, so keep it awake for as long as this script runs.
-if (process.platform === 'darwin') try { _spawn('caffeinate', ['-d', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
+if (process.platform === 'darwin') try { _spawn('caffeinate', ['-d', '-i', '-m', '-s', '-u', '-w', String(process.pid)], { stdio: 'ignore' }).unref(); } catch {}
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 8791;
 const args = process.argv.slice(2);
