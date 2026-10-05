@@ -1177,7 +1177,10 @@ async function joinRoom(code, pid = uid(), bi) {
   if (code.length !== 4) { S.err = 'รหัสห้องต้องมี 4 ตัวอักษร'; return render(); }
   S.busy = 'join'; S.err = ''; render();
   try {
-    const r = await Net.join(code, bi);
+    // Coming back to a room we were in (bi = the broker it lives on): a slow network must not look like "room closed",
+    // so look again, waiting longer each time, before giving up.
+    let r = null;
+    for (let k = 0; k < (bi != null ? 3 : 1) && !r; k++) r = await Net.join(code, bi, 2500 + k * 2500);
     if (!r) S.err = `ไม่พบห้อง ${code} (ห้องอาจปิดไปแล้ว)`;
     else {
       S.conn = r.room; S.room = code; S.pid = pid; S.isHost = false;

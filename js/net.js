@@ -88,14 +88,14 @@ export async function create(gen) {
 }
 
 // Find which broker holds the room (host's retained /pub is the marker).
-export async function join(room, pref) {
+export async function join(room, pref, ms = 2500) {
   const order = BROKERS.map((_, i) => i);
   if (pref != null && order.includes(pref)) order.sort((a, b) => (a === pref ? -1 : b === pref ? 1 : 0));
   let reached = 0;
   for (const i of order) {
     let c;
     try { c = await open(BROKERS[i]); reached++; } catch { continue; }
-    const v = await peek(c, room, 2500);
+    const v = await peek(c, room, ms);
     if (!free(v)) return { room: new Room(c, room, i), pub: v };
     c.end(true);
   }

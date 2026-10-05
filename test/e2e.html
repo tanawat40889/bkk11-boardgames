@@ -106,7 +106,8 @@ function audit(win, found) {
     // 3. sticking out of the screen (side-scrolling strips are fine)
     if ((r.right > W + 1 || r.left < -1) && !el.closest('.tabs')) add('off screen', el, `left ${Math.round(r.left)} right ${Math.round(r.right)} (screen ${W})`);
     // 4. content bigger than its box (text cut off or spilling out)
-    if (cs.textOverflow !== 'ellipsis' && (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 3) && cs.display !== 'inline' && el.clientWidth > 0)
+    // (a winner banner's moving shine is a clipped decoration, not content)
+    if (!el.matches('.banner.win') && cs.textOverflow !== 'ellipsis' && (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 3) && cs.display !== 'inline' && el.clientWidth > 0)
       add('content overflows its box', el, `${el.textContent.replace(/\s+/g, ' ').trim().slice(0, 30)} (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight})`);
   }
   // 5. tap targets: too small, empty, or covering each other
