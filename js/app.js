@@ -42,8 +42,9 @@ function setTheme(t) {
   try { localStorage.setItem('bg_theme', t); } catch {}
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', getComputedStyle(document.documentElement).backgroundColor);
 }
+const curTheme = () => (THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'violet');
 const themePicker = () => `<div class="themes">${Object.entries(THEMES).map(([k, [n, h]]) =>
-  `<button class="tsw ${(document.documentElement.dataset.theme || 'violet') === k ? 'on' : ''}" style="--th:${h}" data-act="theme" data-t="${k}" aria-label="ธีมสี${n}" title="${n}"></button>`).join('')}</div>`;
+  `<button class="tsw ${curTheme() === k ? 'on' : ''}" style="--th:${h}" data-act="theme" data-t="${k}" aria-label="ธีมสี${n}" title="${n}"></button>`).join('')}</div>`;
 
 const GAMES = {
   onuw: { n: 'One Night Ultimate Werewolf', s: 'Werewolf', e: '🐺', min: WW.MIN, max: WW.MAX, t: 10, c: ['ded'], d: 'หาหมาป่าให้เจอในคืนเดียว บทบาทสลับกันได้ตอนกลางคืน' },
@@ -82,7 +83,7 @@ const ONLINE_MS = 25000;
 const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 const S = {
-  conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
+  conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
   key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
@@ -621,6 +622,14 @@ function hostIn(m) {
 function hostAct(m, p) {
   const g = H.g, sid = p.sid;
   switch (m.t) {
+    case 'rename': {
+      const nm = cleanName(m.name);
+      if (!nm || nm === p.name) break;
+      let n2 = nm, i = 2;
+      while (H.players.some(x => x !== p && x.name.toLowerCase() === n2.toLowerCase())) n2 = `${nm} ${i++}`;
+      p.name = n2; broadcast();
+      break;
+    }
     case 'leave':
       if (H.phase === 'lobby' && p.pid !== S.pid) {
         H.players = H.players.filter(x => x !== p);
@@ -1192,7 +1201,7 @@ function startHost() {
 
 function nameOk() {
   S.name = cleanName(S.name);
-  if (!S.name) { S.err = 'ใส่ชื่อของคุณก่อน'; render(); document.getElementById('name')?.focus(); return false; }
+  if (!S.name) { S.setup = true; render(); return false; }
   LS.set('bg_name', S.name);
   return true;
 }
@@ -1284,14 +1293,36 @@ const pn = sid => pl().find(p => p.sid === sid)?.name || '?';
 const btn = (act, label, cls = '', data = {}, dis = false) =>
   `<button class="btn ${cls}" data-act="${act}" ${Object.entries(data).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} ${dis ? 'disabled' : ''}>${label}</button>`;
 
+// First visit: pick a name and a colour before anything else.
+function setupView() {
+  return `<main class="wrap home setup">
+    <header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ!</h1><p>ตั้งชื่อและเลือกสีที่ชอบก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙ ตั้งค่า</p></header>
+    ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
+    <section class="panel"><label for="name">ชื่อของคุณ</label>
+      <input id="name" maxlength="16" autocomplete="nickname" placeholder="เช่น ต้น" value="${esc(S.name)}"></section>
+    <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
+    ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}
+  </main>`;
+}
+function settingsView() {
+  const inRoom = !!S.conn;
+  return `<div class="modal" data-act="settings"><div class="sheet" data-act="noop"><div class="sh"><h2>${gi('gear', 'inl')} ตั้งค่า</h2><button class="ib" data-act="settings">✕</button></div>
+    <label for="sname">ชื่อของคุณ</label>
+    <div class="row"><input id="sname" maxlength="16" autocomplete="nickname" value="${esc(S.sname ?? S.name)}">${btn('savename', 'บันทึก', 'primary', {}, !cleanName(S.sname ?? S.name) || cleanName(S.sname ?? S.name) === S.name)}</div>
+    ${inRoom ? '<p class="muted small">คนอื่นในห้องจะเห็นชื่อใหม่ทันที</p>' : ''}
+    <h3>สีธีม</h3>${themePicker()}
+    <p class="muted small">สีธีมเปลี่ยนเฉพาะเครื่องนี้ คนอื่นในห้องเลือกสีของตัวเองได้</p>
+  </div></div>`;
+}
+
 function home() {
+  if (S.setup) return setupView();
   const last = LS.get('bg_last', null);
   const lastOk = last && now() - last.t < 12 * 3600e3;
   return `<main class="wrap home">
     <header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>BKK11 Boardgames</h1><p>ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน</p></header>
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
-    <section class="panel"><label for="name">ชื่อของคุณ</label>
-      <input id="name" maxlength="16" autocomplete="nickname" placeholder="เช่น ต้น" value="${esc(S.name)}"></section>
+    <button class="hello" data-act="settings">${S.name ? `<span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...S.name][0])}</span><span>สวัสดี <b>${esc(S.name)}</b></span>` : '<span>ตั้งชื่อของคุณ</span>'}<span class="gear">${gi('gear')} ตั้งค่า</span></button>
     <section class="panel"><h2>เข้าร่วมห้อง</h2>
       <div class="row"><input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABCD" value="${esc(S.codeIn)}">
       ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div></section>
@@ -1299,9 +1330,9 @@ function home() {
       ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}
       <div class="gstrip">${Object.keys(GAMES).map(k => gbadge(k, 'xs')).join('')}</div>
       <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
-    <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
     ${installHint()}
   </main>
+  ${S.settings ? settingsView() : ''}
   ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">
     <div class="dicon">${gi('key')}</div><h2>กลับเข้าห้องเดิมไหม?</h2>
     <p>คุณยังอยู่ในห้อง <b class="droom">${esc(last.room)}</b>${last.host ? ' ในฐานะเจ้าของห้อง' : ''}</p>
@@ -1328,11 +1359,12 @@ function shell(body) {
   const p = S.pub, G = GAMES[p.game];
   return `<div class="top"><div class="wrap topin">
       <div class="tl"><span class="tg">${gbadge(p.game, 'xxs')}${G.s}</span><span class="tc">ห้อง <b>${p.room}</b></span></div>
-      <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="rules" aria-label="กติกา">?</button><button class="ib out" data-act="leave">ออก</button></div>
+      <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="settings" aria-label="ตั้งค่า">${gi('gear')}</button><button class="ib" data-act="rules" aria-label="กติกา">?</button><button class="ib out" data-act="leave">ออก</button></div>
     </div></div>
     ${!S.online && now() - S.offSince >= 3000 ? '<div class="offline">⚠︎ การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>' : S.hostDown && !S.isHost ? '<div class="offline host">⏸ เจ้าของห้องหลุดการเชื่อมต่อ — เกมหยุดรอสักครู่</div>' : S.sending ? '<div class="offline send">กำลังส่ง…</div>' : ''}
     <main class="wrap phase-${p.phase} game-${p.game} ${S.enter ? 'enter' : ''}">${body}</main>
     ${S.rules ? rulesView() : ''}
+    ${S.settings ? settingsView() : ''}
     ${S.pick && p.phase === 'lobby' && S.isHost ? pickerView() : ''}
     ${S.toast ? `<div class="toast">${esc(S.toast)}</div>` : ''}`;
 }
@@ -2794,7 +2826,6 @@ function rulesView() {
     <li>หมดเวลา: คุยแล้วโหวตหาสปายรอบสุดท้าย</li></ol>
     <p class="muted small">บทบาทในสถานที่ไม่ซ้ำกัน · สถานที่จะไม่วนซ้ำภายใน ${SF.RECENT} รอบ</p>`;
   return `<div class="modal" data-act="rules"><div class="sheet" data-act="noop"><div class="sh"><h2>กติกา ${GAMES[g].s}</h2><button class="ib" data-act="rules">✕</button></div>${body}
-    <h3>สีธีม</h3>${themePicker()}
     <p class="muted small diag">การเชื่อมต่อ: เซิร์ฟเวอร์ ${S.conn ? S.conn.bi + 1 : '-'} · หลุด ${S.conn?.drops ?? 0} ครั้งใน ${S.conn?.since ? Math.round((Date.now() - S.conn.since) / 60000) : 0} นาที${S.conn?.lastErr ? ` · ล่าสุด: ${esc(S.conn.lastErr)}` : ''}${S.isHost ? ' · คุณเป็นเจ้าของห้อง' : ''}</p>
     <p class="muted small">ไอคอน: <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a> (Lorc, Delapouite, Skoll — CC BY 3.0) · ไอคอนแอป: Font Awesome Free (CC BY 4.0)</p></div></div>`;
 }
@@ -2868,6 +2899,14 @@ const ACT = {
   leave: () => { if (confirm(S.isHost ? 'ออกและปิดห้องนี้? ทุกคนจะหลุดจากห้อง' : 'ออกจากห้อง?')) leave(); },
   rules: () => { S.rules = !S.rules; render(); },
   noop: () => {},
+  setupdone: () => { const n = cleanName(S.name); if (!n) { S.err = 'ใส่ชื่อของคุณก่อน'; render(); document.getElementById('name')?.focus(); return; } S.name = n; LS.set('bg_name', n); S.setup = false; S.err = ''; render(); },
+  settings: () => { S.settings = !S.settings; S.sname = null; render(); },
+  savename: () => {
+    const n = cleanName(S.sname ?? ''); if (!n) return;
+    S.name = n; LS.set('bg_name', n); S.sname = null;
+    if (S.conn) send({ t: 'rename', name: n });
+    toast('บันทึกชื่อแล้ว'); render();
+  },
   theme: d => { setTheme(d.t); render(); },
   noresume: () => { S.noResume = true; render(); },
   share: async () => {
@@ -3045,6 +3084,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'name') S.name = e.target.value;
+  if (e.target.id === 'sname') { S.sname = e.target.value; const b = document.querySelector('[data-act=savename]'); if (b) b.disabled = !cleanName(S.sname) || cleanName(S.sname) === S.name; }
   if (e.target.id === 'wg') S.wg = e.target.value;
   if (e.target.id === 'jc0' || e.target.id === 'jc1') { S.jc ||= ['', '']; S.jc[+e.target.id[2]] = e.target.value; }
   if (e.target.id === 'jg') S.jg = e.target.value;

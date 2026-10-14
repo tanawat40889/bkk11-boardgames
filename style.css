@@ -697,3 +697,10 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
 .rrac small { color: var(--muted); font-size: .76rem; } .rrac.on { border-color: var(--accent2); } .rrac:disabled { opacity: .5; cursor: default; }
 .rrtrig .rrcount { font-size: 2rem; font-weight: 800; color: var(--accent2); }
 .bad-text { color: var(--bad); }
+
+/* Greeting + settings */
+.hello { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; margin-bottom: 12px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.hello > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hello .gear { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .85rem; flex: none; }
+.ib .gi { width: 1.1em; height: 1.1em; vertical-align: -.2em; }
+.setup .brand h1 { margin-top: 6px; }
