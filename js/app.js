@@ -1317,12 +1317,13 @@ const btn = (act, label, cls = '', data = {}, dis = false) =>
 // First visit: pick a name and a colour before anything else.
 function setupView() {
   return `<main class="wrap home setup">
-    <header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ!</h1><p>ตั้งชื่อและเลือกสีที่ชอบก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙ ตั้งค่า</p></header>
+    <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ!</h1><p>ตั้งชื่อและเลือกสีที่ชอบก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙ ตั้งค่า</p></header></div>
+    <div class="hcol hr">
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
     <section class="panel"><label for="name">ชื่อของคุณ</label>
       <input id="name" maxlength="16" autocomplete="nickname" placeholder="เช่น ต้น" value="${esc(S.name)}"></section>
     <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
-    ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}
+    ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}</div>
   </main>`;
 }
 // Invite: room code, QR and share link in one dialog (opened from the header).
@@ -1351,17 +1352,17 @@ function home() {
   const last = LS.get('bg_last', null);
   const lastOk = last && now() - last.t < 12 * 3600e3;
   return `<main class="wrap home">
-    <header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>BKK11 Boardgames</h1><p>ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน</p></header>
+    <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>BKK11 Boardgames</h1><p>ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน</p></header>
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
-    <button class="hello" data-act="settings">${S.name ? `<span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...S.name][0])}</span><span>สวัสดี <b>${esc(S.name)}</b></span>` : '<span>ตั้งชื่อของคุณ</span>'}<span class="gear">${gi('gear')} ตั้งค่า</span></button>
-    <section class="panel"><h2>เข้าร่วมห้อง</h2>
+    <button class="hello" data-act="settings">${S.name ? `<span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...S.name][0])}</span><span>สวัสดี <b>${esc(S.name)}</b></span>` : '<span>ตั้งชื่อของคุณ</span>'}<span class="gear">${gi('gear')} ตั้งค่า</span></button></div>
+    <div class="hcol hr"><section class="panel"><h2>เข้าร่วมห้อง</h2>
       <div class="row"><input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABCD" value="${esc(S.codeIn)}">
       ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div></section>
     <section class="panel"><h2>สร้างห้องใหม่</h2>
       ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}
       <div class="gstrip">${Object.keys(GAMES).map(k => gbadge(k, 'xs')).join('')}</div>
       <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
-    ${installHint()}
+    ${installHint()}</div>
   </main>
   ${S.settings ? settingsView() : ''}
   ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">

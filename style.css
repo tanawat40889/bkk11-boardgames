@@ -755,3 +755,18 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
   .ocard { width: 104px; min-height: 116px; } .omi { min-height: 42px; font-size: .78rem; }
   .lfb { max-width: 420px; } .lff { min-height: 46px; }
 }
+
+/* Tablets and computers: more breathing room at the top, wide sheets and dialogs */
+@media (min-width: 700px) {
+  .topin { padding-top: calc(18px + env(safe-area-inset-top)); padding-bottom: 14px; }
+  main.wrap { padding-top: 28px; }
+  .home { padding-top: calc(48px + env(safe-area-inset-top)); }
+  .sheet { max-width: min(1180px, calc(100% - 32px)); padding: 24px 28px calc(28px + env(safe-area-inset-bottom)); }
+  .dialog { max-width: 560px; padding: 32px 32px 24px; }
+}
+/* Landscape tablets / computers: home and first-visit screens side by side */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+  main.wrap.home { max-width: 1080px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; min-height: calc(100dvh - 40px); }
+  .home .hl .brand { padding-top: 0; } .home .hl .logo { width: 140px; height: 140px; border-radius: 32px; } .home .hl .brand h1 { font-size: 2.4rem; }
+  .home .hr > .panel:first-child { margin-top: 0; }
+}
