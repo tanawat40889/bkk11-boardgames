@@ -704,3 +704,15 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
 .hello .gear { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: .85rem; flex: none; }
 .ib .gi { width: 1.1em; height: 1.1em; vertical-align: -.2em; }
 .setup .brand h1 { margin-top: 6px; }
+
+/* Lobby game block + invite dialog */
+.gamesel .row { margin-top: 10px; }
+.gset { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .gset h3 { margin: 0 0 8px; font-size: 1rem; }
+.dialog .roomcode { margin: 0; }
+.dialog .qr { margin: 4px auto 6px; }
+
+/* Header: room info shrinks (ellipsis) so the buttons always fit on a phone */
+.topin { gap: 8px; }
+.tl { flex: 1; min-width: 0; } .tl .tg { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; }
+.tr { gap: 6px; flex: none; }
+@media (max-width: 400px) { .ib { width: 36px; height: 36px; } .ib.out { padding: 0 11px; } .tr { gap: 5px; } }

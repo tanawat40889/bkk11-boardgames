@@ -67,7 +67,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rnd = n => Math.floor(Math.random() * n);
 const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
 // Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
-const SKIP = new Set(['settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
+const SKIP = new Set(['qr', 'settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
   'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
 // Clicked rarely so games still make progress.
 const RARE = { cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3, ctfinish: 0.02, cttovote: 0.3, ctstart: 0.3, rracc: 0.15, rrgo: 0.05 };
@@ -216,8 +216,8 @@ async function scenario(game, n) {
   };
   if (!await name(host, 'P0')) return fail('home did not render');
   q(host, '[data-act=create]').click();
-  if (!await until(() => q(host, '.roomcode'))) return fail('room not created');
-  const code = q(host, '.roomcode').textContent.trim();
+  if (!await until(() => q(host, '.tc b'))) return fail('room not created');
+  const code = q(host, '.tc b').textContent.trim();
   if (!await until(() => q(host, `[data-act=hgame][data-g=${game}]`))) return fail('picker missing');
   q(host, `[data-act=hgame][data-g=${game}]`).click();
   for (let i = 1; i < n; i++) {

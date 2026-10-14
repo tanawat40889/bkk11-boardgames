@@ -1304,6 +1304,16 @@ function setupView() {
     ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}
   </main>`;
 }
+// Invite: room code, QR and share link in one dialog (opened from the header).
+function qrView() {
+  const link = location.origin + location.pathname + '?r=' + S.pub.room;
+  return `<div class="modal mid" data-act="qr"><div class="dialog" data-act="noop">
+    <h2>ชวนเพื่อนเข้าห้อง</h2><p>กรอกรหัส หรือสแกน QR</p>
+    <div class="roomcode">${S.pub.room}</div>
+    <div class="qr" id="qr" data-link="${esc(link)}"></div>
+    ${btn('share', '🔗 แชร์ลิงก์', 'primary wide')}${btn('qr', 'ปิด', 'ghost wide')}
+  </div></div>`;
+}
 function settingsView() {
   const inRoom = !!S.conn;
   return `<div class="modal" data-act="settings"><div class="sheet" data-act="noop"><div class="sh"><h2>${gi('gear', 'inl')} ตั้งค่า</h2><button class="ib" data-act="settings">✕</button></div>
@@ -1359,12 +1369,13 @@ function shell(body) {
   const p = S.pub, G = GAMES[p.game];
   return `<div class="top"><div class="wrap topin">
       <div class="tl"><span class="tg">${gbadge(p.game, 'xxs')}${G.s}</span><span class="tc">ห้อง <b>${p.room}</b></span></div>
-      <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="settings" aria-label="ตั้งค่า">${gi('gear')}</button><button class="ib" data-act="rules" aria-label="กติกา">?</button><button class="ib out" data-act="leave">ออก</button></div>
+      <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="qr" aria-label="ชวนเพื่อน QR">${gi('qrcode')}</button><button class="ib" data-act="settings" aria-label="ตั้งค่า">${gi('gear')}</button>${p.phase !== 'lobby' ? '<button class="ib" data-act="rules" aria-label="กติกา">?</button>' : ''}<button class="ib out" data-act="leave">ออก</button></div>
     </div></div>
     ${!S.online && now() - S.offSince >= 3000 ? '<div class="offline">⚠︎ การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>' : S.hostDown && !S.isHost ? '<div class="offline host">⏸ เจ้าของห้องหลุดการเชื่อมต่อ — เกมหยุดรอสักครู่</div>' : S.sending ? '<div class="offline send">กำลังส่ง…</div>' : ''}
     <main class="wrap phase-${p.phase} game-${p.game} ${S.enter ? 'enter' : ''}">${body}</main>
     ${S.rules ? rulesView() : ''}
     ${S.settings ? settingsView() : ''}
+    ${S.qr ? qrView() : ''}
     ${S.pick && p.phase === 'lobby' && S.isHost ? pickerView() : ''}
     ${S.toast ? `<div class="toast">${esc(S.toast)}</div>` : ''}`;
 }
@@ -1433,7 +1444,6 @@ function pickerView() {
 
 function lobby() {
   const p = S.pub, n = pl().length, host = isHostView(), G = GAMES[p.game];
-  const link = location.origin + location.pathname + '?r=' + p.room;
   let settings = '', errs = [];
   if (p.game === 'onuw') {
     const deck = p.set.deck, need = n + 3;
@@ -1535,19 +1545,12 @@ function lobby() {
       : `<p class="muted small">รอบละ ${p.set.spyfall.min} นาที · สปาย ${spies} คน · ${SF.LOCATIONS.length} สถานที่</p>`;
   }
   return `
-    <section class="panel roomcard">
-      <div class="label">รหัสห้อง — ให้เพื่อนกรอก หรือสแกน QR</div>
-      <div class="roomcode">${p.room}</div>
-      <div class="row">${btn('share', '🔗 แชร์ลิงก์', 'ghost')}${btn('qr', S.qr ? 'ซ่อน QR' : '▦ QR', 'ghost')}</div>
-      ${S.qr ? `<div class="qr" id="qr" data-link="${esc(link)}"></div>` : ''}
-    </section>
     <section class="panel gamesel">
-      <h2>เกมที่จะเล่น</h2>
-      <div class="ghero">${gbadge(p.game)}<div><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที</small><p>${G.d}</p>${fitBadge(G, n)}</div></div>
-      ${host ? btn('pick', '🎲 เปลี่ยนเกม', 'ghost wide') : ''}
+      <div class="ghero">${gbadge(p.game)}<div><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที</small>${fitBadge(G, n)}</div></div>
+      <div class="row">${btn('rules', '📖 วิธีเล่น', 'ghost')}${host ? btn('pick', '🎲 เปลี่ยนเกม', 'ghost') : ''}</div>
+      ${settings ? `<div class="gset"><h3>ตั้งค่าเกม</h3>${settings}</div>` : ''}
     </section>
     <section class="panel"><h2>ผู้เล่น <span class="muted">${n}/${G.max}</span></h2>${players({ kick: host })}</section>
-    <section class="panel"><h2>ตั้งค่า</h2>${settings}</section>
     ${host
       ? `${errs.length ? `<p class="alert">${esc(errs[0])}</p>` : ''}${btn('start', `▶︎ เริ่มเกม ${G.s}`, 'primary wide big', {}, errs.length > 0)}
          <p class="muted small center">เจ้าของห้องควรเปิดจอค้างไว้ตลอดเกม (เครื่องนี้เป็นตัวคุมเวลา)</p>`
