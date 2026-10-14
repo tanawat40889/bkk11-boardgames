@@ -675,3 +675,25 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
 .ost { display: flex; align-items: center; gap: 4px; font-size: .85rem; width: 100%; } .osm { color: #ffd35c; font-size: 1.05rem; } .osm.off { color: var(--muted); }
 .olast { padding: 8px 12px; border-radius: 12px; background: #0003; } .olast.ok { color: var(--ok); } .olast.bad { color: var(--bad); }
 .och { font-size: 1.3rem; color: var(--accent2); }
+
+/* World Championship Russian Roulette */
+.rrboard { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.rrp { display: flex; flex-direction: column; gap: 5px; padding: 9px 10px; border-radius: 14px; border: 2px solid hsl(var(--ph) 45% 40%); background: linear-gradient(180deg, hsl(var(--ph) 30% 18%), var(--bg2)); min-width: 0; }
+.rrp.gone { filter: grayscale(1); opacity: .45; } .rrp.died { border-color: var(--bad); box-shadow: 0 0 0 3px #ff5d7333; }
+.rrn { display: flex; align-items: center; gap: 6px; min-width: 0; } .rrn b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; } .rrn em { font-style: normal; font-weight: 400; opacity: .7; font-size: .72rem; }
+.rrpts { font-weight: 800; color: var(--accent2); font-size: 1.1rem; }
+.rrteam { display: flex; gap: 4px; } .rrteam span { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: .95rem; background: #ffffff1a; color: #fff; }
+.rrteam .cap.up { background: linear-gradient(160deg, #ffe58a, #f0a020); color: #3a2600; } .rrteam .down { background: #0005; color: #ffffff33; }
+.rrs, .rracc { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rrc { display: inline-grid; place-items: center; width: 46px; height: 62px; border-radius: 8px; font-size: .78rem; font-weight: 800; box-shadow: 0 3px 6px #0007; }
+.rrc.sm { width: 34px; height: 44px; font-size: .62rem; }
+.rrc.click { background: linear-gradient(160deg, #e9eef5, #b9c3d1); color: #2a3240; } .rrc.bang { background: linear-gradient(160deg, #ff8a7a, #c41f1f); color: #fff; }
+.rrpick { justify-content: center; }
+.rrbig { width: 120px; height: 150px; border-radius: 14px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: inherit; cursor: pointer; box-shadow: 0 4px 0 #0007; }
+.rrbig b { font-size: 1.6rem; } .rrbig small { font-size: .8rem; font-weight: 600; }
+.rrbig.click { background: linear-gradient(160deg, #e9eef5, #b9c3d1); color: #2a3240; } .rrbig.bang { background: linear-gradient(160deg, #ff8a7a, #c41f1f); color: #fff; }
+.rrcards { display: grid; gap: 6px; }
+.rrac { text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg2); color: var(--text); font: inherit; cursor: pointer; }
+.rrac small { color: var(--muted); font-size: .76rem; } .rrac.on { border-color: var(--accent2); } .rrac:disabled { opacity: .5; cursor: default; }
+.rrtrig .rrcount { font-size: 2rem; font-weight: 800; color: var(--accent2); }
+.bad-text { color: var(--bad); }

@@ -16,6 +16,7 @@ import * as TC from './taco.js';
 import * as CZ from './cheese.js';
 import * as BD from './bangdice.js';
 import * as OD from './order.js';
+import * as RR from './roulette.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -62,12 +63,13 @@ const GAMES = {
   ct: { n: 'Cheese Thief', s: 'Cheese Thief', e: '🧀', min: CZ.MIN, max: CZ.MAX, t: 10, c: ['ded'], d: 'ทอยเต๋าลับว่าจะตื่นตีไหน ใครตื่นมาเห็นอะไรบ้าง? ช่วยกันจับโจรขโมยชีส' },
   bd: { n: 'Bang! The Dice Game', s: 'Bang! Dice', e: '🎲', min: BD.MIN, max: BD.MAX, t: 20, c: ['ded', 'card'], d: 'นายอำเภอ vs โจร ทอยเต๋า 5 ลูก ยิง รักษา หลบธนูอินเดียนแดง บทบาทลับจนกว่าจะตาย' },
   od: { n: 'Order Overload: Cafe', s: 'Order Overload', e: '☕', min: OD.MIN, max: OD.MAX, t: 20, c: ['coop'], d: 'ฟังออร์เดอร์รอบเดียว แล้วช่วยกันจำว่าเมนูไหนอยู่ในมือเพื่อน เรียกผิดตกรอบ' },
+  rr: { n: 'World Championship Russian Roulette', s: 'Russian Roulette', e: '🔫', min: RR.MIN, max: RR.MAX, t: 20, c: ['card'], d: 'แชมป์โลกรัสเซียนรูเล็ต เดิมพันว่าจะเหนี่ยวไกกี่ครั้ง แอบโกงซ่อนกระสุนได้ ถ้าไม่โดนจับ' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -82,7 +84,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -186,6 +188,13 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'rr') {
+      const show = ['challenge', 'trigger', 'score', 'end'].includes(g.phase);
+      p.rr = {
+        phase: g.phase, round: g.round, team: g.team, pts: g.pts, pocketed: Object.keys(g.pocket), locked: Object.keys(g.bid), bids: show ? g.bid : null,
+        acc: g.phase === 'bid' || g.phase === 'pocket' ? {} : g.acc, cdone: Object.keys(g.cdone), extra: g.extra, dead: g.dead, pulled: g.pulled, lastPull: g.lastPull, reveal: g.reveal || null,
+        res: g.res, nh: Object.fromEntries(g.sids.map(x => [x, g.hand[x].length])), log: g.log.slice(-8), nl: g.log.length, winner: g.winner, over: g.over, k: g.k,
       };
     } else if (H.game === 'od') {
       p.od = {
@@ -293,6 +302,9 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'rr') {
+    v.cards = g.hand[sid]; v.pocket = g.pocket[sid] || null; v.bid = g.bid[sid] ?? null; v.peek = g.peek[sid] || null;
+    v.gun = { n: g.gun[sid].length, b: g.gun[sid].filter(c => c === 'B').length };
   } else if (H.game === 'od') {
     v.hand = g.phase === 'read' ? [] : g.hand[sid];
   } else if (H.game === 'bd') {
@@ -381,6 +393,7 @@ function hostTick() {
     if (H.phase === 'night') return nextNight();
     if (H.phase === 'ct') { CZ.advance(H.g); ctClock(); return broadcast(); }
     if (H.phase === 'od') { OD.readNext(H.g); odClock(); return broadcast(); }
+    if (H.phase === 'rr') { RR.pull(H.g); rrClock(); return broadcast(); }
     if (H.phase === 'day') return startVote();
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
@@ -436,6 +449,8 @@ function say(txt) {
 
 // Cheese Thief: the follower pick and every night hour last exactly the same time.
 // Order Overload: orders are shown one at a time, on a clock.
+// Russian Roulette: trigger pulls happen together, one every couple of seconds.
+function rrClock() { H.endsAt = H.g.phase === 'trigger' ? now() + 2200 : null; }
 function odClock() { H.endsAt = H.g.phase === 'read' ? now() + (H.settings.od?.sec || 3) * 1000 : null; }
 function ctClock() { const ph = H.g.phase; H.endsAt = ph === 'pick' || ph === 'night' ? now() + (H.settings.ct?.sec || 8) * 1000 : null; }
 
@@ -687,6 +702,13 @@ function hostAct(m, p) {
       if (H.phase !== 'cu') break;
       const ok = m.t === 'curoll' ? CU.roll(g, sid) : m.t === 'cubet' ? CU.takeBet(g, sid, m.c) : m.t === 'cudes' ? CU.placeDesert(g, sid, m.sp, m.type) : CU.finalBet(g, sid, m.c, m.kind);
       if (ok) broadcast();
+      break;
+    }
+    case 'rrpocket': case 'rrbid': case 'rracc': case 'rrready': case 'rrplay': {
+      if (H.phase !== 'rr') break;
+      const ok = m.t === 'rrpocket' ? RR.pocket(g, sid, m.c) : m.t === 'rrbid' ? RR.bid(g, sid, +m.n) : m.t === 'rracc' ? RR.accuse(g, sid, m.sid)
+        : m.t === 'rrready' ? RR.ready(g, sid) : RR.play(g, sid, m.card, m.card === 'change' ? +m.arg : m.arg);
+      if (ok) { rrClock(); broadcast(); }
       break;
     }
     case 'odcall': case 'odab': {
@@ -957,6 +979,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'rr') {
+      H.g = RR.newGame(sids); H.phase = 'rr'; H.endsAt = null;
     } else if (H.game === 'od') {
       H.g = OD.newGame(sids); H.phase = 'od'; odClock();
     } else if (H.game === 'bd') {
@@ -1047,6 +1071,8 @@ const HA = {
   },
   reveal() { if (H.phase === 'play' && confirm('เฉลยสถานที่และสปาย?')) endSpy(null); },
   again() { HA.start(); },
+  rrnext() { if (H.phase === 'rr' && RR.nextRound(H.g)) broadcast(); },
+  rrgo() { const g = H.g; if (H.phase === 'rr' && g.phase === 'challenge') { for (const s of RR.players(g)) if (!g.cdone[s]) RR.ready(g, s); rrClock(); broadcast(); } },
   odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
   ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
   cttovote() { if (H.phase === 'ct' && CZ.toVote(H.g)) broadcast(); },
@@ -1324,7 +1350,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1415,6 +1441,10 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'rr') {
+    if (n < RR.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${RR.MIN} คน`);
+    if (n > RR.MAX) errs.push(`Russian Roulette เล่นได้สูงสุด ${RR.MAX} คน`);
+    settings = `<p class="muted small">ทีมละ 4 ชีวิต (ลูกทีม 3 + กัปตัน) · ปืน 7 ใบ: แชะ 6 + ปัง 1 · ถึง ${RR.WIN} แต้มก่อน หรือเหลือรอดทีมสุดท้าย ชนะ</p>`;
   } else if (p.game === 'od') {
     if (n < OD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${OD.MIN} คน`);
     if (n > OD.MAX) errs.push(`Order Overload เล่นได้สูงสุด ${OD.MAX} คน`);
@@ -2420,6 +2450,57 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── World Championship Russian Roulette ──
+const rrCard = (c, cls = '') => `<span class="rrc ${c === 'B' ? 'bang' : 'click'} ${cls}">${c === 'B' ? '<b>ปัง!</b>' : '<b>แชะ</b>'}</span>`;
+const rrTeam = sid => `<span class="rrteam">${Array.from({ length: RR.TEAM }, (_, i) => `<span class="${i < S.pub.rr.team[sid] ? 'up' : 'down'} ${i === RR.TEAM - 1 ? 'cap' : ''}">${i === RR.TEAM - 1 ? gi('crown') : gi('people')}</span>`).join('')}</span>`;
+function rrLog(e) {
+  const P = s => `<b>${esc(pn(s))}</b>`;
+  return e.t === 'dead' ? `💀 ${P(e.sid)} เสีย${e.captain ? 'กัปตัน — ตกรอบทั้งทีม' : 'ลูกทีม 1 คน'} (${e.why === 'caught' ? 'โดนจับได้ว่าโกง' : 'โดนกระสุน'})`
+    : e.t === 'accuse' ? `${e.by.map(P).join(', ')} กล่าวหา ${P(e.to)} — ${e.cheat ? '<b class="bad-text">โกงจริง!</b>' : 'บริสุทธิ์ คนกล่าวหาได้กระสุนเพิ่มในปืน'}`
+    : e.t === 'card' ? `${P(e.sid)} ใช้การ์ด <b>${RR.CARDS[e.card].n}</b>${e.to ? ` ใส่ ${P(e.to)}` : ''}${e.bid != null ? ` → เดิมพัน ${e.bid}` : ''}` : '';
+}
+function rrV() {
+  const r = S.pub.rr, v = S.priv, mine = me(), alive = r.team[mine] > 0, ps = pl().filter(x => r.team[x.sid] > 0);
+  const status = x => r.phase === 'pocket' ? (r.pocketed.includes(x.sid) ? '✔ เก็บแล้ว' : 'กำลังเลือก…') : r.phase === 'bid' ? (r.locked.includes(x.sid) ? '✔ ล็อกแล้ว' : 'กำลังคิด…')
+    : r.dead[x.sid] ? '<b class="bad-text">ตายรอบนี้</b>' : r.bids ? `เดิมพัน <b>${r.bids[x.sid]}</b>${r.extra[x.sid] ? ` <span class="bad-text">+${r.extra[x.sid]}</span>` : ''}${r.phase === 'trigger' || r.phase === 'score' ? ` · ยิงแล้ว ${r.pulled[x.sid] || 0}` : ''}` : '';
+  const lp = r.lastPull?.cards || {};
+  const board = `<div class="rrboard">${pl().map(x => `<div class="rrp ${r.team[x.sid] ? '' : 'gone'} ${r.dead[x.sid] ? 'died' : ''}" style="--ph:${hueOf(x.sid)}">
+      <span class="rrn">${av(x.sid, 'sm')}<b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b><span class="rrpts">${r.pts[x.sid]}</span></span>
+      ${rrTeam(x.sid)}<span class="rrs">${r.team[x.sid] ? status(x) : 'ตกรอบแล้ว'}</span>
+      ${r.phase === 'trigger' && lp[x.sid] ? rrCard(lp[x.sid], 'flipin') : ''}${r.acc[x.sid] ? `<span class="rracc">🫵 กล่าวหา ${esc(pn(r.acc[x.sid]))}</span>` : ''}
+      ${r.reveal?.[x.sid] ? `<span class="rracc">ในกระเป๋า: ${rrCard(r.reveal[x.sid], 'sm')}</span>` : ''}</div>`).join('')}</div>`;
+  const myCards = v.cards?.length ? `<section class="panel"><h2>การ์ดแอ็กชันของคุณ</h2><div class="rrcards">${v.cards.map(c => `<button class="rrac ${S.rrC === c ? 'on' : ''}" data-act="rrcard" data-c="${c}" ${RR.CARDS[c].when === r.phase && alive ? '' : 'disabled'}><b>${RR.CARDS[c].n}</b><small>${RR.CARDS[c].d}</small></button>`).join('')}</div>
+      ${S.rrC === 'bang' ? `<p class="small muted">ยิงใคร?</p><div class="picks">${ps.filter(x => !r.dead[x.sid]).map(x => `<button class="pick" data-act="rrarg" data-arg="${x.sid}">${esc(x.name)}</button>`).join('')}</div>`
+        : S.rrC === 'change' ? `<p class="small muted">เดิมพันใหม่</p><div class="picks c3">${[0, 1, 2, 3, 4, 5].map(n => `<button class="pick" data-act="rrarg" data-arg="${n}">${n}</button>`).join('')}</div>` : ''}</section>` : '';
+  const gun = alive ? `<p class="center small muted">${gi('rrcyl', 'inl')} ปืนของคุณ: ${v.gun.n} ใบ (ปัง ${v.gun.b} ใบ)${v.pocket ? ` · ในกระเป๋า: ${v.pocket === 'B' ? 'ปัง! (โกงอยู่ 🤫)' : 'แชะ'}` : ''}</p>` : '';
+  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ul class="bdlog">${[...r.log].reverse().filter(e => e.t !== 'bids').map(e => `<li>${rrLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul></section>`;
+  const head = `<p class="center skstatus">รอบที่ <b>${r.round}</b> · ถึง ${RR.WIN} แต้มชนะ</p>`;
+  if (r.phase === 'end') {
+    return `<div class="banner ${r.winner === mine ? 'win' : 'lose'}"><div class="bt">${r.winner ? `🏆 ${esc(pn(r.winner))} แชมป์โลก!` : 'ไม่มีใครรอด — ไม่มีแชมป์'}</div></div>${board}${logP}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  let main = '';
+  if (!alive) main = '<section class="panel center"><p>ทีมคุณตกรอบแล้ว ดูต่อได้</p></section>';
+  else if (r.phase === 'pocket') main = v.pocket ? '<section class="panel center"><p>✔ เก็บการ์ดเข้ากระเป๋าแล้ว รอคนอื่น…</p></section>'
+    : `<section class="panel"><h2>1. เก็บการ์ด 1 ใบเข้ากระเป๋า</h2><p class="small muted">เก็บ "แชะ" = เล่นซื่อ · เก็บ "ปัง!" = โกง ปืนจะไม่มีกระสุน แต่ถ้าโดนจับ ลูกทีมตาย</p>
+      <div class="row rrpick"><button class="rrbig click" data-act="rrpocket" data-c="C"><b>แชะ</b><small>เล่นซื่อ</small></button>${v.gun.b ? '<button class="rrbig bang" data-act="rrpocket" data-c="B"><b>ปัง!</b><small>โกง 🤫</small></button>' : ''}</div></section>`;
+  else if (r.phase === 'bid') main = v.bid != null ? `<section class="panel center"><p>✔ ล็อกเดิมพัน <b>${v.bid}</b> แล้ว รอคนอื่น…</p></section>`
+    : `<section class="panel"><h2>2. เดิมพัน — จะเหนี่ยวไกกี่ครั้ง?</h2><p class="small muted">รอดได้แต้ม = เดิมพัน + 1 · ตายไม่ได้อะไร</p>
+      ${v.peek ? `<p class="small">แอบส่อง 3 ใบบนสุด: ${v.peek.map(c => rrCard(c, 'sm')).join(' ')}</p>` : ''}
+      <div class="picks c3">${[0, 1, 2, 3, 4, 5].map(n => `<button class="pick ${S.rrN === n ? 'on' : ''}" data-act="rrn" data-n="${n}">${n}</button>`).join('')}</div>
+      ${btn('rrbid', S.rrN != null ? `🔒 ล็อกเดิมพัน ${S.rrN}` : 'เลือกตัวเลขก่อน', 'primary wide', {}, S.rrN == null)}</section>`;
+  else if (r.phase === 'challenge') {
+    const done = r.cdone.includes(mine);
+    main = `<section class="panel"><h2>3. จับโกง!</h2><p class="small muted">สงสัยใครซ่อนกระสุนไว้ในกระเป๋า? กล่าวหาได้ 1 คน · ถูก = เขาเสียลูกทีม คุณได้การ์ด 3 ใบ · ผิด = คุณได้กระสุนเพิ่มในปืน</p>
+      ${done ? '<p class="center ok-text">✔ พร้อมแล้ว รอคนอื่น</p>' : `${r.acc[mine] ? '' : `<div class="picks">${ps.filter(x => x.sid !== mine).map(x => `<button class="pick" data-act="rracc" data-sid="${x.sid}">🫵 ${esc(x.name)}</button>`).join('')}</div>`}
+        ${btn('rrready', r.acc[mine] ? '✔ ไปต่อ' : '✔ ไม่กล่าวหาใคร ไปต่อ', 'primary wide')}`}
+      <p class="small muted center">พร้อม ${r.cdone.length}/${ps.length}</p>${isHostView() ? btn('rrgo', '⏭ ไปเหนี่ยวไกเลย', 'ghost wide') : ''}</section>`;
+  } else if (r.phase === 'trigger') main = `<section class="panel center rrtrig"><h2>4. เหนี่ยวไก!</h2><div class="rrcount">${r.k ? `นัดที่ ${r.k}` : 'เตรียม… 3 2 1'}</div><div class="timer" data-timer></div></section>`;
+  else if (r.phase === 'score') main = `<section class="panel"><h2>5. นับแต้ม</h2>${ps.concat(pl().filter(x => !r.team[x.sid] && r.dead[x.sid])).map(x => `<p>${esc(x.name)}: ${r.dead[x.sid] ? '💀 ไม่ได้แต้ม' : `<b>+${r.res.gain[x.sid]}</b>`}</p>`).join('')}
+      ${isHostView() ? btn('rrnext', '▶ รอบต่อไป', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องเริ่มรอบต่อไป…</p>'}</section>`;
+  return `${head}${main}${gun}${board}${myCards}${logP}`;
+}
+
 // ── Order Overload: Cafe ──
 const odCard = (id, cls = '', attr = '') => { const m = OD.MENU[id]; return `<${attr ? 'button' : 'div'} class="ocard t-${m.t || 'X'} ${cls}" ${attr}>${gi(m.t ? 'odcup' : 'cheese')}<b>${OD.MENU[id].n}</b>${m.t ? `<small>${OD.TEMP[m.t]}</small>` : ''}</${attr ? 'button' : 'div'}>`; };
 function odMenu(sel, can) {
@@ -2567,7 +2648,18 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'od' ? `
+  const body = g === 'rr' ? `
+    <p><b>เป้าหมาย:</b> เป็นคนแรกที่ได้ ${RR.WIN} แต้ม (และนำคนอื่น) หรือเป็นทีมสุดท้ายที่เหลือรอด</p>
+    <p>ทุกคนมีทีม 4 คน (ลูกทีม 3 + กัปตัน) และ "ปืน" เป็นการ์ด 7 ใบ: <b>แชะ</b> 6 ใบ + <b>ปัง!</b> 1 ใบ · ทุกช่วงเล่นพร้อมกัน</p>
+    <ol><li><b>เก็บเข้ากระเป๋า:</b> เลือกการ์ด 1 ใบเก็บไว้ — ถ้าเก็บ "ปัง!" คือโกง ปืนคุณจะไม่มีกระสุน</li>
+    <li><b>หมุนลูกโม่:</b> ปืนทุกคนถูกสับอัตโนมัติ</li>
+    <li><b>เดิมพัน 0–5:</b> จะเหนี่ยวไกกี่ครั้ง เปิดพร้อมกัน</li>
+    <li><b>จับโกง:</b> กล่าวหาได้ 1 คน · ถ้าเขาโกงจริง ลูกทีมเขาตาย คนกล่าวหาได้การ์ด 3 ใบ · ถ้าไม่ได้โกง เขาได้การ์ด 1 ใบต่อคนกล่าวหา และคนกล่าวหาต้องเปลี่ยน "แชะ" 1 ใบเป็น "ปัง!" (อยู่จนกว่าจะมีคนในทีมตาย)</li>
+    <li><b>เหนี่ยวไก:</b> ทุกคนเปิดการ์ดบนสุดพร้อมกันทีละนัด จนครบเดิมพัน · เจอ "ปัง!" = ลูกทีมตาย จบรอบของคุณ</li>
+    <li><b>นับแต้ม:</b> รอดได้ เดิมพัน + 1 แต้ม · ใครเสียคนในรอบนี้ไม่ได้แต้ม</li></ol>
+    <p>ตาย 1 คน: ได้การ์ดแอ็กชัน 1 ใบ และปืนรีเซ็ตเป็น ปัง 1 + แชะ 6 · กัปตันตาย = ตกรอบ</p>
+    <p><b>การ์ดแอ็กชัน:</b> ${Object.values(RR.CARDS).map(c => `<b>${c.n}</b> — ${c.d}`).join(' · ')}</p>
+    <p class="muted small">กล่องจริงมีการ์ดแอ็กชันหลายแบบกว่านี้ — ในแอปมี 4 แบบที่ดัดแปลงจากชื่อการ์ดที่ยืนยันได้</p>` : g === 'od' ? `
     <p><b>เป้าหมาย:</b> ช่วยกันทั้งทีม เคลียร์ออร์เดอร์ให้ผ่าน ${OD.LEVELS} ด่าน</p>
     <ol><li>ต้นด่าน ออร์เดอร์จะโชว์ทีละใบบนจอทุกคน <b>ครั้งเดียว</b> (ด่าน N มี N × จำนวนคน ใบ) แล้วสับแจกคนละ N ใบ</li>
     <li>คุณเห็นแค่มือตัวเอง — ที่เหลือต้องจำว่าเคยได้ยินอะไร</li>
@@ -2729,7 +2821,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -2855,6 +2947,13 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  rrpocket: d => send({ t: 'rrpocket', c: d.c }),
+  rrn: d => { S.rrN = +d.n; render(); },
+  rrbid: () => { if (S.rrN != null) send({ t: 'rrbid', n: S.rrN }); },
+  rracc: d => { if (confirm(`กล่าวหา ${pn(d.sid)} ว่าโกงซ่อนกระสุน?`)) send({ t: 'rracc', sid: d.sid }); },
+  rrready: () => send({ t: 'rrready' }),
+  rrcard: d => { S.rrC = S.rrC === d.c ? null : d.c; if (S.rrC === 'peek' || S.rrC === 'air') { send({ t: 'rrplay', card: S.rrC }); S.rrC = null; } render(); },
+  rrarg: d => { send({ t: 'rrplay', card: S.rrC, arg: d.arg }); S.rrC = null; render(); },
   odsel: d => { S.odSel = S.odSel === d.i ? null : d.i; render(); },
   odcall: () => { if (S.odSel) send({ t: 'odcall', item: S.odSel }); S.odSel = null; },
   odab: d => { S.odAb = S.odAb === d.k ? null : d.k; render(); },

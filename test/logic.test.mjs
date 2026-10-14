@@ -18,6 +18,7 @@ import * as AB from '../js/abraca.js';
 import * as CZ from '../js/cheese.js';
 import * as BD from '../js/bangdice.js';
 import * as OD from '../js/order.js';
+import * as RR from '../js/roulette.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1334,6 +1335,94 @@ t('order overload: 2000 random games end in a win or loss, cards conserved', () 
     }
     assert.ok(['win', 'lose'].includes(g.over));
     if (g.over === 'win') assert.equal(g.level, OD.LEVELS);
+  }
+});
+
+const rrTo = (g, ph) => { for (const s of RR.players(g)) if (ph === 'bid' || ph === 'challenge') RR.pocket(g, s, 'C'); };
+t('russian roulette: setup, pocket, spin, bids, scoring', () => {
+  const g = RR.newGame(sids(3));
+  for (const s of g.sids) { assert.equal(g.team[s], 4); assert.equal(g.gun[s].length, 7); assert.equal(g.gun[s].filter(c => c === 'B').length, 1); assert.equal(g.hand[s].length, 1); }
+  assert.equal(Object.values(RR.CARDS).reduce((a, c) => a + c.k, 0), 30, '30 action cards');
+  assert.ok(!RR.bid(g, 's0', 2), 'pocket first');
+  RR.pocket(g, 's0', 'C'); RR.pocket(g, 's1', 'B'); assert.ok(!RR.pocket(g, 's1', 'C'), 'once');
+  assert.equal(g.phase, 'pocket'); RR.pocket(g, 's2', 'C'); assert.equal(g.phase, 'bid');
+  assert.equal(g.gun.s1.filter(c => c === 'B').length, 0, 'the cheat emptied their gun');
+  assert.ok(!RR.bid(g, 's0', 6)); assert.ok(!RR.bid(g, 's0', -1));
+  g.gun.s0 = ['C', 'C', 'C', 'B', 'C', 'C']; g.gun.s2 = ['C', 'B', 'C', 'C', 'C', 'C'];
+  RR.bid(g, 's0', 3); RR.bid(g, 's1', 5); RR.bid(g, 's2', 2); assert.equal(g.phase, 'challenge');
+  for (const s of g.sids) RR.ready(g, s);
+  assert.equal(g.phase, 'trigger');
+  RR.pull(g); RR.pull(g);
+  assert.equal(g.dead.s2, 'shot'); assert.equal(g.team.s2, 3); assert.equal(g.hand.s2.length, 2, 'severance card');
+  RR.pull(g); assert.equal(g.phase, 'trigger', 's1 still has pulls'); RR.pull(g); RR.pull(g);
+  assert.equal(g.phase, 'score');
+  assert.equal(g.pts.s0, 4); assert.equal(g.pts.s1, 6, 'cheater survived 5 pulls'); assert.equal(g.pts.s2, 0);
+  for (const s of g.sids) { assert.equal(g.gun[s].length, 7, 'gun rebuilt'); assert.equal(g.gun[s].filter(c => c === 'B').length, 1); }
+  assert.ok(RR.nextRound(g)); assert.equal(g.phase, 'pocket'); assert.equal(g.round, 2);
+});
+t('russian roulette: accusations — caught cheat, false accusation, several accusers', () => {
+  const g = RR.newGame(sids(4)); g.hand = { s0: [], s1: [], s2: [], s3: [] };
+  RR.pocket(g, 's0', 'B'); RR.pocket(g, 's1', 'C'); RR.pocket(g, 's2', 'C'); RR.pocket(g, 's3', 'C');
+  for (const s of g.sids) RR.bid(g, s, 0);
+  assert.ok(!RR.accuse(g, 's1', 's1'), 'not yourself');
+  assert.ok(RR.accuse(g, 's1', 's0')); assert.ok(!RR.accuse(g, 's1', 's2'), 'one accusation');
+  RR.accuse(g, 's2', 's3'); RR.accuse(g, 's0', 's3');
+  for (const s of g.sids) RR.ready(g, s);
+  assert.equal(g.dead.s0, 'caught'); assert.equal(g.team.s0, 3); assert.equal(g.hand.s0.length, 1);
+  assert.equal(g.hand.s1.length, 3, 'catching a cheat pays 3 cards');
+  assert.equal(g.hand.s3.length, 2, 'innocent: 1 card per accuser');
+  assert.equal(g.gun.s2.filter(c => c === 'B').length, 2, 'false accuser loads a second bullet');
+  while (g.phase === 'trigger') RR.pull(g);
+  assert.equal(g.pts.s0, 0); assert.equal(g.pts.s1, 1, 'bid 0 survives for 1 point');
+  assert.equal(g.gun.s2.filter(c => c === 'B').length, 2, 'extra bullet stays until someone on the team dies');
+  assert.equal(g.gun.s2.length, 7);
+});
+t('russian roulette: action cards', () => {
+  const g = RR.newGame(sids(3)); g.hand = { s0: ['peek', 'bang', 'change', 'air'], s1: [], s2: [] };
+  assert.ok(!RR.play(g, 's0', 'peek'), 'only while bidding');
+  for (const s of g.sids) RR.pocket(g, s, 'C');
+  assert.ok(RR.play(g, 's0', 'peek')); assert.deepEqual(g.peek.s0, g.gun.s0.slice(0, 3));
+  assert.ok(!RR.play(g, 's0', 'bang', 's1'), 'not while bidding');
+  for (const s of g.sids) RR.bid(g, s, 1);
+  g.gun.s1 = ['C', 'B', 'C', 'C', 'C', 'C'];
+  assert.ok(RR.play(g, 's0', 'bang', 's1')); assert.equal(RR.pullsOf(g, 's1'), 2);
+  assert.ok(RR.play(g, 's0', 'change', 4)); assert.equal(g.bid.s0, 4); assert.ok(!RR.play(g, 's0', 'change', 2), 'card used up');
+  const top = g.gun.s0[0]; assert.ok(RR.play(g, 's0', 'air')); assert.equal(g.gun.s0.length, 5); assert.equal(g.fl.s0[0], top);
+  for (const s of g.sids) RR.ready(g, s);
+  while (g.phase === 'trigger') RR.pull(g);
+  assert.equal(g.dead.s1, 'shot', 'the extra pull found the bullet'); assert.equal(g.pts.s1, 0);
+  assert.equal(g.gun.s0.length, 7, 'air-gunned card comes back');
+});
+t('russian roulette: game end — 15 points with the lead wins, tied leaders keep playing', () => {
+  let g = RR.newGame(sids(3)); g.pts = { s0: 12, s1: 14, s2: 0 };
+  for (const s of g.sids) RR.pocket(g, s, 'C');
+  g.gun.s0 = Array(6).fill('C'); g.gun.s1 = Array(6).fill('C');
+  RR.bid(g, 's0', 5); RR.bid(g, 's1', 0); RR.bid(g, 's2', 0); for (const s of g.sids) RR.ready(g, s);
+  while (g.phase === 'trigger') RR.pull(g);
+  assert.equal(g.pts.s0, 18); assert.equal(g.phase, 'end'); assert.equal(g.winner, 's0');
+  g = RR.newGame(sids(3)); g.pts = { s0: 15, s1: 15, s2: 0 }; g.team.s2 = 1;
+  for (const s of g.sids) RR.pocket(g, s, 'C'); for (const s of g.sids) RR.bid(g, s, 0); for (const s of g.sids) RR.ready(g, s);
+  while (g.phase === 'trigger') RR.pull(g);
+  assert.equal(g.pts.s0, 16); assert.equal(g.pts.s1, 16); assert.equal(g.phase, 'score', 'tied leaders over 15 -> keep playing'); assert.equal(g.winner, null);
+});
+t('russian roulette: 1500 random games end with a sensible winner', () => {
+  for (let k = 0; k < 1500; k++) {
+    const g = RR.newGame(sids(2 + rint(5)));
+    let steps = 0;
+    while (g.phase !== 'end') {
+      assert.ok(++steps < 20000, 'never ends');
+      const ps = RR.players(g);
+      if (g.phase === 'pocket') for (const s of ps) RR.pocket(g, s, rint(5) ? 'C' : (g.gun[s].includes('B') ? 'B' : 'C'));
+      else if (g.phase === 'bid') for (const s of ps) { if (g.hand[s].includes('peek') && rint(2)) RR.play(g, s, 'peek'); RR.bid(g, s, rint(6)); }
+      else if (g.phase === 'challenge') for (const s of ps) { if (rint(4) === 0) RR.accuse(g, s, ps[rint(ps.length)]); if (g.hand[s].includes('bang') && rint(2)) RR.play(g, s, 'bang', ps[rint(ps.length)]); RR.ready(g, s); }
+      else if (g.phase === 'trigger') RR.pull(g);
+      else if (g.phase === 'score') RR.nextRound(g);
+      for (const s of g.sids) assert.ok(g.team[s] >= 0 && g.team[s] <= 4);
+    }
+    const alive = RR.players(g);
+    if (g.winner) assert.ok(alive.includes(g.winner));
+    else assert.equal(alive.length, 0);
+    if (g.winner && alive.length > 1) assert.ok(g.pts[g.winner] >= 15 && alive.every(s => s === g.winner || g.pts[s] < g.pts[g.winner]));
   }
 });
 
