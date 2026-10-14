@@ -2914,6 +2914,22 @@ function rulesView() {
 /* ───────────── render & events ───────────── */
 // Replacing the DOM while a finger is down swallows that tap, so wait for the finger to lift.
 let pressing = false, renderPending = false, lastHtml = null, pressTimer = 0;
+// Computer / iPad in landscape: secondary panels (players, logs, scores) move into a side column next to the game.
+const WIDE = matchMedia('(min-width: 960px) and (min-aspect-ratio: 5/4)');
+const SIDE = [':scope > section.panel:has(.players)', ':scope > section.panel:has(ol.log)', ':scope > section.panel:has(.bdlog)', ':scope > .lfpts',
+  ':scope > section.panel:has(.otable)', ':scope > section.panel.bdmine'].join(', ');
+function sideLayout() {
+  const m = app.querySelector('main.wrap');
+  if (!m || !WIDE.matches) return;
+  const side = new Set(m.querySelectorAll(SIDE));
+  if (!side.size || side.size === m.children.length) return;
+  const col = document.createElement('div'), aside = document.createElement('aside');
+  col.className = 'col1'; aside.className = 'side';
+  for (const el of [...m.children]) (side.has(el) ? aside : col).appendChild(el);
+  m.append(col, aside);
+  m.classList.add('two');
+}
+WIDE.addEventListener?.('change', () => { lastHtml = null; render(); });
 // Connection + state snapshot for the test bots (test/e2e.html) and for debugging from the console.
 window.__bg = () => ({ resyncs: S.resyncs || 0, pubH: S.pubH, privH: S.privH, want: S.isHost ? { ...want } : undefined, sending: S.sending, out: outbox && { t: outbox.m?.t, tries: outbox.tries }, priv: S.priv, queued: outQ.size, host: S.isHost, online: S.online, hostDown: S.hostDown, broker: S.conn?.bi, drops: S.conn?.drops, err: S.conn?.lastErr, phase: S.pub?.phase, pub: S.pub?.[S.pub?.game], out: outbox && { t: outbox.m?.t ?? outbox.t, tries: outbox.tries }, priv: S.priv && { ack: S.priv.ack, round: S.priv.round }, pressing, renderPending });
 const pressEnd = () => {
@@ -2944,6 +2960,7 @@ function render() {
   if (html === lastHtml) return tickTimers();   // nothing visible changed: keep the DOM (and any tap in progress) intact
   lastHtml = html;
   app.innerHTML = html;
+  sideLayout();
   if (S.enter) { S.enter = false; lastHtml = html.replace(' enter">', ' ">'); }
   if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
   // Player buttons get that player's coloured badge.

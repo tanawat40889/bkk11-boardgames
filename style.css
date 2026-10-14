@@ -736,3 +736,22 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
   background: radial-gradient(circle at 35% 30%, #f4f6f9, #9aa6b5); color: #1f2a3a; box-shadow: inset 0 -5px 0 #0003, 0 4px 0 #0007; }
 .lfdrv b { font-size: 1.8rem; } .lfdrv small { font-size: .72rem; font-weight: 600; } .lfdrv:active { transform: translateY(3px); }
 .lfpts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; } .lfpts span { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 4px; border-radius: 99px; background: var(--bg2); font-size: .85rem; } .lfpts span.won { box-shadow: 0 0 0 2px var(--accent2); }
+
+/* ── Computer / iPad landscape ── */
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+  body { font-size: 17px; }
+  .top .wrap { max-width: 1180px; }
+  main.wrap { max-width: 760px; }
+  main.wrap.two { max-width: 1180px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
+  main.two > .col1, main.two > .side { min-width: 0; }
+  main.two > .side { position: sticky; top: 76px; max-height: calc(100dvh - 92px); overflow: auto; padding-right: 2px; }
+  main.two > .side > .panel:first-child, main.two > .col1 > .panel:first-child { margin-top: 0; }
+  .home, .setup { max-width: 560px; }
+  .gcards { grid-template-columns: repeat(4, 1fr); }
+  .bdmats, .rrboard, .opls { grid-template-columns: repeat(3, 1fr); }
+  .mats, .smats, .hcards { grid-template-columns: repeat(4, 1fr); }
+  .locs { grid-template-columns: repeat(5, 1fr); }
+  .bdie { width: 64px; height: 64px; font-size: 2.2rem; }
+  .ocard { width: 104px; min-height: 116px; } .omi { min-height: 42px; font-size: .78rem; }
+  .lfb { max-width: 420px; } .lff { min-height: 46px; }
+}
