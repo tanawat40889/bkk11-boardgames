@@ -17,6 +17,7 @@ import * as SA from '../js/salem.js';
 import * as AB from '../js/abraca.js';
 import * as CZ from '../js/cheese.js';
 import * as BD from '../js/bangdice.js';
+import * as OD from '../js/order.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1271,6 +1272,68 @@ t('bang dice: 3000 random games always finish with consistent state', () => {
     assert.ok(['S', 'O', 'R'].includes(g.winner));
     if (g.winner === 'S') assert.ok(g.alive.includes(g.sheriff));
     else assert.ok(!g.alive.includes(g.sheriff));
+  }
+});
+
+t('order overload: menu, deck, dealing per level', () => {
+  assert.equal(OD.ITEMS.length * OD.COPIES, 84, '84 order cards');
+  assert.equal(new Set(OD.ITEMS.map(i => OD.MENU[i].n)).size, OD.ITEMS.length, 'unique names');
+  for (let n = 2; n <= 6; n++) {
+    const g = OD.newGame(sids(n));
+    assert.equal(g.level, 1); assert.equal(g.phase, 'read'); assert.equal(g.orders.length, n);
+    for (const s of g.sids) { assert.equal(g.hand[s].length, 1); assert.equal(g.lives[s], n === 2 ? 2 : 1); assert.equal(g.ab[s].length, n === 2 ? 2 : 1); }
+    assert.deepEqual(Object.values(g.hand).flat().sort(), [...g.orders].sort(), 'hands = the orders read out');
+    assert.equal(g.turn, g.sids[(g.taker + 1) % n], 'left of the order taker starts');
+  }
+  assert.deepEqual([2, 3, 4, 5, 6].map(OD.need), [1, 2, 2, 3, 3]);
+});
+t('order overload: reading, calling, misses, clearing and losing a level', () => {
+  const g = OD.newGame(sids(4)); g.taker = 3;
+  g.hand = { s0: ['latte.H'], s1: ['latte.I'], s2: ['latte.H'], s3: ['cake'] }; g.turn = 's0';
+  assert.ok(!OD.call(g, 's0', 'latte.I'), 'not during reading');
+  for (let i = 0; i < 4; i++) OD.readNext(g);
+  assert.equal(g.phase, 'play'); assert.ok(!OD.readNext(g));
+  assert.ok(!OD.call(g, 's1', 'cake'), 'not your turn'); assert.ok(!OD.call(g, 's0', 'nope'));
+  assert.ok(OD.call(g, 's0', 'latte.H'), 'own copy does not count, but s2 has one');
+  assert.deepEqual(g.hand.s0, ['latte.H']); assert.deepEqual(g.hand.s2, []); assert.equal(g.last.hit, 's2'); assert.equal(g.turn, 's1');
+  assert.ok(OD.call(g, 's1', 'latte.I')); assert.equal(g.last.hit, null, 'only s1 itself has it'); assert.equal(g.lives.s1, 0); assert.equal(g.turn, 's2');
+  assert.ok(OD.call(g, 's2', 'cake')); assert.equal(g.phase, 'clear', 's2 and s3 are empty = 2 players');
+  assert.ok(OD.nextLevel(g)); assert.equal(g.level, 2); assert.equal(g.orders.length, 8); assert.equal(g.taker, 0); assert.equal(g.turn, 's1');
+  for (const s of g.sids) assert.equal(g.lives[s], 1, 'tokens flip back up');
+  const h = OD.newGame(sids(3)); while (h.phase === 'read') OD.readNext(h);
+  h.hand = { s0: ['cake'], s1: ['soda'], s2: ['honey'] }; h.turn = 's0';
+  OD.call(h, 's0', 'mocha.H'); OD.call(h, 's1', 'mocha.H'); assert.equal(h.phase, 'play');
+  OD.call(h, 's2', 'mocha.H'); assert.equal(h.phase, 'over'); assert.equal(h.over, 'lose');
+});
+t('order overload: abilities and the 2-player game', () => {
+  const g = OD.newGame(sids(2)); while (g.phase === 'read') OD.readNext(g);
+  g.hand = { s0: ['cake'], s1: ['soda'] }; g.turn = 's0';
+  assert.ok(!OD.useAbility(g, 's0', 'drop', 0), 'never your last card');
+  assert.ok(OD.useAbility(g, 's0', 'hint', 's1')); assert.deepEqual(g.hints[0], { by: 's0', to: 's1', ch: 'อ' });
+  assert.ok(!OD.useAbility(g, 's0', 'hint', 's1'), 'once only');
+  OD.call(g, 's0', 'mocha.H'); assert.equal(g.lives.s0, 1, 'two tokens with 2 players'); assert.equal(g.phase, 'play');
+  OD.call(g, 's1', 'cake'); assert.equal(g.phase, 'clear', 'one empty hand clears a 2-player level');
+  assert.equal(OD.firstConsonant('เอสเปรสโซ่ร้อน'), 'อ'); assert.equal(OD.firstConsonant('ชาไทยเย็น'), 'ช');
+  const k = OD.newGame(sids(3)); while (k.phase === 'read') OD.readNext(k); k.hand.s0 = ['cake', 'soda']; k.ab.s0 = ['drop'];
+  assert.ok(OD.useAbility(k, 's0', 'drop', 1)); assert.deepEqual(k.hand.s0, ['cake']);
+});
+t('order overload: 2000 random games end in a win or loss, cards conserved', () => {
+  for (let k = 0; k < 2000; k++) {
+    const g = OD.newGame(sids(2 + rint(5)));
+    let steps = 0;
+    while (g.phase !== 'over') {
+      assert.ok(++steps < 3000);
+      if (g.phase === 'read') { OD.readNext(g); continue; }
+      if (g.phase === 'clear') { assert.ok(OD.nextLevel(g)); continue; }
+      const before = Object.values(g.hand).flat().length + g.table.length;
+      assert.equal(before, g.orders.length, 'every order is in a hand or on the table');
+      // a fairly good memory: usually call something really held by someone else
+      const others = g.sids.filter(s => s !== g.turn).flatMap(s => g.hand[s]);
+      const item = others.length && rint(10) < 9 ? others[rint(others.length)] : OD.ITEMS[rint(OD.ITEMS.length)];
+      assert.ok(OD.call(g, g.turn, item));
+    }
+    assert.ok(['win', 'lose'].includes(g.over));
+    if (g.over === 'win') assert.equal(g.level, OD.LEVELS);
   }
 });
 

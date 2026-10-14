@@ -651,3 +651,27 @@ button.bdmat.can { cursor: pointer; border-color: #fff; box-shadow: 0 0 0 3px va
 .bdlife small { color: var(--muted); } .bdarr { color: #e0b070; }
 .bdmine { display: flex; flex-direction: column; gap: 2px; }
 .bdlog { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; } .bdlog li { padding: 4px 8px; background: #0003; border-radius: 8px; }
+
+/* Order Overload: Cafe */
+.ocard { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 92px; min-height: 104px; padding: 8px 6px; border-radius: 12px; border: 0; font: inherit; color: #3a2414; text-align: center;
+  background: linear-gradient(170deg, #fffaf0, #f0e2c8); box-shadow: inset 0 0 0 3px var(--oc), 0 3px 6px #0007; --oc: #b07a4a; }
+.ocard .gi { font-size: 1.8rem; color: var(--oc); } .ocard b { font-size: .8rem; line-height: 1.2; } .ocard small { font-size: .68rem; font-weight: 700; color: var(--oc); }
+.ocard.t-H { --oc: #d4553a; } .ocard.t-I { --oc: #2f86c9; } .ocard.t-F { --oc: #8a5ad1; } .ocard.t-X { --oc: #b07a4a; }
+.ocard.big { width: 180px; min-height: 210px; } .ocard.big .gi { font-size: 4rem; } .ocard.big b { font-size: 1.3rem; } .ocard.big small { font-size: 1rem; }
+.ocard.sm { width: 70px; min-height: 76px; } .ocard.sm .gi { font-size: 1.2rem; } .ocard.sm b { font-size: .68rem; }
+button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: default; }
+.oread { display: flex; justify-content: center; margin: 10px 0; } .oread .ocard { animation: dpop .25s ease-out; }
+.ohand, .otable { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.omenu { display: grid; grid-template-columns: minmax(64px, auto) 1fr 1fr 1fr; gap: 5px; align-items: stretch; font-size: .72rem; }
+.omenu > b { text-align: center; color: var(--muted); font-size: .72rem; } .omb { align-self: center; font-weight: 600; font-size: .75rem; word-break: break-word; }
+.omi { border-radius: 9px; border: 2px solid var(--oc); background: #0003; color: var(--text); padding: 5px 3px; min-height: 38px; font: inherit; font-size: .7rem; line-height: 1.15; cursor: pointer; --oc: #b07a4a; word-break: break-word; }
+.omi.t-H { --oc: #d4553a; } .omi.t-I { --oc: #2f86c9; } .omi.t-F { --oc: #8a5ad1; }
+.omi.on { background: var(--oc); color: #fff; } .omi:disabled { opacity: .55; cursor: default; }
+.omo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 6px; }
+.opls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+.opl { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 12px; background: var(--bg2); border: 2px solid hsl(var(--ph) 45% 40%); min-width: 0; flex-wrap: wrap; }
+.opl b { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; } .opl em { font-style: normal; font-weight: 400; opacity: .7; font-size: .72rem; }
+.opl.turn { box-shadow: 0 0 0 3px var(--accent2); } .opl.out { opacity: .55; }
+.ost { display: flex; align-items: center; gap: 4px; font-size: .85rem; width: 100%; } .osm { color: #ffd35c; font-size: 1.05rem; } .osm.off { color: var(--muted); }
+.olast { padding: 8px 12px; border-radius: 12px; background: #0003; } .olast.ok { color: var(--ok); } .olast.bad { color: var(--bad); }
+.och { font-size: 1.3rem; color: var(--accent2); }

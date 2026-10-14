@@ -15,6 +15,7 @@ import * as CU from './camelup.js';
 import * as TC from './taco.js';
 import * as CZ from './cheese.js';
 import * as BD from './bangdice.js';
+import * as OD from './order.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -60,12 +61,13 @@ const GAMES = {
   cu: { n: 'Camel Up', s: 'Camel Up', e: '🐪', min: CU.MIN, max: CU.MAX, t: 25, c: ['card'], d: 'เดิมพันอูฐแข่งที่ขี่ซ้อนกันได้ ทอยเต๋าลุ้นทุกตา' },
   ct: { n: 'Cheese Thief', s: 'Cheese Thief', e: '🧀', min: CZ.MIN, max: CZ.MAX, t: 10, c: ['ded'], d: 'ทอยเต๋าลับว่าจะตื่นตีไหน ใครตื่นมาเห็นอะไรบ้าง? ช่วยกันจับโจรขโมยชีส' },
   bd: { n: 'Bang! The Dice Game', s: 'Bang! Dice', e: '🎲', min: BD.MIN, max: BD.MAX, t: 20, c: ['ded', 'card'], d: 'นายอำเภอ vs โจร ทอยเต๋า 5 ลูก ยิง รักษา หลบธนูอินเดียนแดง บทบาทลับจนกว่าจะตาย' },
+  od: { n: 'Order Overload: Cafe', s: 'Order Overload', e: '☕', min: OD.MIN, max: OD.MAX, t: 20, c: ['coop'], d: 'ฟังออร์เดอร์รอบเดียว แล้วช่วยกันจำว่าเมนูไหนอยู่ในมือเพื่อน เรียกผิดตกรอบ' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -80,7 +82,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -122,7 +124,7 @@ function newHost(room, game, name) {
   return {
     room, game, phase: 'lobby', round: 0, endsAt: null, paused: null, g: null, recent: [],
     players: [{ sid: 's' + uid(6), pid: S.pid, name, seen: now() }],
-    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 } },
+    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 }, od: { sec: 3 } },
   };
 }
 
@@ -184,6 +186,12 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'od') {
+      p.od = {
+        phase: g.phase, level: g.level, ri: g.ri, cur: g.phase === 'read' ? g.orders[g.ri] : null, total: g.orders.length, taker: g.sids[g.taker], turn: g.turn,
+        n: Object.fromEntries(g.sids.map(x => [x, g.hand[x].length])), lives: g.lives, table: g.table, last: g.last, hints: g.hints, need: OD.need(g.sids.length), done: OD.done(g),
+        ab: g.ab, used: g.used, over: g.over, best: g.best, left: g.phase === 'over' || g.phase === 'clear' ? g.hand : null,
       };
     } else if (H.game === 'bd') {
       const shown = x => !!g.winner || x === g.sheriff || !g.alive.includes(x);   // roles are public only for the Sheriff and the dead
@@ -285,6 +293,8 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'od') {
+    v.hand = g.phase === 'read' ? [] : g.hand[sid];
   } else if (H.game === 'bd') {
     v.role = g.role[sid];
   } else if (H.game === 'ct') {
@@ -370,6 +380,7 @@ function hostTick() {
   if (H.endsAt && t >= H.endsAt) {
     if (H.phase === 'night') return nextNight();
     if (H.phase === 'ct') { CZ.advance(H.g); ctClock(); return broadcast(); }
+    if (H.phase === 'od') { OD.readNext(H.g); odClock(); return broadcast(); }
     if (H.phase === 'day') return startVote();
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
@@ -424,6 +435,8 @@ function say(txt) {
 }
 
 // Cheese Thief: the follower pick and every night hour last exactly the same time.
+// Order Overload: orders are shown one at a time, on a clock.
+function odClock() { H.endsAt = H.g.phase === 'read' ? now() + (H.settings.od?.sec || 3) * 1000 : null; }
 function ctClock() { const ph = H.g.phase; H.endsAt = ph === 'pick' || ph === 'night' ? now() + (H.settings.ct?.sec || 8) * 1000 : null; }
 
 function nextNight() {
@@ -676,6 +689,12 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'odcall': case 'odab': {
+      if (H.phase !== 'od') break;
+      const ok = m.t === 'odcall' ? OD.call(g, sid, m.item) : OD.useAbility(g, sid, m.kind, m.arg);
+      if (ok) broadcast();
+      break;
+    }
     case 'bdroll': case 'bdstop': case 'bdshoot': case 'bdheal': {
       if (H.phase !== 'bd' || m.n !== g.n) break;   // m.n: ignore a tap that was made on an older screen
       const ok = m.t === 'bdroll' ? BD.roll(g, sid, Array.isArray(m.keep) ? m.keep : []) : m.t === 'bdstop' ? BD.stop(g, sid) : m.t === 'bdshoot' ? BD.shoot(g, sid, m.sid) : BD.heal(g, sid, m.sid);
@@ -897,7 +916,7 @@ const HA = {
     }
   },
   set(d) {
-    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2] }[d.k];
+    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1] }[d.k];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
     const v = H.settings[g][k] + lim[2] * +d.d;
     if (v < lim[0] || v > lim[1]) return;
@@ -938,6 +957,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'od') {
+      H.g = OD.newGame(sids); H.phase = 'od'; odClock();
     } else if (H.game === 'bd') {
       H.g = BD.newGame(sids); H.phase = 'bd'; H.endsAt = null;
     } else if (H.game === 'ct') {
@@ -1026,6 +1047,7 @@ const HA = {
   },
   reveal() { if (H.phase === 'play' && confirm('เฉลยสถานที่และสปาย?')) endSpy(null); },
   again() { HA.start(); },
+  odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
   ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
   cttovote() { if (H.phase === 'ct' && CZ.toVote(H.g)) broadcast(); },
   ctfinish() { if (H.phase === 'ct' && CZ.finish(H.g)) broadcast(); },
@@ -1130,6 +1152,7 @@ function startHost() {
   H.settings.av ||= AV.defaults();
   H.settings.ins ||= { min: 5 };
   H.settings.ct ||= { sec: 8 };
+  H.settings.od ||= { sec: 3 };
   H.settings.jo ||= { rounds: 13 };
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
@@ -1301,7 +1324,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1392,6 +1415,12 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'od') {
+    if (n < OD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${OD.MIN} คน`);
+    if (n > OD.MAX) errs.push(`Order Overload เล่นได้สูงสุด ${OD.MAX} คน`);
+    const sec = p.set.od?.sec || 3;
+    settings = (host ? stepper('od.sec', 'เวลาโชว์ออร์เดอร์ละ', sec, ' วิ') : `<p class="muted small">โชว์ออร์เดอร์ละ ${sec} วินาที</p>`)
+      + `<p class="muted small">ช่วยกันทั้งทีม ${OD.LEVELS} ด่าน · ด่าน N แจกคนละ N ใบ · ผ่านด่านเมื่อมี ${OD.need(Math.max(2, Math.min(6, n)))} คนมือหมด</p>`;
   } else if (p.game === 'bd') {
     if (n < BD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${BD.MIN} คน`);
     if (n > BD.MAX) errs.push(`Bang! Dice เล่นได้สูงสุด ${BD.MAX} คน`);
@@ -2391,6 +2420,48 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Order Overload: Cafe ──
+const odCard = (id, cls = '', attr = '') => { const m = OD.MENU[id]; return `<${attr ? 'button' : 'div'} class="ocard t-${m.t || 'X'} ${cls}" ${attr}>${gi(m.t ? 'odcup' : 'cheese')}<b>${OD.MENU[id].n}</b>${m.t ? `<small>${OD.TEMP[m.t]}</small>` : ''}</${attr ? 'button' : 'div'}>`; };
+function odMenu(sel, can) {
+  const cell = id => OD.MENU[id] ? `<button class="omi t-${OD.MENU[id].t || 'X'} ${sel === id ? 'on' : ''}" data-act="odsel" data-i="${id}" ${can ? '' : 'disabled'}>${OD.MENU[id].n}</button>` : '<span></span>';
+  return `<div class="omenu"><span></span><b>ร้อน</b><b>เย็น</b><b>ปั่น</b>
+    ${OD.BASES.map(([k, n]) => `<span class="omb">${n}</span>${['H', 'I', 'F'].map(t => cell(`${k}.${t}`)).join('')}`).join('')}</div>
+    <div class="omo">${OD.OTHER.map(([k]) => cell(k)).join('')}</div>`;
+}
+function odV() {
+  const o = S.pub.od, v = S.priv, mine = me(), n = pl().length, my = o.turn === mine && o.phase === 'play';
+  const head = `<p class="center skstatus">ด่าน <b>${o.level}</b>/${OD.LEVELS} · มือหมดแล้ว <b>${o.done}</b>/${o.need} คน</p>`;
+  if (o.phase === 'read') return `${head}<h1 class="ph">${gi('mic', 'inl')} ฟังออร์เดอร์!</h1>
+    <p class="center muted small">ออร์เดอร์ ${o.ri + 1} จาก ${o.total} · จำให้ดี จะโชว์แค่ครั้งเดียว</p>
+    <div class="oread">${odCard(o.cur, 'big')}</div><div class="timer" data-timer></div>
+    <p class="center muted small">ทุกใบจะถูกสับแล้วแจกคนละ ${o.level} ใบ — คุณจะเห็นแค่ของตัวเอง</p>`;
+  const pls = `<div class="opls">${pl().map(x => `<div class="opl ${x.sid === o.turn ? 'turn' : ''} ${o.lives[x.sid] ? '' : 'out'}" style="--ph:${hueOf(x.sid)}">
+      ${av(x.sid, 'sm')}<b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b>
+      <span class="ost">${gi('cards', 'inl')}${o.n[x.sid]} ${Array.from({ length: OD.lives0(n) }, (_, i) => `<span class="osm ${i < o.lives[x.sid] ? '' : 'off'}">${i < o.lives[x.sid] ? '☺' : '☹'}</span>`).join('')}</span></div>`).join('')}</div>`;
+  const last = o.last ? `<p class="center olast ${o.last.hit ? 'ok' : 'bad'}">${esc(pn(o.last.by))} เรียก <b>${OD.MENU[o.last.item].n}</b> — ${o.last.hit ? `${esc(pn(o.last.hit))} เสิร์ฟแล้ว ✔` : 'ไม่มีใครมี ✘ หน้ายิ้มคว่ำ'}</p>` : '';
+  const hints = o.hints.length ? `<section class="panel"><h2>คำใบ้</h2>${o.hints.map(h => `<p class="small">${esc(pn(h.to))} มีออร์เดอร์ที่ขึ้นต้นด้วย <b class="och">${esc(h.ch)}</b></p>`).join('')}</section>` : '';
+  const table = o.table.length ? `<section class="panel"><h2>เสิร์ฟแล้ว ${o.table.length} ใบ</h2><div class="otable">${o.table.map(t => odCard(t.item, 'sm')).join('')}</div></section>` : '';
+  if (o.phase === 'clear' || o.phase === 'over') {
+    const win = o.phase === 'clear' || o.over === 'win';
+    return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${o.phase === 'clear' ? `ผ่านด่าน ${o.level}!` : o.over === 'win' ? `ผ่านครบ ${OD.LEVELS} ด่าน!` : `จบที่ด่าน ${o.level}`}</div>
+      <div>${o.phase === 'over' && o.over === 'lose' ? `ผ่านได้สูงสุด ${o.best} ด่าน` : 'ร้านไม่ล่ม เก่งมาก'}</div></div>${last}
+      <section class="panel"><h2>ออร์เดอร์ที่ยังค้างในมือ</h2>${pl().map(x => `<p class="small"><b>${esc(x.name)}</b>: ${o.left[x.sid].length ? o.left[x.sid].map(i => OD.MENU[i].n).join(', ') : '— ว่าง'}</p>`).join('')}</section>
+      ${isHostView() ? (o.phase === 'clear' ? btn('odnext', `▶ ด่าน ${o.level + 1}`, 'primary wide big') : `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>`) : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
+  }
+  const abLeft = S.priv && o.ab[mine] ? o.ab[mine].filter(k => !o.used[mine].includes(k)) : [];
+  let abArea = '';
+  if (abLeft.length) {
+    abArea = `<section class="panel"><h2>การ์ดพิเศษ (ใช้ได้ครั้งเดียว)</h2><div class="row">${abLeft.map(k => btn('odab', k === 'drop' ? '🗑️ ทิ้งออร์เดอร์' : '🔤 ขอคำใบ้', S.odAb === k ? 'primary' : 'ghost', { k })).join('')}</div>
+      ${S.odAb === 'drop' ? `<p class="small muted">แตะใบที่จะทิ้ง</p><div class="ohand">${v.hand.map((id, i) => odCard(id, '', v.hand.length > 1 ? `data-act="oduse" data-arg="${i}"` : 'disabled')).join('')}</div>`
+        : S.odAb === 'hint' ? `<p class="small muted">ขอคำใบ้จากใคร?</p><div class="picks">${pl().filter(x => x.sid !== mine && o.n[x.sid]).map(x => `<button class="pick" data-act="oduse" data-arg="${x.sid}">${esc(x.name)}</button>`).join('')}</div>` : ''}</section>`;
+  }
+  return `${head}${last}${pls}
+    <section class="panel"><h2>มือของคุณ <span class="muted small">(ห้ามบอกคนอื่น)</span></h2><div class="ohand">${v.hand.length ? v.hand.map(id => odCard(id)).join('') : '<p class="muted">ว่างแล้ว ✔</p>'}</div></section>
+    <section class="panel"><h2>${my ? '👉 ตาคุณ — เรียกออร์เดอร์ที่อยู่ในมือ<u>คนอื่น</u>' : o.lives[mine] ? `รอ ${esc(pn(o.turn))} เรียกออร์เดอร์…` : 'หน้ายิ้มคว่ำแล้ว เรียกไม่ได้ (แต่ใช้การ์ดพิเศษได้)'}</h2>
+      ${odMenu(my ? S.odSel : null, my)}${my ? btn('odcall', S.odSel ? `📣 เรียก "${OD.MENU[S.odSel].n}"` : 'เลือกเมนูก่อน', 'primary wide big', {}, !S.odSel) : ''}</section>
+    ${abArea}${hints}${table}`;
+}
+
 // ── Bang! The Dice Game ──
 const BD_ROLE = { S: ['นายอำเภอ', 'star', 'กำจัดโจรและคนทรยศให้หมด'], D: ['ผู้ช่วยนายอำเภอ', 'shield', 'ปกป้องนายอำเภอ กำจัดโจรและคนทรยศ'], O: ['โจร', 'skull', 'ฆ่านายอำเภอ'], R: ['คนทรยศ', 'masks', 'เป็นคนสุดท้ายที่รอด (นายอำเภอต้องตายเป็นคนสุดท้าย)'] };
 const BD_FACE = { arrow: ['bdarrow', 'ธนู'], dyn: ['bddyn', 'ระเบิด'], one: ['target', 'ยิงระยะ 1'], two: ['target', 'ยิงระยะ 2'], beer: ['bdbeer', 'เบียร์'], gat: ['bdgat', 'แกตลิง'] };
@@ -2496,7 +2567,16 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'bd' ? `
+  const body = g === 'od' ? `
+    <p><b>เป้าหมาย:</b> ช่วยกันทั้งทีม เคลียร์ออร์เดอร์ให้ผ่าน ${OD.LEVELS} ด่าน</p>
+    <ol><li>ต้นด่าน ออร์เดอร์จะโชว์ทีละใบบนจอทุกคน <b>ครั้งเดียว</b> (ด่าน N มี N × จำนวนคน ใบ) แล้วสับแจกคนละ N ใบ</li>
+    <li>คุณเห็นแค่มือตัวเอง — ที่เหลือต้องจำว่าเคยได้ยินอะไร</li>
+    <li>ถึงตาคุณ เรียกเมนูที่คิดว่าอยู่ในมือ<b>คนอื่น</b> · ถ้ามี คนแรกถัดจากคุณที่มีจะเสิร์ฟ (คว่ำลงโต๊ะ)</li>
+    <li>ถ้าไม่มีใครมี หน้ายิ้มของคุณคว่ำ และเรียกไม่ได้อีกในด่านนี้ (เล่น 2 คน มีคนละ 2 หน้ายิ้ม)</li>
+    <li>ผ่านด่านเมื่อมีคนมือหมดครบ: 2 คน → 1 คน · 3–4 คน → 2 คน · 5–6 คน → 3 คน · ถ้าหน้ายิ้มคว่ำหมดทุกคน = แพ้</li>
+    <li>การ์ดพิเศษใช้ได้ครั้งเดียวทั้งเกม: <b>ทิ้งออร์เดอร์</b> 1 ใบจากมือ (ห้ามทิ้งใบสุดท้าย) หรือ <b>ขอคำใบ้</b> ให้เพื่อนบอกพยัญชนะตัวแรกของออร์เดอร์ 1 ใบ</li>
+    <li>ห้ามบอกว่าในมือมีอะไร</li></ol>
+    <p class="muted small">เมนูเป็นคาเฟ่ไทยที่ตั้งขึ้นเอง · ใส่การ์ดพิเศษเฉพาะ 2 แบบที่ยืนยันได้จากกติกาต้นฉบับ</p>` : g === 'bd' ? `
     <p><b>เป้าหมาย:</b> นายอำเภอและผู้ช่วยต้องกำจัดโจรกับคนทรยศให้หมด · โจรต้องฆ่านายอำเภอ · คนทรยศต้องเหลือรอดคนสุดท้าย</p>
     <ol><li>เห็นบทบาทเฉพาะของนายอำเภอ คนอื่นลับจนกว่าจะตาย · ทุกคน 8 ชีวิต นายอำเภอ 10 · นายอำเภอเริ่มก่อน</li>
     <li>ตาคุณ: ทอยเต๋า 5 ลูก ทอยใหม่ได้อีก 2 ครั้ง เลือกเก็บลูกไหนก็ได้</li>
@@ -2649,7 +2729,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = [];
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -2775,6 +2855,10 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  odsel: d => { S.odSel = S.odSel === d.i ? null : d.i; render(); },
+  odcall: () => { if (S.odSel) send({ t: 'odcall', item: S.odSel }); S.odSel = null; },
+  odab: d => { S.odAb = S.odAb === d.k ? null : d.k; render(); },
+  oduse: d => { send({ t: 'odab', kind: S.odAb, arg: d.arg }); S.odAb = null; },
   bdsel: d => { const i = +d.i; S.bdKeep = S.bdKeep.includes(i) ? S.bdKeep.filter(x => x !== i) : [...S.bdKeep, i]; render(); },
   bdroll: () => { send({ t: 'bdroll', n: S.pub.bd.n, keep: S.bdKeep }); S.bdKeep = []; },
   bdstop: () => { send({ t: 'bdstop', n: S.pub.bd.n }); S.bdKeep = []; },
