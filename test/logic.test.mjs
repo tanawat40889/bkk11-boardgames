@@ -19,6 +19,7 @@ import * as CZ from '../js/cheese.js';
 import * as BD from '../js/bangdice.js';
 import * as OD from '../js/order.js';
 import * as RR from '../js/roulette.js';
+import * as LF from '../js/lift.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1423,6 +1424,66 @@ t('russian roulette: 1500 random games end with a sensible winner', () => {
     if (g.winner) assert.ok(alive.includes(g.winner));
     else assert.equal(alive.length, 0);
     if (g.winner && alive.length > 1) assert.ok(g.pts[g.winner] >= 15 && alive.every(s => s === g.winner || g.pts[s] < g.pts[g.winner]));
+  }
+});
+
+t('stuck in the lift: lift movement bounces off the top and bottom', () => {
+  assert.deepEqual(LF.travel(20, 1, 15), { lift: 35, dir: 1 }, 'the rulebook example');
+  assert.deepEqual(LF.travel(35, 1, 15), { lift: 30, dir: -1 });
+  assert.deepEqual(LF.travel(30, 1, 10), { lift: 40, dir: -1 }, 'stopping on 40 turns the arrow');
+  assert.deepEqual(LF.travel(5, -1, 20), { lift: 15, dir: 1 });
+  assert.deepEqual(LF.travel(10, -1, 0), { lift: 10, dir: -1 }, 'all zeros: lift stays');
+  assert.deepEqual(LF.travel(0, 1, 90), { lift: 10, dir: 1 }, 'long ride: up 8, down 8, then 2 more going up');
+});
+t('stuck in the lift: writing, driving, scoring, doubles, construction site', () => {
+  const g = LF.newGame(sids(3));
+  assert.ok(!LF.drive(g, 's0', 5), 'write first'); assert.ok(!LF.write(g, 's0', 0, 7), 'not a floor');
+  LF.write(g, 's0', 0, 15); LF.write(g, 's0', 1, 15); assert.ok(!LF.write(g, 's0', 0, 20), 'already written');
+  LF.write(g, 's1', 0, 10); LF.write(g, 's1', 1, 40); LF.write(g, 's2', 0, 0); assert.equal(g.phase, 'write');
+  LF.write(g, 's2', 1, 30); assert.equal(g.phase, 'drive');
+  assert.ok(!LF.drive(g, 's0', 15)); LF.drive(g, 's0', 5); assert.ok(!LF.drive(g, 's0', 10), 'once');
+  LF.drive(g, 's1', 10); LF.drive(g, 's2', 0);
+  assert.equal(g.lift, 15); assert.equal(g.pts.s0, 3, 'both cards on 15: 1 + 2'); assert.deepEqual(g.tg.s0, [null, null]);
+  assert.ok(LF.next(g)); assert.equal(g.cone, 35); assert.equal(g.phase, 'write', 's0 must write again');
+  LF.write(g, 's0', 0, 40); LF.write(g, 's0', 1, 35); assert.equal(g.phase, 'drive');
+  for (const s of g.sids) LF.drive(g, s, s === 's2' ? 5 : 10);
+  assert.equal(g.lift, 40); assert.equal(g.dir, -1); assert.equal(g.pts.s1, 4, '2 stars on 40, doubled'); assert.equal(g.pts.s0, 5, '1 star on 40, doubled');
+  LF.next(g); assert.equal(g.cone, 30);
+  LF.write(g, 's0', 0, 30); LF.write(g, 's1', 1, 25);
+  const before = g.pts.s0;
+  for (const s of g.sids) LF.drive(g, s, s === 's0' ? 10 : 0);
+  assert.equal(g.lift, 30); assert.ok(g.res.cone);
+  assert.equal(g.pts.s0, before, 'construction site: no points'); assert.deepEqual(g.tg.s0, [null, null], 'rewrite both cards');
+  assert.equal(g.pts.s2, 0); assert.deepEqual(g.tg.s2, [null, null], 's2 had written 30 as well');
+});
+t('stuck in the lift: cone walks down, one last round at E, ties share the win', () => {
+  const g = LF.newGame(sids(2));
+  for (const s of g.sids) { LF.write(g, s, 0, 0); LF.write(g, s, 1, 0); }
+  let rounds = 0;
+  while (g.phase !== 'end') {
+    assert.ok(++rounds < 20);
+    for (const s of g.sids) if (g.phase === 'write') { for (const i of LF.needs(g, s)) LF.write(g, s, i, 0); }
+    for (const s of g.sids) LF.drive(g, s, 0);
+    LF.next(g);
+  }
+  assert.equal(rounds, 9, 'cone 40 -> E is 8 moves, plus the last round');
+  assert.equal(g.lift, 0); assert.deepEqual(g.winners, ['s0', 's1'], 'tie shares the win');
+  assert.equal(g.pts.s0, 48, '8 rounds x (1+2) x 2 on E; the last round the cone is on E, so nothing');
+  assert.ok(g.res.cone);
+});
+t('stuck in the lift: 2000 random games finish with points only from real stops', () => {
+  for (let k = 0; k < 2000; k++) {
+    const g = LF.newGame(sids(2 + rint(7)));
+    let steps = 0;
+    while (g.phase !== 'end') {
+      assert.ok(++steps < 200);
+      if (g.phase === 'write') for (const s of g.sids) for (const i of LF.needs(g, s)) assert.ok(LF.write(g, s, i, LF.FLOORS[rint(9)]));
+      else if (g.phase === 'drive') { const was = { ...g.pts }; for (const s of g.sids) LF.drive(g, s, LF.DRIVES[rint(3)]);
+        assert.ok(LF.FLOORS.includes(g.lift));
+        for (const s of g.sids) { const d = g.pts[s] - was[s]; assert.ok([0, 1, 2, 3, 4, 6].includes(d)); if (d) assert.ok(g.res.hit[s]); } }
+      else LF.next(g);
+    }
+    assert.equal(g.round, 9); assert.ok(g.winners.length >= 1);
   }
 });
 

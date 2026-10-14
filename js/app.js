@@ -17,6 +17,7 @@ import * as CZ from './cheese.js';
 import * as BD from './bangdice.js';
 import * as OD from './order.js';
 import * as RR from './roulette.js';
+import * as LF from './lift.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -65,12 +66,13 @@ const GAMES = {
   bd: { n: 'Bang! The Dice Game', s: 'Bang! Dice', e: '🎲', min: BD.MIN, max: BD.MAX, t: 20, c: ['ded', 'card'], d: 'นายอำเภอ vs โจร ทอยเต๋า 5 ลูก ยิง รักษา หลบธนูอินเดียนแดง บทบาทลับจนกว่าจะตาย' },
   od: { n: 'Order Overload: Cafe', s: 'Order Overload', e: '☕', min: OD.MIN, max: OD.MAX, t: 20, c: ['coop'], d: 'ฟังออร์เดอร์รอบเดียว แล้วช่วยกันจำว่าเมนูไหนอยู่ในมือเพื่อน เรียกผิดตกรอบ' },
   rr: { n: 'World Championship Russian Roulette', s: 'Russian Roulette', e: '🔫', min: RR.MIN, max: RR.MAX, t: 20, c: ['card'], d: 'แชมป์โลกรัสเซียนรูเล็ต เดิมพันว่าจะเหนี่ยวไกกี่ครั้ง แอบโกงซ่อนกระสุนได้ ถ้าไม่โดนจับ' },
+  lf: { n: "I'm Stuck in the Lift", s: 'Stuck in the Lift', e: '🛗', min: LF.MIN, max: LF.MAX, t: 20, c: ['card'], d: 'ทุกคนแอบเขียนชั้นที่อยากไป แล้วกดลิฟต์พร้อมกัน ลิฟต์ไปหยุดชั้นของใคร คนนั้นได้แต้ม' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -85,7 +87,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -189,6 +191,11 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'lf') {
+      p.lf = {
+        phase: g.phase, lift: g.lift, dir: g.dir, cone: g.cone, round: g.round, last: g.last, pts: g.pts, res: g.res, winners: g.winners,
+        wrote: g.sids.filter(x => !LF.needs(g, x).length), drove: Object.keys(g.drive), tgEnd: g.phase === 'end' ? g.tg : null,
       };
     } else if (H.game === 'rr') {
       const show = ['challenge', 'trigger', 'score', 'end'].includes(g.phase);
@@ -303,6 +310,8 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'lf') {
+    v.tg = g.tg[sid]; v.drive = g.drive[sid] ?? null;
   } else if (H.game === 'rr') {
     v.cards = g.hand[sid]; v.pocket = g.pocket[sid] || null; v.bid = g.bid[sid] ?? null; v.peek = g.peek[sid] || null;
     v.gun = { n: g.gun[sid].length, b: g.gun[sid].filter(c => c === 'B').length };
@@ -395,6 +404,7 @@ function hostTick() {
     if (H.phase === 'ct') { CZ.advance(H.g); ctClock(); return broadcast(); }
     if (H.phase === 'od') { OD.readNext(H.g); odClock(); return broadcast(); }
     if (H.phase === 'rr') { RR.pull(H.g); rrClock(); return broadcast(); }
+    if (H.phase === 'lf') { LF.next(H.g); lfClock(); return broadcast(); }
     if (H.phase === 'day') return startVote();
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
@@ -451,6 +461,8 @@ function say(txt) {
 // Cheese Thief: the follower pick and every night hour last exactly the same time.
 // Order Overload: orders are shown one at a time, on a clock.
 // Russian Roulette: trigger pulls happen together, one every couple of seconds.
+// Stuck in the Lift: the result stays up for a few seconds, then the next round starts by itself.
+function lfClock() { H.endsAt = H.g.phase === 'result' ? now() + 6000 : null; }
 function rrClock() { H.endsAt = H.g.phase === 'trigger' ? now() + 2200 : null; }
 function odClock() { H.endsAt = H.g.phase === 'read' ? now() + (H.settings.od?.sec || 3) * 1000 : null; }
 function ctClock() { const ph = H.g.phase; H.endsAt = ph === 'pick' || ph === 'night' ? now() + (H.settings.ct?.sec || 8) * 1000 : null; }
@@ -711,6 +723,12 @@ function hostAct(m, p) {
       if (H.phase !== 'cu') break;
       const ok = m.t === 'curoll' ? CU.roll(g, sid) : m.t === 'cubet' ? CU.takeBet(g, sid, m.c) : m.t === 'cudes' ? CU.placeDesert(g, sid, m.sp, m.type) : CU.finalBet(g, sid, m.c, m.kind);
       if (ok) broadcast();
+      break;
+    }
+    case 'lfwrite': case 'lfdrive': {
+      if (H.phase !== 'lf') break;
+      const ok = m.t === 'lfwrite' ? LF.write(g, sid, +m.i, +m.f) : LF.drive(g, sid, +m.v);
+      if (ok) { lfClock(); broadcast(); }
       break;
     }
     case 'rrpocket': case 'rrbid': case 'rracc': case 'rrready': case 'rrplay': {
@@ -988,6 +1006,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'lf') {
+      H.g = LF.newGame(sids); H.phase = 'lf'; H.endsAt = null;
     } else if (H.game === 'rr') {
       H.g = RR.newGame(sids); H.phase = 'rr'; H.endsAt = null;
     } else if (H.game === 'od') {
@@ -1080,6 +1100,7 @@ const HA = {
   },
   reveal() { if (H.phase === 'play' && confirm('เฉลยสถานที่และสปาย?')) endSpy(null); },
   again() { HA.start(); },
+  lfnext() { if (H.phase === 'lf' && LF.next(H.g)) { lfClock(); broadcast(); } },
   rrnext() { if (H.phase === 'rr' && RR.nextRound(H.g)) broadcast(); },
   rrgo() { const g = H.g; if (H.phase === 'rr' && g.phase === 'challenge') { for (const s of RR.players(g)) if (!g.cdone[s]) RR.ready(g, s); rrClock(); broadcast(); } },
   odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
@@ -1393,7 +1414,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1483,6 +1504,10 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'lf') {
+    if (n < LF.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LF.MIN} คน`);
+    if (n > LF.MAX) errs.push(`Stuck in the Lift เล่นได้สูงสุด ${LF.MAX} คน`);
+    settings = '<p class="muted small">ตึก 9 ชั้น (E–40) · กรวยลงทีละชั้นทุกรอบ ถึงชั้น E เล่นอีกรอบสุดท้าย · ชั้น E และ 40 แต้มคูณ 2</p>';
   } else if (p.game === 'rr') {
     if (n < RR.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${RR.MIN} คน`);
     if (n > RR.MAX) errs.push(`Russian Roulette เล่นได้สูงสุด ${RR.MAX} คน`);
@@ -2485,6 +2510,51 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── I'm Stuck in the Lift ──
+const lfStars = i => '★'.repeat(LF.STARS[i]);
+function lfV() {
+  const L = S.pub.lf, v = S.priv, mine = me(), n = pl().length, f = LF.fname;
+  const building = `<div class="lfb">${[...LF.FLOORS].reverse().map(fl => {
+    const my = [0, 1].filter(i => v.tg[i] === fl), here = L.lift === fl;
+    return `<div class="lff ${here ? 'here' : ''} ${L.cone === fl ? 'cone' : ''} ${fl === 0 || fl === 40 ? 'x2' : ''}">
+      <span class="lfn">${f(fl)}${fl === 0 || fl === 40 ? '<small>×2</small>' : ''}</span>
+      <span class="lfshaft">${here ? `<span class="lfcar">${gi('lift')}<b>${L.dir > 0 ? '▲' : '▼'}</b></span>` : ''}</span>
+      <span class="lfmark">${L.cone === fl ? `<span class="lfcone">${gi('cone')}</span>` : ''}${my.map(i => `<span class="lftag s${i}">${lfStars(i)}</span>`).join('')}</span>
+    </div>`; }).join('')}</div>`;
+  const score = `<div class="lfpts">${[...pl()].sort((a, b) => L.pts[b.sid] - L.pts[a.sid]).map(x => `<span class="${L.winners.includes(x.sid) ? 'won' : ''}">${av(x.sid, 'sm')}${esc(x.name)} <b>${L.pts[x.sid]}</b></span>`).join('')}</div>`;
+  const head = `<p class="center skstatus">รอบ <b>${L.round}</b>${L.last ? ' (รอบสุดท้าย!)' : ''} · กรวยอยู่ชั้น <b>${f(L.cone)}</b></p>`;
+  if (L.phase === 'end') {
+    const win = L.winners.includes(mine);
+    return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${L.winners.length > 1 ? 'เสมอ! ชนะร่วมกัน' : `🏆 ${esc(pn(L.winners[0]))} ชนะ!`}</div><div>${L.winners.map(s => esc(pn(s))).join(', ')} · ${L.pts[L.winners[0]]} แต้ม</div></div>
+      ${score}${building}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  let act = '';
+  const need = [0, 1].filter(i => v.tg[i] == null);
+  if (L.phase === 'write') {
+    if (!need.length) act = `<section class="panel center"><p>✔ เขียนชั้นแล้ว รอคนอื่น… (${L.wrote.length}/${n})</p></section>`;
+    else {
+      const i = need.includes(S.lfI) ? S.lfI : need[0];
+      act = `<section class="panel"><h2>เขียนชั้นเป้าหมาย (ลับ)</h2>
+        <div class="row">${need.map(k => `<button class="lfcard s${k} ${k === i ? 'on' : ''}" data-act="lfcard" data-i="${k}"><b>${lfStars(k)}</b><small>${LF.STARS[k]} แต้ม</small></button>`).join('')}</div>
+        <p class="small muted">การ์ด ${lfStars(i)} ไปชั้นไหน? (เขียนชั้นเดียวกันทั้ง 2 ใบก็ได้)</p>
+        <div class="lfpick">${LF.FLOORS.map(fl => `<button class="pick ${fl === L.cone ? 'warn' : ''}" data-act="lfwrite" data-i="${i}" data-f="${fl}">${f(fl)}${fl === 0 || fl === 40 ? ' ×2' : ''}${fl === L.cone ? ' 🚧' : ''}</button>`).join('')}</div></section>`;
+    }
+  } else if (L.phase === 'drive') {
+    act = v.drive != null ? `<section class="panel center"><p>✔ กดปุ่ม <b>${v.drive}</b> แล้ว รอคนอื่น… (${L.drove.length}/${n})</p></section>`
+      : `<section class="panel"><h2>กดลิฟต์ (ลับ) — ทุกคนรวมกันแล้วลิฟต์วิ่งเท่านั้นชั้น</h2>
+        <div class="lfdrives">${LF.DRIVES.map(d => `<button class="lfdrv" data-act="lfdrive" data-v="${d}"><b>${d}</b><small>${d / 5} ชั้น</small></button>`).join('')}</div>
+        <p class="small muted center">ลิฟต์วิ่งไปทาง ${L.dir > 0 ? 'ขึ้น ▲' : 'ลง ▼'} ชนชั้นบนสุด/ล่างสุดแล้วกลับทาง · หยุดชั้นกรวย 🚧 ใครเขียนชั้นนั้นไม่ได้แต้มและต้องเขียนใหม่ทั้ง 2 ใบ</p></section>`;
+  } else if (L.phase === 'result') {
+    const r = L.res;
+    act = `<section class="panel lfres"><h2>ลิฟต์วิ่ง ${r.total / 5} ชั้น: ${f(r.from)} → <b>${f(r.to)}</b>${r.cone ? ' 🚧' : ''}</h2>
+      <p class="small muted">${pl().map(x => `${esc(x.name)} ${r.drives[x.sid]}`).join(' · ')}</p>
+      ${Object.keys(r.hit).length ? Object.keys(r.hit).map(s => `<p>${esc(pn(s))} ${r.cone ? '🚧 เจอกรวย ไม่ได้แต้ม' : `<b class="ok-text">+${r.gain[s]}</b>${r.mult > 1 ? ' (×2)' : ''}`}</p>`).join('') : '<p class="muted">ไม่มีใครได้แต้มรอบนี้</p>'}
+      <div class="timer" data-timer></div></section>`;
+  }
+  return `${head}${act}${building}${score}`;
+}
+
 // ── World Championship Russian Roulette ──
 const rrCard = (c, cls = '') => `<span class="rrc ${c === 'B' ? 'bang' : 'click'} ${cls}">${c === 'B' ? '<b>ปัง!</b>' : '<b>แชะ</b>'}</span>`;
 const rrTeam = sid => `<span class="rrteam">${Array.from({ length: RR.TEAM }, (_, i) => `<span class="${i < S.pub.rr.team[sid] ? 'up' : 'down'} ${i === RR.TEAM - 1 ? 'cap' : ''}">${i === RR.TEAM - 1 ? gi('crown') : gi('people')}</span>`).join('')}</span>`;
@@ -2683,7 +2753,15 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'rr' ? `
+  const body = g === 'lf' ? `
+    <p><b>เป้าหมาย:</b> ได้แต้มมากที่สุดเมื่อจบเกม</p>
+    <ol><li>ทุกคนมีการ์ดเป้าหมาย 2 ใบ (★ = 1 แต้ม, ★★ = 2 แต้ม) แอบเขียนชั้นที่อยากให้ลิฟต์ไปหยุด (E, 5, 10 … 40) จะเขียนชั้นเดียวกันทั้ง 2 ใบก็ได้</li>
+    <li>ทุกรอบทุกคนแอบเลือกปุ่ม 0, 5 หรือ 10 แล้วเปิดพร้อมกัน — ลิฟต์วิ่งตามผลรวม (5 = 1 ชั้น) ไปทางลูกศร</li>
+    <li>ถึงชั้นบนสุด (40) หรือล่างสุด (E) ลิฟต์กลับทางแล้ววิ่งต่อจนครบ</li>
+    <li>ลิฟต์หยุดชั้นที่คุณเขียน = ได้แต้มตามดาว (ชั้น E และ 40 คูณ 2) แล้วเขียนชั้นใหม่บนการ์ดใบนั้น</li>
+    <li><b>กรวยก่อสร้าง 🚧:</b> ถ้าลิฟต์หยุดชั้นที่มีกรวยและคุณเขียนชั้นนั้น ไม่ได้แต้ม และต้องเขียนใหม่ทั้ง 2 ใบ</li>
+    <li>จบรอบ กรวยเลื่อนลง 1 ชั้น (เริ่มที่ 40) · กรวยถึงชั้น E = เล่นอีกรอบสุดท้าย แล้วนับแต้ม</li></ol>
+    <p class="muted small">คะแนนเท่ากัน: ในแอปให้ชนะร่วมกัน (กติกาจริงตัดสินด้วยว่าใครเขียนชั้นที่ลิฟต์จะไปถึงก่อน)</p>` : g === 'rr' ? `
     <p><b>เป้าหมาย:</b> เป็นคนแรกที่ได้ ${RR.WIN} แต้ม (และนำคนอื่น) หรือเป็นทีมสุดท้ายที่เหลือรอด</p>
     <p>ทุกคนมีทีม 4 คน (ลูกทีม 3 + กัปตัน) และ "ปืน" เป็นการ์ด 7 ใบ: <b>แชะ</b> 6 ใบ + <b>ปัง!</b> 1 ใบ · ทุกช่วงเล่นพร้อมกัน</p>
     <ol><li><b>เก็บเข้ากระเป๋า:</b> เลือกการ์ด 1 ใบเก็บไว้ — ถ้าเก็บ "ปัง!" คือโกง ปืนคุณจะไม่มีกระสุน</li>
@@ -2855,7 +2933,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -2989,6 +3067,9 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  lfcard: d => { S.lfI = +d.i; render(); },
+  lfwrite: d => { send({ t: 'lfwrite', i: S.lfI ?? +d.i, f: +d.f }); S.lfI = null; },
+  lfdrive: d => send({ t: 'lfdrive', v: +d.v }),
   rrpocket: d => send({ t: 'rrpocket', c: d.c }),
   rrn: d => { S.rrN = +d.n; render(); },
   rrbid: () => { if (S.rrN != null) send({ t: 'rrbid', n: S.rrN }); },
