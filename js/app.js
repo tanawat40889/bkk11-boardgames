@@ -18,6 +18,7 @@ import * as BD from './bangdice.js';
 import * as OD from './order.js';
 import * as RR from './roulette.js';
 import * as LF from './lift.js';
+import * as TB from './toybattle.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -67,12 +68,13 @@ const GAMES = {
   od: { n: 'Order Overload: Cafe', s: 'Order Overload', e: '☕', min: OD.MIN, max: OD.MAX, t: 20, c: ['coop'], d: 'ฟังออร์เดอร์รอบเดียว แล้วช่วยกันจำว่าเมนูไหนอยู่ในมือเพื่อน เรียกผิดตกรอบ' },
   rr: { n: 'World Championship Russian Roulette', s: 'Russian Roulette', e: '🔫', min: RR.MIN, max: RR.MAX, t: 20, c: ['card'], d: 'แชมป์โลกรัสเซียนรูเล็ต เดิมพันว่าจะเหนี่ยวไกกี่ครั้ง แอบโกงซ่อนกระสุนได้ ถ้าไม่โดนจับ' },
   lf: { n: "I'm Stuck in the Lift", s: 'Stuck in the Lift', e: '🛗', min: LF.MIN, max: LF.MAX, t: 20, c: ['card'], d: 'ทุกคนแอบเขียนชั้นที่อยากไป แล้วกดลิฟต์พร้อมกัน ลิฟต์ไปหยุดชั้นของใคร คนนั้นได้แต้ม' },
+  tb: { n: 'Toy Battle', s: 'Toy Battle', e: '🧸', min: TB.MIN, max: TB.MAX, t: 20, c: ['card'], d: 'สงครามของเล่น 2 คน วางทหารให้ต่อกับฐาน ล้อมเขตเก็บเหรียญ หรือบุกยึด H.Q. ศัตรู' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -87,7 +89,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -191,6 +193,12 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'tb') {
+      p.tb = {
+        stack: g.stack, taken: g.taken, medals: g.medals, turn: g.turn, extra: g.extra, jumbo: g.jumbo, n: g.n, hq: g.hq, seats: g.sids,
+        rackN: Object.fromEntries(g.sids.map(x => [x, g.rack[x].length])), resN: Object.fromEntries(g.sids.map(x => [x, g.reserve[x].length])),
+        log: g.log.slice(-8), nl: g.log.length, winner: g.winner, why: g.why,
       };
     } else if (H.game === 'lf') {
       p.lf = {
@@ -310,6 +318,9 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'tb') {
+    v.rack = g.rack[sid];
+    v.spots = g.turn === sid && !g.jumbo ? g.rack[sid].map(t => TB.spots(g, sid, t)) : [];
   } else if (H.game === 'lf') {
     v.tg = g.tg[sid]; v.drive = g.drive[sid] ?? null;
   } else if (H.game === 'rr') {
@@ -725,6 +736,12 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'tbdraw': case 'tbplace': case 'tbjumbo': case 'tbskip': {
+      if (H.phase !== 'tb' || m.n !== g.n) break;   // ignore taps made on an older board
+      const ok = m.t === 'tbdraw' ? TB.drawAction(g, sid) : m.t === 'tbplace' ? TB.place(g, sid, +m.i, m.b) : m.t === 'tbjumbo' ? TB.jumbo(g, sid, m.b || null) : TB.skip(g, sid);
+      if (ok) broadcast();
+      break;
+    }
     case 'lfwrite': case 'lfdrive': {
       if (H.phase !== 'lf') break;
       const ok = m.t === 'lfwrite' ? LF.write(g, sid, +m.i, +m.f) : LF.drive(g, sid, +m.v);
@@ -1006,6 +1023,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'tb') {
+      H.g = TB.newGame(sids, rint(2)); H.phase = 'tb'; H.endsAt = null;
     } else if (H.game === 'lf') {
       H.g = LF.newGame(sids); H.phase = 'lf'; H.endsAt = null;
     } else if (H.game === 'rr') {
@@ -1415,7 +1434,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1505,6 +1524,9 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'tb') {
+    if (n !== 2) errs.push('Toy Battle เล่นได้ 2 คนเท่านั้น');
+    settings = `<p class="muted small">ทหารของเล่นคนละ 20 ตัว (8 แบบ) · ล้อมเขตเก็บเหรียญให้ครบ ${TB.OBJECTIVE} หรือยึด H.Q. ศัตรู ชนะทันที</p>`;
   } else if (p.game === 'lf') {
     if (n < LF.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LF.MIN} คน`);
     if (n > LF.MAX) errs.push(`Stuck in the Lift เล่นได้สูงสุด ${LF.MAX} คน`);
@@ -2511,6 +2533,52 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Toy Battle ──
+const TBI = { kwak: 'K', skully: '1', capn: '2', jumbo: '3', hook: '4', xb42: '5', star: '6', roxy: '7' };
+const tbTile = (t, cls = '', attr = '') => `<button class="tbt ${cls}" ${attr || 'disabled'}><b>${TB.TROOPS[t].s ?? '?'}</b><span>${TB.TROOPS[t].n}</span><small>${TB.TROOPS[t].d}</small></button>`;
+function tbBoard(t, mine, hl) {
+  const U = 100, P = (x, y) => [x * U + 60, y * U + 60], seat = sid => t.seats.indexOf(sid);
+  const pos = Object.fromEntries([...TB.BASES, ...TB.HQ].map(b => [b.id, P(b.x, b.y)]));
+  const lines = TB.EDGES.map(([a, b]) => `<line x1="${pos[a][0]}" y1="${pos[a][1]}" x2="${pos[b][0]}" y2="${pos[b][1]}"/>`).join('');
+  const regs = TB.REGIONS.map(R => { const [x, y] = P(R.x, R.y), by = t.taken[R.id];
+    return `<g class="tbreg ${by ? 's' + seat(by) : ''}"><circle cx="${x}" cy="${y}" r="20"/><text x="${x}" y="${y + 7}">${by ? '✓' : R.m}</text></g>`; }).join('');
+  const base = b => { const [x, y] = pos[b.id], st = t.stack[b.id], tp = st.at(-1), can = hl.includes(b.id);
+    return `<g class="tbbase ${can ? 'can' : ''}" ${can ? `data-act="tbbase" data-b="${b.id}" role="button" aria-label="ฐานแถว ${b.y + 1} ช่อง ${b.x}${tp ? ` (${TB.TROOPS[tp.t].n})` : ' (ว่าง)'}"` : ''}><circle class="ring" cx="${x}" cy="${y}" r="43"/>
+      ${tp ? `<circle class="tok s${seat(tp.o)}" cx="${x}" cy="${y}" r="35"/><text class="tkn" x="${x}" y="${y + 10}">${TBI[tp.t]}</text>${st.length > 1 ? `<text class="tkh" x="${x + 26}" y="${y - 22}">${st.length}</text>` : ''}` : ''}</g>`; };
+  const hq = (h, i) => { const [x, y] = pos[h.id], can = hl.includes(h.id);
+    return `<g class="tbbase hq ${can ? 'can' : ''}" ${can ? `data-act="tbbase" data-b="${h.id}" role="button" aria-label="H.Q. ศัตรู"` : ''}><rect class="hqr s${i}" x="${x - 40}" y="${y - 40}" width="80" height="80" rx="16"/><text class="tkn" x="${x}" y="${y + 9}">HQ</text></g>`; };
+  return `<svg class="tbsvg" viewBox="5 5 710 310">${lines}${regs}${TB.BASES.map(base).join('')}${TB.HQ.map(hq).join('')}</svg>`;
+}
+function tbLog(e) {
+  const P = s => `<b>${esc(pn(s))}</b>`;
+  return e.t === 'draw' ? `${P(e.sid)} จั่ว` : e.t === 'place' ? `${P(e.sid)} วาง <b>${TB.TROOPS[e.type].n}</b>${e.b.startsWith('hq') ? ' บน H.Q. ศัตรู!' : ''}`
+    : e.t === 'medal' ? `🏅 ${P(e.sid)} ล้อมเขตได้ ${e.m} เหรียญ` : e.t === 'jumbo' ? `${P(e.sid)} ใช้ Jumbo เอาของเล่นศัตรูออก` : e.t === 'xb' ? `${P(e.sid)} ใช้ XB-42 ทิ้ง <b>${TB.TROOPS[e.lost].n}</b> จากชั้นวางศัตรู` : '';
+}
+function tbV() {
+  const t = S.pub.tb, v = S.priv, mine = me(), opp = t.seats.find(x => x !== mine), my = t.turn === mine && !t.winner, si = t.seats.indexOf(mine);
+  const hl = !my ? [] : t.jumbo ? t.jumbo : S.tbI != null && v.spots[S.tbI] ? v.spots[S.tbI] : [];
+  const side = x => `<div class="tbside s${t.seats.indexOf(x)} ${t.turn === x && !t.winner ? 'turn' : ''}">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' (คุณ)' : ''}</b>
+      <span>🏅 ${t.medals[x]}/${TB.OBJECTIVE}</span><span>ชั้นวาง ${t.rackN[x]}</span><span>กอง ${t.resN[x]}</span></div>`;
+  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ul class="bdlog">${[...t.log].reverse().map(e => `<li>${tbLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul></section>`;
+  if (t.winner) {
+    return `<div class="banner ${t.winner === mine ? 'win' : 'lose'}"><div class="bt">${t.winner === mine ? 'คุณชนะ!' : `${esc(pn(t.winner))} ชนะ`}</div>
+      <div>${t.why === 'hq' ? 'ยึด H.Q. ศัตรูได้' : t.why === 'medals' ? `เก็บเหรียญครบ ${TB.OBJECTIVE}` : 'อีกฝ่ายไม่มีอะไรให้ทำแล้ว นับเหรียญ'}</div></div>
+      <div class="tbsides">${side(t.seats[0])}${side(t.seats[1])}</div>${tbBoard(t, mine, [])}${logP}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  let help = '';
+  if (my) help = t.jumbo ? `<p class="ask center">Jumbo: แตะของเล่นศัตรูที่อยู่ติดกันเพื่อเอาออก ${btn('tbskip', 'ไม่เอาออก', 'ghost small')}</p>`
+    : t.extra ? `<p class="ask center">Cap'N: วางได้อีก 1 ตัว ${btn('tbskip', 'ข้าม', 'ghost small')}</p>`
+    : S.tbI != null ? `<p class="ask center">${hl.length ? 'แตะฐานที่เรืองแสงเพื่อวาง' : 'ตัวนี้วางที่ไหนไม่ได้ตอนนี้'}</p>` : '<p class="ask center">👉 ตาคุณ — เลือกของเล่นแล้วแตะฐาน หรือจั่ว 2 ตัว</p>';
+  else help = `<p class="muted center">รอ ${esc(pn(t.turn))}…</p>`;
+  return `<div class="tbsides">${side(t.seats[0])}${side(t.seats[1])}</div>${help}
+    <section class="panel tbwrap">${tbBoard(t, mine, hl)}<p class="muted small center">คุณคือฝั่ง${si === 0 ? 'น้ำเงิน (ซ้าย)' : 'แดง (ขวา)'} · ตัวเลข = พลัง · K = Kwak · เลขมุมขวา = จำนวนชั้นที่ซ้อน</p></section>
+    <section class="panel myhand"><h2>ชั้นวางของคุณ ${v.rack.length}/${TB.RACK}</h2>
+      <div class="tbrack s${si}">${v.rack.map((x, i) => tbTile(x, `${S.tbI === i ? 'on' : ''} ${my && !t.jumbo && v.spots[i]?.length ? '' : 'dim'}`, my && !t.jumbo ? `data-act="tbsel" data-i="${i}"` : '')).join('') || '<p class="muted">ว่าง</p>'}</div>
+      ${my && !t.jumbo && !t.extra ? btn('tbdraw', '🎴 จั่ว 2 ตัว', 'ghost wide', {}, t.resN[mine] === 0 || v.rack.length >= TB.RACK) : ''}</section>
+    ${logP}`;
+}
+
 // ── I'm Stuck in the Lift ──
 const lfStars = i => '★'.repeat(LF.STARS[i]);
 function lfV() {
@@ -2754,7 +2822,16 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'lf' ? `
+  const body = g === 'tb' ? `
+    <p><b>เป้าหมาย:</b> ยึด H.Q. ศัตรู หรือเก็บเหรียญให้ครบ ${TB.OBJECTIVE} ก่อน</p>
+    <ol><li>ทหารของเล่นคนละ 24 ตัว คัดออก 4 ตัวแบบไม่ดู เหลือ 20 ในกอง · คนเริ่มจั่ว 3 อีกคนจั่ว 4 · ชั้นวางเก็บได้สูงสุด ${TB.RACK}</li>
+    <li>ถึงตาคุณ เลือก 1 อย่าง: <b>จั่ว 2 ตัว</b> หรือ <b>วางของเล่น 1 ตัว</b> แล้วใช้ความสามารถของมัน</li>
+    <li>วางได้บน: ฐานว่าง, ฐานที่ของเล่นเราอยู่บนสุด, ของเล่นศัตรูที่พลัง<b>น้อยกว่า</b>, หรือ H.Q. ศัตรู (ห้ามวางบน H.Q. ตัวเอง) · ซ้อนได้ไม่จำกัด นับเฉพาะตัวบนสุด</li>
+    <li>ฐานที่วางต้อง<b>ต่อกับ H.Q. ของเรา</b> ผ่านฐานที่เรายึดอยู่ (ฐานว่าง/ฐานศัตรูทำให้ขาด)</li>
+    <li>ยึดฐานครบทุกมุมรอบเขตไหน ได้เหรียญในเขตนั้น (เก็บไว้ตลอดแม้เสียฐานทีหลัง)</li>
+    <li>ยึด H.Q. ศัตรูได้ = ชนะทันที · เหรียญครบเป้า = ชนะทันที · ถ้าถึงตาแล้วจั่วไม่ได้และวางไม่ได้ เกมจบ นับเหรียญ (เสมอ = คนที่ทำต่อไม่ได้แพ้)</li></ol>
+    <p><b>ของเล่น (อย่างละ 3):</b> ${Object.values(TB.TROOPS).map(x => `<b>${x.n}</b> ${x.s ?? '–'}: ${x.d}`).join(' · ')}</p>
+    <p class="muted small">แผนที่ในแอปออกแบบขึ้นเอง (กระดาน 5×3 ฐาน, 8 เขต, เหรียญรวม 12) เพราะไม่มีแผนที่จริง · ยังไม่มีฐานพิเศษ</p>` : g === 'lf' ? `
     <p><b>เป้าหมาย:</b> ได้แต้มมากที่สุดเมื่อจบเกม</p>
     <ol><li>ทุกคนมีการ์ดเป้าหมาย 2 ใบ (★ = 1 แต้ม, ★★ = 2 แต้ม) แอบเขียนชั้นที่อยากให้ลิฟต์ไปหยุด (E, 5, 10 … 40) จะเขียนชั้นเดียวกันทั้ง 2 ใบก็ได้</li>
     <li>ทุกรอบทุกคนแอบเลือกปุ่ม 0, 5 หรือ 10 แล้วเปิดพร้อมกัน — ลิฟต์วิ่งตามผลรวม (5 = 1 ชั้น) ไปทางลูกศร</li>
@@ -2950,7 +3027,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -3085,6 +3162,15 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  tbsel: d => { S.tbI = S.tbI === +d.i ? null : +d.i; render(); },
+  tbdraw: () => { send({ t: 'tbdraw', n: S.pub.tb.n }); S.tbI = null; },
+  tbbase: d => {
+    const t = S.pub.tb;
+    if (t.jumbo) return send({ t: 'tbjumbo', n: t.n, b: d.b });
+    if (S.tbI == null) return;
+    send({ t: 'tbplace', n: t.n, i: S.tbI, b: d.b }); S.tbI = null;
+  },
+  tbskip: () => { const t = S.pub.tb; send(t.jumbo ? { t: 'tbjumbo', n: t.n, b: '' } : { t: 'tbskip', n: t.n }); },
   lfcard: d => { S.lfI = +d.i; render(); },
   lfwrite: d => { send({ t: 'lfwrite', i: S.lfI ?? +d.i, f: +d.f }); S.lfI = null; },
   lfdrive: d => send({ t: 'lfdrive', v: +d.v }),

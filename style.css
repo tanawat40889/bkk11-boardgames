@@ -770,3 +770,23 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
   .home .hl .brand { padding-top: 0; } .home .hl .logo { width: 140px; height: 140px; border-radius: 32px; } .home .hl .brand h1 { font-size: 2.4rem; }
   .home .hr > .panel:first-child { margin-top: 0; }
 }
+
+/* Toy Battle */
+.tbsides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.tbside { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 8px 10px; border-radius: 14px; background: var(--bg2); border: 2px solid var(--tc); font-size: .8rem; --tc: #3b82f6; min-width: 0; }
+.tbside.s1 { --tc: #ef4444; } .tbside b { flex: 1 1 100%; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .tbside.turn { box-shadow: 0 0 0 3px var(--accent2); }
+.tbwrap { padding: 6px 2px; } .tbsvg { width: 100%; height: auto; display: block; }
+.tbsvg line { stroke: #ffffff40; stroke-width: 8; stroke-linecap: round; }
+.tbreg circle { fill: #ffffff10; stroke: #ffb84d66; stroke-width: 3; } .tbreg text { fill: #ffb84d; font: 800 22px Prompt, sans-serif; text-anchor: middle; }
+.tbreg.s0 circle { fill: #3b82f655; stroke: #3b82f6; } .tbreg.s1 circle { fill: #ef444455; stroke: #ef4444; } .tbreg.s0 text, .tbreg.s1 text { fill: #fff; }
+.tbbase .ring { fill: #1c1f2b; stroke: #ffffff33; stroke-width: 4; }
+.tbbase.can { cursor: pointer; } .tbbase.can .ring { stroke: var(--ok); stroke-width: 7; animation: bdp 1s ease-in-out infinite alternate; }
+.tbbase.can .hqr { stroke: var(--ok); stroke-width: 8; }
+.tok.s0, .hqr.s0 { fill: #3b82f6; } .tok.s1, .hqr.s1 { fill: #ef4444; } .tok { stroke: #fff; stroke-width: 3; } .hqr { stroke: #ffffff66; stroke-width: 3; }
+.tkn { fill: #fff; font: 800 30px Prompt, sans-serif; text-anchor: middle; pointer-events: none; } .tkh { fill: #ffb84d; font: 800 20px Prompt, sans-serif; text-anchor: middle; pointer-events: none; }
+.tbrack { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.tbt { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 0 8px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 12px; border: 2px solid var(--tc); background: var(--bg2); color: var(--text); font: inherit; cursor: pointer; --tc: #3b82f6; }
+.tbrack.s1 .tbt { --tc: #ef4444; }
+.tbt b { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--tc); color: #fff; font-size: 1.1rem; }
+.tbt span { font-weight: 700; font-size: .9rem; } .tbt small { font-size: .68rem; color: var(--muted); line-height: 1.25; }
+.tbt.on { box-shadow: 0 0 0 3px var(--accent2); transform: translateY(-2px); } .tbt.dim { opacity: .55; } .tbt:disabled { cursor: default; }

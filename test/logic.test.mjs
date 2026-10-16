@@ -20,6 +20,7 @@ import * as BD from '../js/bangdice.js';
 import * as OD from '../js/order.js';
 import * as RR from '../js/roulette.js';
 import * as LF from '../js/lift.js';
+import * as TB from '../js/toybattle.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1484,6 +1485,87 @@ t('stuck in the lift: 2000 random games finish with points only from real stops'
       else LF.next(g);
     }
     assert.equal(g.round, 9); assert.ok(g.winners.length >= 1);
+  }
+});
+
+const tbFresh = () => { const g = TB.newGame(['A', 'B'], 0); g.rack.A = []; g.rack.B = []; return g; };
+t('toy battle: setup, map, draw limits', () => {
+  const g = TB.newGame(['A', 'B'], 0);
+  assert.equal(g.rack.A.length, 3); assert.equal(g.rack.B.length, 4); assert.equal(g.reserve.A.length, 17); assert.equal(g.reserve.B.length, 16);
+  assert.equal(TB.BASES.length, 15); assert.equal(TB.REGIONS.length, 8); assert.equal(TB.REGIONS.reduce((a, r) => a + r.m, 0), 12);
+  assert.ok(!TB.drawAction(g, 'B'), 'not your turn');
+  assert.ok(TB.drawAction(g, 'A')); assert.equal(g.rack.A.length, 5); assert.equal(g.turn, 'B');
+  g.rack.B = Array(7).fill('roxy'); assert.ok(TB.drawAction(g, 'B')); assert.equal(g.rack.B.length, 8, 'only one space left');
+  g.rack.A = Array(8).fill('roxy'); assert.ok(!TB.drawAction(g, 'A'), 'rack full');
+});
+t('toy battle: placement rules — connection, strength, own H.Q., Hook, Kwak', () => {
+  const g = tbFresh();
+  g.rack.A = ['roxy', 'hook', 'skully'];
+  assert.ok(!TB.canPlaceOn(g, 'A', 'roxy', 'b01'), 'not linked to the H.Q.');
+  assert.ok(TB.canPlaceOn(g, 'A', 'roxy', 'b00')); assert.ok(!TB.canPlaceOn(g, 'A', 'roxy', 'hq0'), 'never on your own H.Q.');
+  assert.ok(TB.canPlaceOn(g, 'A', 'hook', 'b14'), 'Hook needs no link'); assert.ok(!TB.canPlaceOn(g, 'A', 'hook', 'hq1'), 'but not onto the enemy H.Q.');
+  g.stack.b04 = [{ o: 'B', t: 'jumbo' }];
+  g.stack.b03 = [{ o: 'A', t: 'roxy' }]; g.stack.b02 = [{ o: 'A', t: 'roxy' }]; g.stack.b01 = [{ o: 'A', t: 'roxy' }]; g.stack.b00 = [{ o: 'A', t: 'roxy' }];
+  assert.ok(TB.canPlaceOn(g, 'A', 'xb42', 'b04'), '5 beats 3'); assert.ok(!TB.canPlaceOn(g, 'A', 'jumbo', 'b04'), 'equal is not enough'); assert.ok(!TB.canPlaceOn(g, 'A', 'skully', 'b04'));
+  assert.ok(TB.canPlaceOn(g, 'A', 'kwak', 'b04'), 'Kwak goes on anything');
+  g.stack.b04 = [{ o: 'B', t: 'kwak' }]; assert.ok(TB.canPlaceOn(g, 'A', 'skully', 'b04'), 'anything goes on Kwak');
+  assert.ok(!TB.canPlaceOn(g, 'A', 'skully', 'hq1'), 'b04 is the enemy\'s, so the H.Q. is not reachable yet');
+  g.stack.b04.push({ o: 'A', t: 'roxy' }); assert.ok(TB.canPlaceOn(g, 'A', 'skully', 'hq1'), 'enemy H.Q. next to a linked base');
+  g.stack.b02 = [{ o: 'A', t: 'roxy' }, { o: 'B', t: 'kwak' }];
+  assert.ok(!TB.canPlaceOn(g, 'A', 'roxy', 'b14'), 'the chain is broken at b02 (enemy on top)');
+});
+t('toy battle: regions give medals once, H.Q. capture and medal target win', () => {
+  const g = tbFresh(); g.turn = 'A';
+  g.stack.b00 = [{ o: 'A', t: 'roxy' }]; g.stack.b01 = [{ o: 'A', t: 'roxy' }]; g.stack.b10 = [{ o: 'A', t: 'roxy' }];
+  g.rack.A = ['roxy']; assert.ok(TB.place(g, 'A', 0, 'b11'));
+  assert.equal(g.medals.A, 1); assert.equal(g.taken.g00, 'A'); assert.equal(g.turn, 'B');
+  g.rack.B = ['kwak']; g.stack.b14 = [{ o: 'B', t: 'roxy' }]; g.stack.b13 = [{ o: 'B', t: 'roxy' }]; g.stack.b12 = [{ o: 'B', t: 'roxy' }];
+  assert.ok(TB.place(g, 'B', 0, 'b11'), 'B is linked through b12, and Kwak goes on anything');
+  assert.equal(TB.top(g, 'b11').o, 'B'); assert.equal(g.medals.A, 1, 'medals stay after losing a base'); assert.equal(g.taken.g00, 'A');
+  const h = tbFresh(); h.turn = 'A'; h.rack.A = ['skully'];
+  for (const b of ['b10', 'b11', 'b12', 'b13', 'b14']) h.stack[b] = [{ o: 'A', t: 'roxy' }];
+  assert.ok(TB.place(h, 'A', 0, 'hq1')); assert.equal(h.winner, 'A'); assert.equal(h.why, 'hq');
+  const m = tbFresh(); m.turn = 'A'; m.medals.A = 5; m.rack.A = ['roxy'];
+  m.stack.b00 = [{ o: 'A', t: 'roxy' }]; m.stack.b01 = [{ o: 'A', t: 'roxy' }]; m.stack.b10 = [{ o: 'A', t: 'roxy' }];
+  TB.place(m, 'A', 0, 'b11'); assert.equal(m.winner, 'A'); assert.equal(m.why, 'medals');
+});
+t('toy battle: troop effects', () => {
+  let g = tbFresh(); g.turn = 'A'; g.rack.A = ['skully']; const r0 = g.reserve.A.length;
+  TB.place(g, 'A', 0, 'b00'); assert.equal(g.rack.A.length, 2, 'Skully draws 2'); assert.equal(g.reserve.A.length, r0 - 2);
+  g = tbFresh(); g.turn = 'A'; g.rack.A = ['star']; TB.place(g, 'A', 0, 'b00'); assert.equal(g.rack.A.length, 1, 'Star draws 1');
+  g = tbFresh(); g.turn = 'A'; g.rack.A = ['capn', 'roxy'];
+  TB.place(g, 'A', 0, 'b00'); assert.equal(g.turn, 'A'); assert.ok(g.extra); assert.ok(!TB.drawAction(g, 'A'), 'must place or skip');
+  TB.place(g, 'A', 0, 'b01'); assert.equal(g.turn, 'B'); assert.ok(!g.extra);
+  g = tbFresh(); g.turn = 'A'; g.rack.A = ['capn', 'roxy']; TB.place(g, 'A', 0, 'b00'); assert.ok(TB.skip(g, 'A')); assert.equal(g.turn, 'B');
+  g = tbFresh(); g.turn = 'A'; g.rack.A = ['jumbo']; g.stack.b01 = [{ o: 'A', t: 'skully' }, { o: 'B', t: 'roxy' }];
+  TB.place(g, 'A', 0, 'b00'); assert.deepEqual(g.jumbo, ['b01']); assert.equal(g.turn, 'A');
+  assert.ok(!TB.jumbo(g, 'A', 'b11')); assert.ok(TB.jumbo(g, 'A', 'b01'));
+  assert.deepEqual(g.stack.b01, [{ o: 'A', t: 'skully' }], 'top enemy removed, ours shows again'); assert.equal(g.turn, 'B');
+  g = tbFresh(); g.turn = 'A'; g.rack.A = ['xb42']; g.rack.B = ['roxy', 'kwak'];
+  TB.place(g, 'A', 0, 'b00'); assert.equal(g.rack.B.length, 1, 'XB-42 discards one from the enemy rack'); assert.equal(g.disc.length, 1);
+});
+t('toy battle: stuck player — medals decide, tie goes against the stuck one', () => {
+  const g = tbFresh(); g.turn = 'A'; g.rack.A = ['roxy']; g.reserve.B = []; g.rack.B = []; g.medals.B = 1;
+  TB.place(g, 'A', 0, 'b00');
+  assert.equal(g.winner, 'B', 'B is stuck but has more medals'); assert.equal(g.why, 'stuck');
+  const h = tbFresh(); h.turn = 'A'; h.rack.A = ['roxy']; h.reserve.B = []; h.rack.B = [];
+  TB.place(h, 'A', 0, 'b00'); assert.equal(h.winner, 'A', 'tie: the stuck player loses');
+});
+t('toy battle: 2000 random games always end with a winner', () => {
+  for (let k = 0; k < 2000; k++) {
+    const g = TB.newGame(['A', 'B'], rint(2));
+    let steps = 0;
+    while (!g.winner) {
+      assert.ok(++steps < 2000, 'never ends');
+      const s = g.turn;
+      if (g.jumbo) { TB.jumbo(g, s, rint(2) ? g.jumbo[rint(g.jumbo.length)] : null); continue; }
+      const opts = g.rack[s].flatMap((ty, i) => TB.spots(g, s, ty).map(b => [i, b]));
+      if (g.extra) { if (opts.length && rint(3)) { const [i, b] = opts[rint(opts.length)]; assert.ok(TB.place(g, s, i, b)); } else TB.skip(g, s); continue; }
+      if (opts.length && (rint(3) || !TB.drawAction(g, s))) { const [i, b] = opts[rint(opts.length)]; assert.ok(TB.place(g, s, i, b)); }
+      else if (!opts.length) assert.ok(TB.drawAction(g, s), 'stuck player was not caught');
+      for (const x of ['A', 'B']) assert.ok(g.rack[x].length <= TB.RACK);
+    }
+    assert.ok(['hq', 'medals', 'stuck'].includes(g.why));
   }
 });
 
