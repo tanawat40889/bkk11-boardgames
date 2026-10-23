@@ -106,7 +106,7 @@ function audit(win, found) {
     const w = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode(); n; n = w.nextNode()) {
       const v = n.nodeValue.replace(/\s+/g, ' ').trim();
-      if (/[\u0E00-\u0E7F]/.test(v) && !n.parentElement.closest('.notr, script, style') && n.parentElement.closest('body')) add('Thai text', v.slice(0, 90));
+      if (/[\u0E00-\u0E7F]/.test(v) && !n.parentElement.closest('.notr, script, style, noscript') && n.parentElement.closest('body')) add('Thai text', v.slice(0, 90));
     }
     for (const el of doc.querySelectorAll('[title], [placeholder], [aria-label]')) for (const a of ['title', 'placeholder', 'aria-label']) {
       const v = el.getAttribute(a); if (v && /[\u0E00-\u0E7F]/.test(v)) add('Thai attribute', a + ': ' + v.slice(0, 80));

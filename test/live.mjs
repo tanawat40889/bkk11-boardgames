@@ -15,7 +15,7 @@ const games = args.find(a => !a.includes('='));
 const opt = Object.fromEntries(args.filter(a => a.includes('=')).map(a => a.split(/=(.*)/s).slice(0, 2)));
 const base = opt.url || 'https://tanawat40889.github.io/bkk11-boardgames/';
 const PORT = 9333, LIMIT = (+opt.minutes || 45) * 60000;
-const url = `${base}test/e2e.html?live=1${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.n ? '&n=' + opt.n : ''}&max=${opt.max || 900}`;   // max = bot turns per game before it counts as stuck (900 ≈ 5 min)
+const url = `${base}test/e2e.html?live=1${games ? '&games=' + games : ''}${opt.chaos != null ? '&chaos=' + opt.chaos : ''}${opt.n ? '&n=' + opt.n : ''}${opt.lang ? '&lang=' + opt.lang : ''}&max=${opt.max || 900}`;   // max = bot turns per game before it counts as stuck (900 ≈ 5 min)
 
 const profile = mkdtempSync(path.join(tmpdir(), 'bkk11-live-'));
 const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=IntensiveWakeUpThrottling,CalculateNativeWinOcclusion', `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, '--window-size=1400,900', url], { stdio: 'ignore' });
