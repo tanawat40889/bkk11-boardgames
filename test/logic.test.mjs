@@ -21,6 +21,7 @@ import * as OD from '../js/order.js';
 import * as RR from '../js/roulette.js';
 import * as LF from '../js/lift.js';
 import * as TB from '../js/toybattle.js';
+import * as HN from '../js/hanabi.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1566,6 +1567,75 @@ t('toy battle: 2000 random games always end with a winner', () => {
       for (const x of ['A', 'B']) assert.ok(g.rack[x].length <= TB.RACK);
     }
     assert.ok(['hq', 'medals', 'stuck'].includes(g.why));
+  }
+});
+
+const hnCard = (id, c, n) => ({ id, c, n, k: { c: null, n: null, nc: [], nn: [] } });
+t('hanabi: deck, deal, hand sizes', () => {
+  for (let n = 2; n <= 5; n++) {
+    const g = HN.newGame(sids(n)), hs = n <= 3 ? 5 : 4;
+    for (const s of g.sids) assert.equal(g.hand[s].length, hs);
+    assert.equal(g.deck.length + n * hs, 50); assert.equal(g.clues, 8); assert.equal(g.fuses, 3);
+  }
+  const g = HN.newGame(sids(2)), all = [...g.deck, ...g.hand.s0, ...g.hand.s1];
+  for (const c of HN.COLORS) for (const [v, k] of Object.entries(HN.COPIES)) assert.equal(all.filter(x => x.c === c && x.n === +v).length, k);
+  assert.equal(new Set(all.map(x => x.id)).size, 50);
+});
+t('hanabi: clues mark matches and non-matches, cost a token, must point at a card', () => {
+  const g = HN.newGame(sids(3));
+  g.hand.s1 = [hnCard(100, 'r', 1), hnCard(101, 'b', 1), hnCard(102, 'r', 3), hnCard(103, 'g', 4), hnCard(104, 'w', 5)];
+  assert.ok(!HN.clue(g, 's1', 's0', 'c', 'r'), 'not your turn'); assert.ok(!HN.clue(g, 's0', 's0', 'c', 'r'), 'not yourself');
+  assert.ok(!HN.clue(g, 's0', 's1', 'c', 'y'), 'no yellow in that hand'); assert.ok(!HN.clue(g, 's0', 's1', 'n', 2));
+  assert.ok(HN.clue(g, 's0', 's1', 'c', 'r'));
+  assert.equal(g.clues, 7); assert.equal(g.turn, 's1'); assert.deepEqual(g.last.ids, [100, 102]);
+  assert.equal(g.hand.s1[0].k.c, 'r'); assert.deepEqual(g.hand.s1[1].k.nc, ['r']); assert.equal(g.hand.s1[1].k.c, null);
+  g.turn = 's0'; assert.ok(HN.clue(g, 's0', 's1', 'n', '1')); assert.equal(g.hand.s1[1].k.n, 1); assert.deepEqual(g.hand.s1[2].k.nn, [1]);
+  g.clues = 0; g.turn = 's0'; assert.ok(!HN.clue(g, 's0', 's1', 'n', 1), 'no tokens left');
+});
+t('hanabi: playing, misfires, discarding, 5s give a clue back', () => {
+  const g = HN.newGame(sids(2));
+  g.hand.s0 = [hnCard(100, 'r', 1), hnCard(101, 'r', 3), hnCard(102, 'b', 2), hnCard(103, 'y', 5), hnCard(104, 'g', 1)];
+  const deck0 = g.deck.length;
+  assert.ok(!HN.discard(g, 's0', 0), 'clues are full');
+  assert.ok(HN.play(g, 's0', 0)); assert.equal(g.fw.r, 1); assert.equal(g.hand.s0.length, 5, 'drew a card'); assert.equal(g.deck.length, deck0 - 1);
+  g.turn = 's0'; const i3 = g.hand.s0.findIndex(c => c.id === 101);
+  assert.ok(HN.play(g, 's0', i3)); assert.equal(g.fw.r, 1); assert.equal(g.fuses, 2); assert.equal(g.disc.at(-1).id, 101);
+  g.turn = 's0'; g.clues = 6; const ib = g.hand.s0.findIndex(c => c.id === 102);
+  assert.ok(HN.discard(g, 's0', ib)); assert.equal(g.clues, 7);
+  g.turn = 's0'; g.fw.y = 4; g.clues = 5; const iy = g.hand.s0.findIndex(c => c.id === 103);
+  assert.ok(HN.play(g, 's0', iy)); assert.equal(g.fw.y, 5); assert.equal(g.clues, 6, 'a finished firework returns a clue');
+  g.turn = 's0'; g.fuses = 1; g.hand.s0[0] = hnCard(200, 'w', 4);
+  assert.ok(HN.play(g, 's0', 0)); assert.ok(g.over); assert.equal(g.why, 'boom');
+});
+t('hanabi: last card drawn -> everyone gets one more turn; 25 ends at once', () => {
+  const g = HN.newGame(sids(3)); g.clues = 0;
+  g.deck = [g.deck[0]];
+  HN.play(g, 's0', 0);                       // draws the last card
+  assert.ok(!g.over);
+  {
+    assert.equal(g.deck.length, 0); assert.equal(g.left, 3); assert.equal(g.turn, 's1');
+    g.fuses = 9; HN.play(g, 's1', 0); HN.play(g, 's2', 0); assert.ok(!g.over); HN.play(g, 's0', 0);
+    assert.ok(g.over, 'ends after the drawer\'s extra turn too'); assert.equal(g.why, 'deck');
+  }
+  const h = HN.newGame(sids(2));
+  for (const c of HN.COLORS) h.fw[c] = 5; h.fw.r = 4; h.hand.s0[0] = hnCard(300, 'r', 5);
+  HN.play(h, 's0', 0); assert.ok(h.over); assert.equal(h.why, 'perfect'); assert.equal(HN.score(h), 25);
+});
+t('hanabi: 3000 random games end; cards are never lost or duplicated', () => {
+  for (let k = 0; k < 3000; k++) {
+    const g = HN.newGame(sids(2 + rint(4)));
+    let steps = 0;
+    while (!g.over) {
+      assert.ok(++steps < 500);
+      const s = g.turn, r = rint(3);
+      if (r === 0 && g.clues) { const to = g.sids.find(x => x !== s), c = g.hand[to][0]; const kind = rint(2) ? 'c' : 'n'; assert.ok(HN.clue(g, s, to, kind, c[kind])); }
+      else if (r === 1 && g.clues < HN.CLUES) assert.ok(HN.discard(g, s, rint(g.hand[s].length)));
+      else assert.ok(HN.play(g, s, rint(g.hand[s].length)));
+      const total = g.deck.length + g.disc.length + HN.score(g) + g.sids.reduce((a, x) => a + g.hand[x].length, 0);
+      assert.equal(total, 50, 'every card accounted for');
+      assert.ok(g.clues >= 0 && g.clues <= 8 && g.fuses >= 0);
+    }
+    assert.ok(['boom', 'deck', 'perfect'].includes(g.why));
   }
 });
 

@@ -790,3 +790,29 @@ button.ocard { cursor: pointer; } button.ocard:disabled { opacity: .5; cursor: d
 .tbt b { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--tc); color: #fff; font-size: 1.1rem; }
 .tbt span { font-weight: 700; font-size: .9rem; } .tbt small { font-size: .68rem; color: var(--muted); line-height: 1.25; }
 .tbt.on { box-shadow: 0 0 0 3px var(--accent2); transform: translateY(-2px); } .tbt.dim { opacity: .55; } .tbt:disabled { cursor: default; }
+
+/* Hanabi */
+.hnc { position: relative; display: inline-grid; place-items: center; width: 52px; height: 72px; border-radius: 9px; border: 0; padding: 0; font: inherit; font-weight: 800; font-size: 1.7rem; color: #fff;
+  background: var(--hc); box-shadow: inset 0 0 0 3px #ffffff40, 0 3px 6px #0007; --hc: #4b4f63; cursor: default; }
+button.hnc { cursor: pointer; }
+.c-r { --hc: #e2403f; } .c-y { --hc: #e7b416; } .c-g { --hc: #2fae5b; } .c-b { --hc: #2f7fe0; } .c-w { --hc: #e9edf3; }
+.hnc.c-w, .hnc.c-y { color: #1d2230; }
+.hnc.unk { background: repeating-linear-gradient(45deg, #3a3554 0 8px, #322d4a 8px 16px); }
+.hnc.on { transform: translateY(-8px); box-shadow: inset 0 0 0 3px #fff, 0 0 0 3px var(--accent2), 0 10px 14px #0008; }
+.hnc.clued { box-shadow: inset 0 0 0 3px #ffffff40, 0 0 0 3px #ffd35c, 0 3px 6px #0007; }
+.hnc.sm { width: 28px; height: 38px; font-size: .95rem; border-radius: 6px; vertical-align: middle; }
+.hnhand { display: flex; gap: 8px; flex-wrap: wrap; }
+.hnslot { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 56px; }
+.hnk { font-size: .62rem; color: var(--muted); text-align: center; line-height: 1.2; min-height: 1.2em; } .hnk s { display: block; text-decoration: none; opacity: .75; }
+.hnfw { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.hnst { display: flex; flex-direction: column; align-items: center; padding: 6px 0; border-radius: 12px; background: var(--hc); color: #fff; box-shadow: 0 3px 6px #0006; }
+.hnst.c-w, .hnst.c-y { color: #1d2230; } .hnst b { font-size: 1.8rem; line-height: 1.1; } .hnst small { font-size: .68rem; font-weight: 700; }
+.hntok { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 4px; font-size: .9rem; }
+.hnp.turn { box-shadow: 0 0 0 3px var(--accent2); } .hnp.sel { border-color: var(--accent2); }
+.hnwho { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin-bottom: 8px; padding: 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; }
+button.hnwho { cursor: pointer; } .hnwho b { flex: 1; }
+.hnclue { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.hnb { min-width: 52px; min-height: 40px; padding: 4px 10px; border-radius: 10px; border: 0; font: inherit; font-weight: 700; cursor: pointer; background: var(--hc); color: #fff; }
+.hnb.c-w, .hnb.c-y { color: #1d2230; } .hnb.num { background: var(--bg); border: 2px solid var(--line); color: var(--text); }
+.hndisc { display: flex; flex-wrap: wrap; gap: 4px; }
+.hnt { padding: 0 6px; border-radius: 6px; background: var(--hc); color: #fff; font-weight: 700; } .hnt.c-w, .hnt.c-y { color: #1d2230; }

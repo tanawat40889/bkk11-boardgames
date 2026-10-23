@@ -19,10 +19,11 @@ import * as OD from './order.js';
 import * as RR from './roulette.js';
 import * as LF from './lift.js';
 import * as TB from './toybattle.js';
+import * as HN from './hanabi.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
-import { rint } from './rng.js';
+import { rint, shuffle } from './rng.js';
 
 const app = document.getElementById('app');
 const now = () => Date.now();
@@ -69,12 +70,13 @@ const GAMES = {
   rr: { n: 'World Championship Russian Roulette', s: 'Russian Roulette', e: '🔫', min: RR.MIN, max: RR.MAX, t: 20, c: ['card'], d: 'แชมป์โลกรัสเซียนรูเล็ต เดิมพันว่าจะเหนี่ยวไกกี่ครั้ง แอบโกงซ่อนกระสุนได้ ถ้าไม่โดนจับ' },
   lf: { n: "I'm Stuck in the Lift", s: 'Stuck in the Lift', e: '🛗', min: LF.MIN, max: LF.MAX, t: 20, c: ['card'], d: 'ทุกคนแอบเขียนชั้นที่อยากไป แล้วกดลิฟต์พร้อมกัน ลิฟต์ไปหยุดชั้นของใคร คนนั้นได้แต้ม' },
   tb: { n: 'Toy Battle', s: 'Toy Battle', e: '🧸', min: TB.MIN, max: TB.MAX, t: 20, c: ['card'], d: 'สงครามของเล่น 2 คน วางทหารให้ต่อกับฐาน ล้อมเขตเก็บเหรียญ หรือบุกยึด H.Q. ศัตรู' },
+  hn: { n: 'Hanabi', s: 'Hanabi', e: '🎆', min: HN.MIN, max: HN.MAX, t: 25, c: ['coop'], d: 'ช่วยกันจุดพลุ เห็นไพ่ทุกคนยกเว้นของตัวเอง ใบ้กันให้ลงไพ่ถูกลำดับ 1→5' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -89,7 +91,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -193,6 +195,12 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'hn') {
+      p.hn = {
+        fw: g.fw, clues: g.clues, fuses: g.fuses, deck: g.deck.length, disc: g.disc.map(c => c.c + c.n), turn: g.turn, left: g.left, n: g.n,
+        know: Object.fromEntries(g.sids.map(x => [x, g.hand[x].map(c => ({ id: c.id, k: c.k }))])), last: g.last, log: g.log.slice(-8), nl: g.log.length,
+        over: g.over, why: g.why, score: HN.score(g), hands: g.over ? Object.fromEntries(g.sids.map(x => [x, g.hand[x].map(c => c.c + c.n)])) : null,
       };
     } else if (H.game === 'tb') {
       p.tb = {
@@ -318,6 +326,9 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'hn') {
+    // everyone else's cards — never your own
+    v.others = Object.fromEntries(g.sids.filter(x => x !== sid).map(x => [x, g.hand[x].map(c => ({ id: c.id, c: c.c, n: c.n }))]));
   } else if (H.game === 'tb') {
     v.rack = g.rack[sid];
     v.spots = g.turn === sid && !g.jumbo ? g.rack[sid].map(t => TB.spots(g, sid, t)) : [];
@@ -736,6 +747,13 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'hnplay': case 'hndisc': case 'hnclue': {
+      if (H.phase !== 'hn' || m.n !== g.n) break;   // a tap made on an older screen
+      const i = g.hand[sid]?.findIndex(c => c.id === m.cid);   // (m.id is the message id used for acks)
+      const ok = m.t === 'hnplay' ? HN.play(g, sid, i) : m.t === 'hndisc' ? HN.discard(g, sid, i) : HN.clue(g, sid, m.to, m.kind, m.v);
+      if (ok) broadcast();
+      break;
+    }
     case 'tbdraw': case 'tbplace': case 'tbjumbo': case 'tbskip': {
       if (H.phase !== 'tb' || m.n !== g.n) break;   // ignore taps made on an older board
       const ok = m.t === 'tbdraw' ? TB.drawAction(g, sid) : m.t === 'tbplace' ? TB.place(g, sid, +m.i, m.b) : m.t === 'tbjumbo' ? TB.jumbo(g, sid, m.b || null) : TB.skip(g, sid);
@@ -837,7 +855,7 @@ function hostAct(m, p) {
       break;
     case 'jstrike':
       if (H.phase === 'jcheck' && sid !== JO.guesser(g)) {
-        const it = JO.review(g).find(x => x.id === m.id);
+        const it = JO.review(g).find(x => x.id === m.cid);   // (m.id is the message id used for acks)
         if (it) { g.manual[it.id] = !it.out; broadcast(); }
       }
       break;
@@ -1023,6 +1041,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'hn') {
+      H.g = HN.newGame(shuffle(sids)); H.phase = 'hn'; H.endsAt = null;
     } else if (H.game === 'tb') {
       H.g = TB.newGame(sids, rint(2)); H.phase = 'tb'; H.endsAt = null;
     } else if (H.game === 'lf') {
@@ -1434,7 +1454,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1524,6 +1544,10 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'hn') {
+    if (n < HN.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${HN.MIN} คน`);
+    if (n > HN.MAX) errs.push(`Hanabi เล่นได้สูงสุด ${HN.MAX} คน`);
+    settings = `<p class="muted small">ไพ่ 50 ใบ 5 สี · ถือคนละ ${HN.handSize(Math.max(2, n))} ใบ · คำใบ้ ${HN.CLUES} · พลาดได้ ${HN.FUSES - 1} ครั้ง · คะแนนเต็ม 25</p>`;
   } else if (p.game === 'tb') {
     if (n !== 2) errs.push('Toy Battle เล่นได้ 2 คนเท่านั้น');
     settings = `<p class="muted small">ทหารของเล่นคนละ 20 ตัว (8 แบบ) · ล้อมเขตเก็บเหรียญให้ครบ ${TB.OBJECTIVE} หรือยึด H.Q. ศัตรู ชนะทันที</p>`;
@@ -2533,6 +2557,49 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Hanabi ──
+const hnCard = (c, n, cls = '', attr = '') => `<${attr ? 'button' : 'span'} class="hnc ${c ? 'c-' + c : 'unk'} ${cls}" ${attr}><b>${n ?? '?'}</b>${c ? '' : '<i></i>'}</${attr ? 'button' : 'span'}>`;
+const hnKnow = k => { const t = []; if (k.c) t.push(HN.CNAME[k.c]); if (k.n) t.push(k.n);
+  const no = [...k.nc.map(c => HN.CNAME[c]), ...k.nn]; return `<small class="hnk">${t.join(' ') || ''}${no.length ? `<s>ไม่ใช่ ${no.join(',')}</s>` : ''}</small>`; };
+function hnLog(e) {
+  const P = s => `<b>${esc(pn(s))}</b>`, C = (c, n) => `<span class="hnt c-${c}">${HN.CNAME[c]} ${n}</span>`;
+  return e.t === 'play' ? `${P(e.sid)} ลง ${C(e.c, e.num)} ${e.ok ? '✔' : '💥 ผิด!'}` : e.t === 'disc' ? `${P(e.sid)} ทิ้ง ${C(e.c, e.num)} (+คำใบ้)`
+    : `${P(e.sid)} บอก ${P(e.to)}: มี${e.kind === 'c' ? `สี${HN.CNAME[e.v]}` : `เลข ${e.v}`} ${e.k} ใบ`;
+}
+function hnV() {
+  const h = S.pub.hn, v = S.priv, mine = me(), my = h.turn === mine && !h.over;
+  const fw = `<div class="hnfw">${HN.COLORS.map(c => `<div class="hnst c-${c}"><b>${h.fw[c] || '–'}</b><small>${HN.CNAME[c]}</small></div>`).join('')}</div>`;
+  const tok = `<div class="hntok"><span title="คำใบ้">💡 <b>${h.clues}</b>/${HN.CLUES}</span><span title="พลาดได้อีก">💣 ${'●'.repeat(HN.FUSES - h.fuses)}${'○'.repeat(h.fuses)}</span><span>กอง <b>${h.deck}</b></span><span>คะแนน <b>${h.score}</b>/25</span></div>`;
+  const recent = id => h.last && h.last.ids.includes(id) ? 'clued' : '';
+  const others = pl().filter(x => x.sid !== mine && v.others?.[x.sid]).map(x => {
+    const cards = v.others[x.sid], kn = h.know[x.sid], sel = S.hnTo === x.sid;
+    let clueBar = '';
+    if (sel) {
+      const cs = HN.COLORS.filter(c => cards.some(k => k.c === c)), ns = [1, 2, 3, 4, 5].filter(n => cards.some(k => k.n === n));
+      clueBar = `<div class="hnclue">${cs.map(c => `<button class="hnb c-${c}" data-act="hnclue" data-kind="c" data-v="${c}">${HN.CNAME[c]}</button>`).join('')}${ns.map(n => `<button class="hnb num" data-act="hnclue" data-kind="n" data-v="${n}">${n}</button>`).join('')}</div>`;
+    }
+    return `<section class="panel hnp ${x.sid === h.turn ? 'turn' : ''} ${sel ? 'sel' : ''}">
+      <${my && h.clues > 0 ? `button class="hnwho" data-act="hnto" data-sid="${x.sid}"` : 'div class="hnwho"'}>${av(x.sid, 'sm')}<b>${esc(x.name)}</b>${my && h.clues > 0 ? `<span class="muted small">${sel ? 'เลือกคำใบ้ ↓' : 'แตะเพื่อใบ้'}</span>` : ''}</${my && h.clues > 0 ? 'button' : 'div'}>
+      <div class="hnhand">${cards.map((c, i) => `<span class="hnslot">${hnCard(c.c, c.n, recent(c.id))}${hnKnow(kn[i].k)}</span>`).join('')}</div>${clueBar}</section>`;
+  }).join('');
+  const myKnow = h.know[mine] || [];
+  const myHand = `<section class="panel hnmine"><h2>ไพ่ของคุณ <span class="muted small">(มองไม่เห็น — ดูจากคำใบ้)</span></h2>
+    <div class="hnhand">${myKnow.map(x => `<span class="hnslot">${hnCard(x.k.c, x.k.n, `${S.hnI === x.id ? 'on' : ''} ${recent(x.id)}`, h.over ? '' : `data-act="hnsel" data-id="${x.id}"`)}${hnKnow({ ...x.k, c: null, n: null })}</span>`).join('')}</div>
+    ${my && S.hnI != null ? `<div class="row">${btn('hnplay', '🎆 ลงไพ่ใบนี้', 'primary')}${btn('hndisc', '🗑️ ทิ้ง (+คำใบ้)', 'ghost', {}, h.clues >= HN.CLUES)}</div>` : ''}</section>`;
+  const disc = h.disc.length ? `<section class="panel"><h2>ทิ้งแล้ว ${h.disc.length}</h2><div class="hndisc">${[...h.disc].sort().map(x => hnCard(x[0], +x.slice(1), 'sm')).join('')}</div></section>` : '';
+  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ol class="log">${[...h.log].reverse().map(e => `<li>${hnLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
+  if (h.over) {
+    const sc = h.why === 'boom' ? 0 : h.score;
+    const msg = sc === 25 ? 'ตำนาน! พลุสมบูรณ์แบบ' : sc >= 21 ? 'ยอดเยี่ยม' : sc >= 16 ? 'ดีมาก' : sc >= 11 ? 'พอใช้' : sc >= 6 ? 'ยังไหว' : 'แป้ก…';
+    return `<div class="banner ${sc >= 16 ? 'win' : 'lose'}"><div class="bt">${h.why === 'boom' ? '💥 พลุระเบิด! (พลาด 3 ครั้ง)' : `${sc} คะแนน`}</div><div>${h.why === 'boom' ? 'คะแนน 0' : msg}</div></div>
+      ${fw}${tok}<section class="panel"><h2>ไพ่ในมือตอนจบ</h2>${pl().map(x => `<p class="small"><b>${esc(x.name)}</b> ${(h.hands[x.sid] || []).map(c => hnCard(c[0], +c.slice(1), 'sm')).join(' ')}</p>`).join('')}</section>${logP}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  const help = my ? `<p class="ask center">👉 ตาคุณ — แตะไพ่ตัวเองเพื่อลง/ทิ้ง${h.clues ? ' หรือแตะชื่อเพื่อนเพื่อใบ้' : ' (คำใบ้หมด ต้องลงหรือทิ้ง)'}</p>`
+    : `<p class="muted center">รอ ${esc(pn(h.turn))}…${h.left !== null ? ` · ไพ่หมดกอง เหลืออีก ${h.left} ตา` : ''}</p>`;
+  return `${fw}${tok}${help}${myHand}${others}${disc}${logP}`;
+}
+
 // ── Toy Battle ──
 const TBI = { kwak: 'K', skully: '1', capn: '2', jumbo: '3', hook: '4', xb42: '5', star: '6', roxy: '7' };
 const tbTile = (t, cls = '', attr = '') => `<button class="tbt ${cls}" ${attr || 'disabled'}><b>${TB.TROOPS[t].s ?? '?'}</b><span>${TB.TROOPS[t].n}</span><small>${TB.TROOPS[t].d}</small></button>`;
@@ -2822,7 +2889,17 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'tb' ? `
+  const body = g === 'hn' ? `
+    <p><b>เป้าหมาย:</b> ช่วยกันจุดพลุ 5 สี แต่ละสีเรียง 1→5 คะแนนเต็ม 25</p>
+    <ol><li>ไพ่ 50 ใบ: 5 สี แต่ละสีมีเลข 1 ×3, 2 ×2, 3 ×2, 4 ×2, 5 ×1 · 2–3 คนถือคนละ 5 ใบ, 4–5 คนถือ 4 ใบ</li>
+    <li><b>คุณเห็นไพ่ทุกคน ยกเว้นของตัวเอง</b></li>
+    <li>ถึงตาคุณ เลือก 1 อย่าง:
+      <br>• <b>ใบ้</b> (ใช้ 💡 1): บอกเพื่อน 1 คนว่าไพ่ใบไหนบ้างเป็นสีหนึ่ง หรือเลขหนึ่ง (ต้องชี้อย่างน้อย 1 ใบ แอปบอกทุกใบที่ตรงให้อัตโนมัติ)
+      <br>• <b>ทิ้ง</b> 1 ใบ: ได้ 💡 คืน 1 (ทิ้งไม่ได้ถ้า 💡 เต็ม 8)
+      <br>• <b>ลง</b> 1 ใบ: ถ้าเป็นเลขถัดไปของสีนั้น พลุต่อได้ · ถ้าไม่ใช่ เสีย 💣 1 และทิ้งไพ่</li>
+    <li>ลงหรือทิ้งแล้วจั่วใบใหม่ (เข้ามือซ้ายสุด) · ลงเลข 5 สำเร็จได้ 💡 คืน 1</li>
+    <li>💣 พลาดครบ 3 ครั้ง = พลุระเบิด คะแนน 0 · ไพ่หมดกอง ทุกคนได้เล่นอีก 1 ตาแล้วจบ · ทำครบ 25 จบทันที</li>
+    <li>ห้ามบอกไพ่เพื่อนนอกจากใช้คำใบ้</li></ol>` : g === 'tb' ? `
     <p><b>เป้าหมาย:</b> ยึด H.Q. ศัตรู หรือเก็บเหรียญให้ครบ ${TB.OBJECTIVE} ก่อน</p>
     <ol><li>ทหารของเล่นคนละ 24 ตัว คัดออก 4 ตัวแบบไม่ดู เหลือ 20 ในกอง · คนเริ่มจั่ว 3 อีกคนจั่ว 4 · ชั้นวางเก็บได้สูงสุด ${TB.RACK}</li>
     <li>ถึงตาคุณ เลือก 1 อย่าง: <b>จั่ว 2 ตัว</b> หรือ <b>วางของเล่น 1 ตัว</b> แล้วใช้ความสามารถของมัน</li>
@@ -3027,7 +3104,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -3162,6 +3239,11 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  hnsel: d => { S.hnI = S.hnI === +d.id ? null : +d.id; S.hnTo = null; render(); },
+  hnto: d => { S.hnTo = S.hnTo === d.sid ? null : d.sid; S.hnI = null; render(); },
+  hnplay: () => { if (S.hnI != null) send({ t: 'hnplay', n: S.pub.hn.n, cid: S.hnI }); S.hnI = null; },
+  hndisc: () => { if (S.hnI != null) send({ t: 'hndisc', n: S.pub.hn.n, cid: S.hnI }); S.hnI = null; },
+  hnclue: d => { if (S.hnTo) send({ t: 'hnclue', n: S.pub.hn.n, to: S.hnTo, kind: d.kind, v: d.v }); S.hnTo = null; },
   tbsel: d => { S.tbI = S.tbI === +d.i ? null : +d.i; render(); },
   tbdraw: () => { send({ t: 'tbdraw', n: S.pub.tb.n }); S.tbI = null; },
   tbbase: d => {
@@ -3235,7 +3317,7 @@ const ACT = {
     send({ t: 'jclue', list });
   },
   jedit: () => { S.jedit = true; S.jc = [...(S.priv.mine || ['', ''])]; render(); },
-  jstrike: d => send({ t: 'jstrike', id: d.id }),
+  jstrike: d => send({ t: 'jstrike', cid: d.id }),
   jdone: () => { if (confirm('ตรวจครบแล้ว ส่งคำใบ้ให้คนทาย?')) send({ t: 'jdone' }); },
   jguess: () => { const t = (S.jg || '').trim(); if (!t) return toast('พิมพ์คำตอบก่อน'); if (confirm(`ตอบว่า “${t}” ?`)) send({ t: 'jguess', text: t }); },
   jpass: () => { if (confirm('ผ่านข้อนี้? (เสียการ์ดใบนี้)')) send({ t: 'jguess', text: null }); },
