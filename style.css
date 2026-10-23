@@ -816,3 +816,8 @@ button.hnwho { cursor: pointer; } .hnwho b { flex: 1; }
 .hnb.c-w, .hnb.c-y { color: #1d2230; } .hnb.num { background: var(--bg); border: 2px solid var(--line); color: var(--text); }
 .hndisc { display: flex; flex-wrap: wrap; gap: 4px; }
 .hnt { padding: 0 6px; border-radius: 6px; background: var(--hc); color: #fff; font-weight: 700; } .hnt.c-w, .hnt.c-y { color: #1d2230; }
+
+/* English words run longer than Thai ones */
+html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
+.spells { grid-template-columns: repeat(2, minmax(0, 1fr)); } .spell b, .spell small { overflow-wrap: anywhere; }
+.quests { grid-template-columns: repeat(5, minmax(0, 1fr)); } .qc { min-width: 0; } .qc small { overflow-wrap: anywhere; }

@@ -1313,7 +1313,7 @@ t('order overload: abilities and the 2-player game', () => {
   const g = OD.newGame(sids(2)); while (g.phase === 'read') OD.readNext(g);
   g.hand = { s0: ['cake'], s1: ['soda'] }; g.turn = 's0';
   assert.ok(!OD.useAbility(g, 's0', 'drop', 0), 'never your last card');
-  assert.ok(OD.useAbility(g, 's0', 'hint', 's1')); assert.deepEqual(g.hints[0], { by: 's0', to: 's1', ch: 'อ' });
+  assert.ok(OD.useAbility(g, 's0', 'hint', 's1')); assert.deepEqual(g.hints[0], { by: 's0', to: 's1', id: 'soda', ch: 'อ' });
   assert.ok(!OD.useAbility(g, 's0', 'hint', 's1'), 'once only');
   OD.call(g, 's0', 'mocha.H'); assert.equal(g.lives.s0, 1, 'two tokens with 2 players'); assert.equal(g.phase, 'play');
   OD.call(g, 's1', 'cake'); assert.equal(g.phase, 'clear', 'one empty hand clears a 2-player level');

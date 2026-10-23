@@ -1,18 +1,19 @@
 import { rint, shuffle } from './rng.js';
-import { WORDS, norm } from './words.js';
+import { wordList, norm } from './words.js';
 
 export const MIN = 3, MAX = 10, ROUNDS = 13, RECENT = 90;
 export const cluesPer = n => (n === 3 ? 2 : 1);
 
-export function newGame(sids, rounds = ROUNDS, recent = []) {
+export function newGame(sids, rounds = ROUNDS, recent = [], wl = 'th') {
+  const WORDS = wordList(wl);
   let pool = WORDS.map((_, i) => i).filter(i => !recent.includes(i));
   if (pool.length < rounds) pool = WORDS.map((_, i) => i);
   const deck = shuffle(pool).slice(0, rounds);
-  return { sids: [...sids], deck, i: 0, g0: rint(sids.length), turn: 0, score: 0, lost: 0, clues: {}, manual: {}, guess: null, log: [] };
+  return { sids: [...sids], wl, deck, i: 0, g0: rint(sids.length), turn: 0, score: 0, lost: 0, clues: {}, manual: {}, guess: null, log: [] };
 }
 
 export const guesser = g => g.sids[(g.g0 + g.turn) % g.sids.length];
-export const word = g => WORDS[g.deck[g.i]];
+export const word = g => wordList(g.wl)[g.deck[g.i]];
 export const givers = g => g.sids.filter(s => s !== guesser(g));
 
 export function setClues(g, s, list) {

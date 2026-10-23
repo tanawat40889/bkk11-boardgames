@@ -41,4 +41,7 @@ export const WORDS = [
   'บาสเกตบอล', 'วอลเลย์บอล', 'แบดมินตัน', 'เทนนิส', 'กอล์ฟ', 'ปิงปอง', 'โบว์ลิ่ง', 'ว่ายน้ำ', 'ดำน้ำ', 'ตกปลา', 'ปีนเขา', 'วิ่งมาราธอน', 'โยคะ', 'เต้นรำ', 'หมากรุก', 'คริสต์มาส', 'ฮาโลวีน', 'วาเลนไทน์', 'ตรุษจีน', 'งานวัด', 'รับปริญญา', 'ปิกนิก', 'เซลฟี่',
 ];
 
+import { WORDS_EN } from './words-en.js';
+export { WORDS_EN };
+export const wordList = wl => (wl === 'en' ? WORDS_EN : WORDS);
 export const norm = s => String(s || '').normalize('NFC').toLowerCase().replace(/[\s​.,!?\-_'"()]/g, '');

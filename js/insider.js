@@ -1,16 +1,17 @@
 import { rint } from './rng.js';
-import { WORDS } from './words.js';
+import { wordList } from './words.js';
 
 export const MIN = 4, MAX = 10, RECENT = 60;
 export const ROLE = { master: '🎓 ผู้คุมเกม', insider: '🕵️ อินไซเดอร์', common: '🙂 คนทั่วไป' };
 
-export function deal(sids, master, recent = []) {
+export function deal(sids, master, recent = [], wl = 'th') {
+  const WORDS = wordList(wl);
   let pool = WORDS.map((_, i) => i).filter(i => !recent.includes(i));
   if (!pool.length) pool = WORDS.map((_, i) => i);
   const wi = pool[rint(pool.length)];
   const others = sids.filter(s => s !== master);
   const insider = others[rint(others.length)];
-  return { sids: [...sids], master, insider, wi, word: WORDS[wi], guesser: null, v1: {}, v2: {}, cand: null, result: null, used: 0, ready: [] };
+  return { sids: [...sids], master, insider, wi, wl, word: WORDS[wi], guesser: null, v1: {}, v2: {}, cand: null, result: null, used: 0, ready: [] };
 }
 
 export const roleOf = (g, s) => (s === g.master ? 'master' : s === g.insider ? 'insider' : 'common');

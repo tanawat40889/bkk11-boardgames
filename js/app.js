@@ -24,6 +24,9 @@ import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
 import { rint, shuffle } from './rng.js';
+import { lang, setLang, translate, t as T, setNames, setGame } from './i18n.js';
+// dialogs bypass the page, so translate them here
+const confirm = m => window.confirm(T(m)), prompt = (m, v) => window.prompt(T(m), v);
 
 const app = document.getElementById('app');
 const now = () => Date.now();
@@ -46,6 +49,7 @@ function setTheme(t) {
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', getComputedStyle(document.documentElement).backgroundColor);
 }
 const curTheme = () => (THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'violet');
+const langPicker = () => `<div class="seg langs notr">${[['th', 'ไทย'], ['en', 'English']].map(([k, n]) => `<button class="${lang === k ? 'on' : ''}" data-act="lang" data-l="${k}">${n}</button>`).join('')}</div>`;
 const themePicker = () => `<div class="themes">${Object.entries(THEMES).map(([k, [n, h]]) =>
   `<button class="tsw ${curTheme() === k ? 'on' : ''}" style="--th:${h}" data-act="theme" data-t="${k}" aria-label="ธีมสี${n}" title="${n}"></button>`).join('')}</div>`;
 
@@ -133,7 +137,7 @@ function newHost(room, game, name) {
   return {
     room, game, phase: 'lobby', round: 0, endsAt: null, paused: null, g: null, recent: [],
     players: [{ sid: 's' + uid(6), pid: S.pid, name, seen: now() }],
-    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 }, od: { sec: 3 } },
+    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 }, od: { sec: 3 }, wl: lang },
   };
 }
 
@@ -145,7 +149,7 @@ function deckNow() {
 function pubOf() {
   const t = now(), g = H.g;
   const p = {
-    v: 1, room: H.room, game: H.game, phase: H.phase, round: H.round, host: H.players[0].sid,
+    v: 1, room: H.room, game: H.game, phase: H.phase, round: H.round, host: H.players[0].sid, wl: H.wl || 'th',
     players: H.players.map(x => ({ sid: x.sid, name: x.name, on: isOn(x) })),
     set: { ...H.settings, deck: H.game === 'onuw' ? deckNow() : null, ucc: ucCounts() },
   };
@@ -897,7 +901,7 @@ function hostAct(m, p) {
       }
       break;
     case 'guess':
-      if (H.phase === 'play' && g.spies.includes(sid) && Number.isInteger(m.loc) && SF.LOCATIONS[m.loc]) endSpy({ by: sid, loc: m.loc });
+      if (H.phase === 'play' && g.spies.includes(sid) && Number.isInteger(m.loc) && SF.locs(H.wl)[m.loc]) endSpy({ by: sid, loc: m.loc });
       break;
   }
 }
@@ -936,7 +940,7 @@ const HA = {
     if (H.phase !== 'cteam') return;
     const e = CN.validTeams(g.sids, g);
     if (e.length) return toast(e[0]);
-    H.g = CN.newGame(g.sids, g, H.recentCN || []);
+    H.g = CN.newGame(g.sids, g, H.recentCN || [], H.wl);
     H.recentCN = [...H.g.idx, ...(H.recentCN || [])].slice(0, CN.RECENT);
     H.phase = 'cn';
     broadcast();
@@ -999,6 +1003,7 @@ const HA = {
       broadcast();
     }
   },
+  wl(d) { if (H.phase === 'lobby' && (d.l === 'th' || d.l === 'en')) { H.settings.wl = d.l; broadcast(); } },
   set(d) {
     const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1] }[d.k];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
@@ -1010,6 +1015,7 @@ const HA = {
   start() {
     const sids = H.players.map(p => p.sid), n = sids.length, G = GAMES[H.game];
     if (n < G.min || n > G.max) return toast(`${G.s} ต้องมีผู้เล่น ${G.min}–${G.max} คน`);
+    H.wl = H.settings.wl || 'th';   // word-list language is fixed for the whole round
     if (H.game === 'onuw') {
       const deck = deckNow(), e = WW.validate(deck, n);
       if (e.length) return toast(e[0]);
@@ -1019,7 +1025,7 @@ const HA = {
     } else if (H.game === 'ins') {
       H.inm = (H.inm ?? rint(n)) + 1;
       const master = sids[H.inm % n];
-      H.g = IN.deal(sids, master, H.recentIN || []);
+      H.g = IN.deal(sids, master, H.recentIN || [], H.wl);
       H.recentIN = [H.g.wi, ...(H.recentIN || [])].slice(0, IN.RECENT);
       H.phase = 'iword';
       H.endsAt = null;
@@ -1064,7 +1070,7 @@ const HA = {
       H.phase = 'sk';
       H.endsAt = null;
     } else if (H.game === 'jo') {
-      H.g = JO.newGame(sids, H.settings.jo.rounds, H.recentJO || []);
+      H.g = JO.newGame(sids, H.settings.jo.rounds, H.recentJO || [], H.wl);
       H.recentJO = [...H.g.deck, ...(H.recentJO || [])].slice(0, JO.RECENT);
       H.phase = 'jclue';
       H.endsAt = null;
@@ -1077,12 +1083,12 @@ const HA = {
     } else if (H.game === 'uc') {
       const c = ucCounts(), e = UC.validate(n, c.uc, c.white);
       if (e.length) return toast(e[0]);
-      H.g = UC.deal(sids, c.uc, c.white, H.recentUC || []);
+      H.g = UC.deal(sids, c.uc, c.white, H.recentUC || [], H.wl);
       H.recentUC = [H.g.pair, ...(H.recentUC || [])].slice(0, UC.RECENT);
       H.phase = 'uword';
       H.endsAt = null;
     } else {
-      const d = SF.deal(sids, H.settings.spyfall.spies, H.recent);
+      const d = SF.deal(sids, H.settings.spyfall.spies, H.recent, H.wl);
       H.recent = [d.loc, ...H.recent].slice(0, SF.RECENT);
       H.g = { ...d, sids, result: null };
       H.phase = 'play';
@@ -1248,6 +1254,7 @@ function startHost() {
   H.settings.ins ||= { min: 5 };
   H.settings.ct ||= { sec: 8 };
   H.settings.od ||= { sec: 3 };
+  H.settings.wl ||= 'th';
   H.settings.jo ||= { rounds: 13 };
   S.conn.sub('in', hostIn);
   S.conn.onStatus = on => {
@@ -1361,6 +1368,7 @@ function setupView() {
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
     <section class="panel"><label for="name">ชื่อของคุณ</label>
       <input id="name" maxlength="16" autocomplete="nickname" placeholder="เช่น ต้น" value="${esc(S.name)}"></section>
+    <section class="panel"><h2>ภาษา · Language</h2>${langPicker()}</section>
     <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
     ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}</div>
   </main>`;
@@ -1381,6 +1389,7 @@ function settingsView() {
     <label for="sname">ชื่อของคุณ</label>
     <div class="row"><input id="sname" maxlength="16" autocomplete="nickname" value="${esc(S.sname ?? S.name)}">${btn('savename', 'บันทึก', 'primary', {}, !cleanName(S.sname ?? S.name) || cleanName(S.sname ?? S.name) === S.name)}</div>
     ${inRoom ? '<p class="muted small">คนอื่นในห้องจะเห็นชื่อใหม่ทันที</p>' : ''}
+    <h3>ภาษา · Language</h3>${langPicker()}
     <h3>สีธีม</h3>${themePicker()}
     <p class="muted small">สีธีมเปลี่ยนเฉพาะเครื่องนี้ คนอื่นในห้องเลือกสีของตัวเองได้</p>
   </div></div>`;
@@ -1503,6 +1512,8 @@ function pickerView() {
   </div></div>`;
 }
 
+// games whose secret words / places come from a word list (the room picks the list's language)
+const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn']);
 function lobby() {
   const p = S.pub, n = pl().length, host = isHostView(), G = GAMES[p.game];
   let settings = '', errs = [];
@@ -1614,12 +1625,13 @@ function lobby() {
       ? `${stepper('spyfall.min', 'เวลาต่อรอบ', p.set.spyfall.min, ' นาที')}
          ${stepper('spyfall.spies', 'จำนวนสปาย', spies, ' คน')}
          ${p.set.spyfall.spies > ms ? '<p class="muted small">สปาย 2 คนใช้ได้เมื่อมีผู้เล่น 7 คนขึ้นไป</p>' : ''}`
-      : `<p class="muted small">รอบละ ${p.set.spyfall.min} นาที · สปาย ${spies} คน · ${SF.LOCATIONS.length} สถานที่</p>`;
+      : `<p class="muted small">รอบละ ${p.set.spyfall.min} นาที · สปาย ${spies} คน · ${SF.locs(S.pub.wl).length} สถานที่</p>`;
   }
   return `
     <section class="panel gamesel">
       <div class="ghero">${gbadge(p.game)}<div><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที</small>${fitBadge(G, n)}</div></div>
       <div class="row">${btn('rules', '📖 วิธีเล่น', 'ghost')}${host ? btn('pick', '🎲 เปลี่ยนเกม', 'ghost') : ''}</div>
+      ${WORDY.has(p.game) ? `<div class="gset"><h3>ภาษาของคำในเกม</h3>${host ? `<div class="seg notr">${[['th', 'ไทย'], ['en', 'English']].map(([k, nm]) => `<button class="${(p.set.wl || 'th') === k ? 'on' : ''}" data-act="wl" data-l="${k}">${nm}</button>`).join('')}</div>` : `<p class="muted small">${p.set.wl === 'en' ? 'English' : 'ไทย'}</p>`}</div>` : ''}
       ${settings ? `<div class="gset"><h3>ตั้งค่าเกม</h3>${settings}</div>` : ''}
     </section>
     <section class="panel"><h2>ผู้เล่น <span class="muted">${n}/${G.max}</span></h2>${players({ kick: host })}</section>
@@ -1744,14 +1756,14 @@ function resultV() {
 }
 
 function locGrid(clickable) {
-  return `<div class="locs ${S.guess ? 'guessing' : ''}">${SF.LOCATIONS.map((l, i) => `<button class="loc ${S.crossed.has(i) ? 'x' : ''}" data-act="${clickable}" data-i="${i}"><span>${l.e}</span><b>${esc(l.n)}</b></button>`).join('')}</div>`;
+  return `<div class="locs ${S.guess ? 'guessing' : ''}">${SF.locs(S.pub.wl).map((l, i) => `<button class="loc ${S.crossed.has(i) ? 'x' : ''}" data-act="${clickable}" data-i="${i}"><span>${l.e}</span><b>${esc(l.n)}</b></button>`).join('')}</div>`;
 }
 
 function playV() {
   const p = S.pub, v = S.priv, host = isHostView();
   const card = v.spy
     ? `<span class="spy">${art('spy', 'red')}<span class="rn">คุณคือสปาย</span><span class="rd">ฟังคำถามคำตอบ แล้วเดาให้ได้ว่าทุกคนอยู่ที่ไหน · อย่าให้ใครจับได้${p.nspies > 1 ? ' · รอบนี้มีสปาย 2 คน (ไม่รู้ว่าอีกคนคือใคร)' : ''}</span></span>`
-    : `<span class="spyloc"><span class="remo">${SF.LOCATIONS[v.loc].e}</span><span class="rn">${esc(SF.LOCATIONS[v.loc].n)}</span><span class="team">บทบาท: ${esc(v.role)}</span><span class="rd">ตอบคำถามให้คนอื่นรู้ว่าคุณรู้สถานที่ แต่อย่าชัดจนสปายเดาได้</span></span>`;
+    : `<span class="spyloc"><span class="remo">${SF.locs(S.pub.wl)[v.loc].e}</span><span class="rn">${esc(SF.locs(S.pub.wl)[v.loc].n)}</span><span class="team">บทบาท: ${esc(v.role)}</span><span class="rd">ตอบคำถามให้คนอื่นรู้ว่าคุณรู้สถานที่ แต่อย่าชัดจนสปายเดาได้</span></span>`;
   return `<div class="timer big" data-timer></div>
     ${host ? `<div class="row">${btn('pause', p.paused != null ? '▶︎ เล่นต่อ' : '⏸ หยุดเวลา', 'ghost')}${btn('reveal', '🔍 เฉลย / จบรอบ', 'primary')}</div>` : ''}
     <p class="center first">🎤 <b>${esc(pn(p.first))}</b> เริ่มถามก่อน</p>
@@ -1765,11 +1777,11 @@ function playV() {
 }
 
 function revealV() {
-  const R = S.pub.result, L = SF.LOCATIONS[R.loc], host = isHostView();
+  const R = S.pub.result, L = SF.locs(S.pub.wl)[R.loc], host = isHostView();
   let verdict = 'หมดเวลา/เฉลยแล้ว — ถ้าโหวตจับสปายได้ ฝ่ายชาวบ้านชนะ ถ้าจับผิดคน สปายชนะ';
   if (R.guess) verdict = R.guess.ok
-    ? `🕵️ ${esc(pn(R.guess.by))} เดาว่า “${esc(SF.LOCATIONS[R.guess.loc].n)}” — ถูกต้อง! สปายชนะ`
-    : `🕵️ ${esc(pn(R.guess.by))} เดาว่า “${esc(SF.LOCATIONS[R.guess.loc].n)}” — ผิด! ฝ่ายชาวบ้านชนะ`;
+    ? `🕵️ ${esc(pn(R.guess.by))} เดาว่า “${esc(SF.locs(S.pub.wl)[R.guess.loc].n)}” — ถูกต้อง! สปายชนะ`
+    : `🕵️ ${esc(pn(R.guess.by))} เดาว่า “${esc(SF.locs(S.pub.wl)[R.guess.loc].n)}” — ผิด! ฝ่ายชาวบ้านชนะ`;
   return `<div class="banner ${R.guess ? (R.guess.ok ? 'lose' : 'win') : ''}"><div class="remo">${L.e}</div><div class="bt">${esc(L.n)}</div>
       <div>สปาย: <b>${R.spies.map(s => esc(pn(s))).join(', ')}</b></div></div>
     <p class="center">${verdict}</p>
@@ -1998,7 +2010,7 @@ function shBoard() {
 const shMine = () => secret(shRole(), 'แตะเพื่อดูบทบาทของคุณ');
 function shLog() {
   const h = S.pub.sh, L = h.lastVote;
-  const line = e => e.t === 'policy' ? `ออกกฎหมาย${e.p === 'L' ? 'เสรีนิยม 🕊️' : 'ฟาสซิสต์ 🦅'}${e.gov ? ` (ประธาน ${esc(pn(e.pres))} · นายกฯ ${esc(pn(e.chan))})` : ' (เลือกตั้งล้มเหลว 3 ครั้ง)'}`
+  const line = e => e.t === 'policy' ? `${e.p === 'L' ? 'ออกกฎหมายเสรีนิยม 🕊️' : 'ออกกฎหมายฟาสซิสต์ 🦅'}${e.gov ? ` (ประธาน ${esc(pn(e.pres))} · นายกฯ ${esc(pn(e.chan))})` : ' (เลือกตั้งล้มเหลว 3 ครั้ง)'}`
     : e.t === 'vote' ? `เลือกตั้ง ${esc(pn(e.pres))} + ${esc(pn(e.chan))}: ${e.ok ? 'ผ่าน' : 'ไม่ผ่าน'}` : e.t === 'kill' ? `ประธาน ${esc(pn(e.pres))} ประหาร ${esc(pn(e.target))}`
     : e.t === 'investigate' ? `ประธาน ${esc(pn(e.pres))} ตรวจฝ่ายของ ${esc(pn(e.target))}` : e.t === 'special' ? `ประธาน ${esc(pn(e.pres))} เลือก ${esc(pn(e.target))} เป็นประธานคนถัดไป` : `วีโต้ — ทิ้งนโยบายทั้งคู่`;
   return `${L ? `<section class="panel"><h2>โหวตล่าสุด: ${esc(pn(L.pres))} + ${esc(pn(L.chan))} — ${L.ok ? 'ผ่าน' : 'ไม่ผ่าน'}</h2><div class="chips">${Object.entries(L.votes).map(([s, v]) => `<span class="who">${av(s, 'sm')}${esc(pn(s))} <b class="${v ? 'ok-text' : 'warn'}">${v ? '✔' : '✘'}</b></span>`).join('')}</div></section>` : ''}
@@ -2083,7 +2095,7 @@ function tcV() {
   const slapped = t.slap?.done.includes(mine);
   const L = t.last;
   const last = L ? (L.why === 'false' ? `<div class="alert center">${esc(pn(L.loser))} ตบผิดจังหวะ! เก็บ ${L.took} ใบ</div>`
-    : L.why === 'slow' ? `<div class="info center">${L.first ? `⚡ ${esc(pn(L.first))} ไวสุด · ` : ''}${esc(pn(L.loser))} ช้าสุด เก็บ ${L.took} ใบ</div>` : '') : '';
+    : L.why === 'slow' ? `<div class="info center">${L.first ? `<span>⚡ ${esc(pn(L.first))} ไวสุด ·</span> ` : ''}<span>${esc(pn(L.loser))} ช้าสุด เก็บ ${L.took} ใบ</span></div>` : '') : '';
   if (t.winner) return `<div class="banner ${t.winner === mine ? 'win' : 'lose'}"><div class="bt">${t.winner === mine ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>🏆 ${esc(pn(t.winner))} ไพ่หมดและตบไวที่สุด</div></div>
     <section class="panel"><ul class="players">${pl().map(x => `<li>${av(x.sid)}<span class="pname">${esc(x.name)}</span><span class="skst">🂠 ${t.n[x.sid]}</span></li>`).join('')}</ul></section>
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
@@ -2564,7 +2576,7 @@ const hnKnow = k => { const t = []; if (k.c) t.push(HN.CNAME[k.c]); if (k.n) t.p
 function hnLog(e) {
   const P = s => `<b>${esc(pn(s))}</b>`, C = (c, n) => `<span class="hnt c-${c}">${HN.CNAME[c]} ${n}</span>`;
   return e.t === 'play' ? `${P(e.sid)} ลง ${C(e.c, e.num)} ${e.ok ? '✔' : '💥 ผิด!'}` : e.t === 'disc' ? `${P(e.sid)} ทิ้ง ${C(e.c, e.num)} (+คำใบ้)`
-    : `${P(e.sid)} บอก ${P(e.to)}: มี${e.kind === 'c' ? `สี${HN.CNAME[e.v]}` : `เลข ${e.v}`} ${e.k} ใบ`;
+    : `${P(e.sid)} บอก ${P(e.to)}: ${e.k} ใบเป็น${e.kind === 'c' ? `สี${HN.CNAME[e.v]}` : `เลข ${e.v}`}`;
 }
 function hnV() {
   const h = S.pub.hn, v = S.priv, mine = me(), my = h.turn === mine && !h.over;
@@ -2721,7 +2733,8 @@ function rrV() {
       ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
   }
   let main = '';
-  if (!alive) main = '<section class="panel center"><p>ทีมคุณตกรอบแล้ว ดูต่อได้</p></section>';
+  // (an eliminated host still runs the round: the score screen with its button must stay)
+  if (!alive && r.phase !== 'score') main = '<section class="panel center"><p>ทีมคุณตกรอบแล้ว ดูต่อได้</p></section>';
   else if (r.phase === 'pocket') main = v.pocket ? '<section class="panel center"><p>✔ เก็บการ์ดเข้ากระเป๋าแล้ว รอคนอื่น…</p></section>'
     : `<section class="panel"><h2>1. เก็บการ์ด 1 ใบเข้ากระเป๋า</h2><p class="small muted">เก็บ "แชะ" = เล่นซื่อ · เก็บ "ปัง!" = โกง ปืนจะไม่มีกระสุน แต่ถ้าโดนจับ ลูกทีมตาย</p>
       <div class="row rrpick"><button class="rrbig click" data-act="rrpocket" data-c="C"><b>แชะ</b><small>เล่นซื่อ</small></button>${v.gun.b ? '<button class="rrbig bang" data-act="rrpocket" data-c="B"><b>ปัง!</b><small>โกง 🤫</small></button>' : ''}</div></section>`;
@@ -2761,7 +2774,7 @@ function odV() {
       ${av(x.sid, 'sm')}<b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b>
       <span class="ost">${gi('cards', 'inl')}${o.n[x.sid]} ${Array.from({ length: OD.lives0(n) }, (_, i) => `<span class="osm ${i < o.lives[x.sid] ? '' : 'off'}">${i < o.lives[x.sid] ? '☺' : '☹'}</span>`).join('')}</span></div>`).join('')}</div>`;
   const last = o.last ? `<p class="center olast ${o.last.hit ? 'ok' : 'bad'}">${esc(pn(o.last.by))} เรียก <b>${OD.MENU[o.last.item].n}</b> — ${o.last.hit ? `${esc(pn(o.last.hit))} เสิร์ฟแล้ว ✔` : 'ไม่มีใครมี ✘ หน้ายิ้มคว่ำ'}</p>` : '';
-  const hints = o.hints.length ? `<section class="panel"><h2>คำใบ้</h2>${o.hints.map(h => `<p class="small">${esc(pn(h.to))} มีออร์เดอร์ที่ขึ้นต้นด้วย <b class="och">${esc(h.ch)}</b></p>`).join('')}</section>` : '';
+  const hints = o.hints.length ? `<section class="panel"><h2>คำใบ้</h2>${o.hints.map(h => `<p class="small">${esc(pn(h.to))} มีออร์เดอร์ที่ขึ้นต้นด้วย <b class="och notr">${esc(lang === 'en' && h.id ? T(OD.MENU[h.id].n)[0] : h.ch)}</b></p>`).join('')}</section>` : '';
   const table = o.table.length ? `<section class="panel"><h2>เสิร์ฟแล้ว ${o.table.length} ใบ</h2><div class="otable">${o.table.map(t => odCard(t.item, 'sm')).join('')}</div></section>` : '';
   if (o.phase === 'clear' || o.phase === 'over') {
     const win = o.phase === 'clear' || o.over === 'win';
@@ -3045,7 +3058,7 @@ function rulesView() {
     <li>โหวตออกทีละคน คนที่ถูกโหวตออกจะถูกเปิดเผยบทบาท · ถ้าเสมอ โหวตใหม่เฉพาะคนที่เสมอ ถ้ายังเสมอ รอบนั้นไม่มีใครออก</li>
     <li><b>🎩 Mr. White</b> ไม่ได้คำเลย ถ้าถูกโหวตออก ได้ทายคำของพลเมือง ทายถูก = ชนะทันที</li></ol>
     <p><b>พลเมืองชนะ</b> เมื่อ Undercover และ Mr. White ออกหมด · <b>Undercover ชนะ</b> เมื่อเหลือพลเมืองแค่ 1 คน</p>
-    <p class="muted small">คู่คำ ${UC.PAIRS.length} คู่ · ไม่วนซ้ำภายใน ${UC.RECENT} รอบ</p>` : g === 'onuw' ? `
+    <p class="muted small">คู่คำ ${UC.pairs(S.pub.wl).length} คู่ · ไม่วนซ้ำภายใน ${UC.RECENT} รอบ</p>` : g === 'onuw' ? `
     <p><b>เป้าหมาย:</b> ฝ่ายชาวบ้านต้องโหวตฆ่าหมาป่าให้ได้อย่างน้อย 1 ตัว ฝ่ายหมาป่าต้องรอดทุกตัว</p>
     <ol><li>ทุกคนดูบทบาทของตัวเอง (มีการ์ดเกิน 3 ใบวางกลาง)</li>
     <li><b>กลางคืน:</b> ระบบเรียกบทบาทตามลำดับ ใครถึงตาจะเห็นปุ่มให้ทำ คนอื่นแตะการ์ดหลอกไปเรื่อยๆ ทุกบทบาทใช้เวลาเท่ากันแม้การ์ดนั้นอยู่ตรงกลาง</li>
@@ -3116,6 +3129,7 @@ function render() {
   lastHtml = html;
   app.innerHTML = html;
   sideLayout();
+  if (lang === 'en') { setNames(pl().map(x => x.name).concat(S.name || [])); setGame(S.pub?.game); translate(app); }
   if (S.enter) { S.enter = false; lastHtml = html.replace(' enter">', ' ">'); }
   if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
   // Player buttons get that player's coloured badge.
@@ -3131,7 +3145,7 @@ function tickTimers() {
   const p = S.pub;
   const t = p.paused != null ? `⏸ ${fmt(p.paused)}` : S.endsAt ? fmt(S.endsAt - now()) : '';
   const low = p.paused == null && S.endsAt && S.endsAt - now() < 30000;
-  els.forEach(e => { e.textContent = t || (p.phase === 'play' ? 'หมดเวลา' : ''); e.classList.toggle('low', !!low); });
+  els.forEach(e => { e.textContent = t || (p.phase === 'play' ? T('หมดเวลา') : ''); e.classList.toggle('low', !!low); });
 }
 setInterval(tickTimers, 250);
 
@@ -3152,6 +3166,7 @@ const ACT = {
   leave: () => { if (confirm(S.isHost ? 'ออกและปิดห้องนี้? ทุกคนจะหลุดจากห้อง' : 'ออกจากห้อง?')) leave(); },
   rules: () => { S.rules = !S.rules; render(); },
   noop: () => {},
+  lang: d => { setLang(d.l); lastHtml = null; render(); },
   setupdone: () => { const n = cleanName(S.name); if (!n) { S.err = 'ใส่ชื่อของคุณก่อน'; render(); document.getElementById('name')?.focus(); return; } S.name = n; LS.set('bg_name', n); S.setup = false; S.err = ''; render(); },
   settings: () => { S.settings = !S.settings; S.sname = null; render(); },
   savename: () => {
@@ -3335,7 +3350,7 @@ const ACT = {
   loc: d => {
     const i = +d.i;
     if (S.guess && S.priv.spy) {
-      if (confirm(`เดาว่าเป็น “${SF.LOCATIONS[i].n}” ? (จบรอบทันที)`)) send({ t: 'guess', loc: i });
+      if (confirm(`เดาว่าเป็น “${SF.locs(S.pub.wl)[i].n}” ? (จบรอบทันที)`)) send({ t: 'guess', loc: i });
       return;
     }
     S.crossed.has(i) ? S.crossed.delete(i) : S.crossed.add(i);

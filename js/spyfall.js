@@ -1,4 +1,5 @@
 import { shuffle, pick } from './rng.js';
+import { LOCATIONS_EN } from './spyfall-en.js';
 
 // Every location has 10 distinct roles -> up to 10 non-spy players, never a duplicate role.
 export const LOCATIONS = [
@@ -54,7 +55,9 @@ export const maxSpies = n => (n >= 7 ? 2 : 1);
 // Don't repeat a location for this many rounds.
 export const RECENT = 12;
 
-export function deal(sids, spyCount = 1, recent = []) {
+export const locs = wl => (wl === 'en' ? LOCATIONS_EN : LOCATIONS);
+export function deal(sids, spyCount = 1, recent = [], wl = 'th') {
+  const LOCATIONS = locs(wl);
   if (sids.length < MIN || sids.length > MAX) throw new Error('bad player count');
   spyCount = Math.min(Math.max(1, spyCount), maxSpies(sids.length));
   let pool = LOCATIONS.map((_, i) => i).filter(i => !recent.includes(i));

@@ -1,11 +1,13 @@
 import { shuffle, rint } from './rng.js';
-import { WORDS, norm } from './words.js';
+import { wordList, norm } from './words.js';
 
 // Codenames: two teams, each spymaster gives one-word clues for their team's words on a 5x5 grid.
 export const MIN = 4, MAX = 10, RECENT = 150;
 const width = w => [...w.normalize('NFC')].filter(c => !/\p{M}/u.test(c)).length;
 // Short words only so they fit a 5-column phone grid.
-export const POOL = WORDS.map((w, i) => i).filter(i => width(WORDS[i]) <= 8 && !WORDS[i].includes(' '));
+const pools = {};
+export const poolFor = wl => (pools[wl] ||= wordList(wl).map((w, i) => i).filter(i => { const w = wordList(wl)[i]; return !w.includes(' ') && (wl === 'en' ? w.length <= 10 : width(w) <= 8); }));
+export const POOL = poolFor('th');
 export const other = t => (t === 'r' ? 'b' : 'r');
 export const TEAM = { r: '🔴 แดง', b: '🔵 น้ำเงิน' };
 
@@ -25,7 +27,8 @@ export function validTeams(sids, t) {
   return e;
 }
 
-export function newGame(sids, t, recent = []) {
+export function newGame(sids, t, recent = [], wl = 'th') {
+  const POOL = poolFor(wl), WORDS = wordList(wl);
   let pool = POOL.filter(i => !recent.includes(i));
   if (pool.length < 25) pool = [...POOL];
   const idx = shuffle(pool).slice(0, 25);

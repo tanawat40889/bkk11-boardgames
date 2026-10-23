@@ -83,7 +83,7 @@ export function useAbility(g, s, kind, arg) {
     const t = arg;
     if (t === s || !g.sids.includes(t) || !g.hand[t].length) return false;
     const card = g.hand[t][rint(g.hand[t].length)];
-    g.hints.push({ by: s, to: t, ch: firstConsonant(MENU[card].n) });
+    g.hints.push({ by: s, to: t, id: card, ch: firstConsonant(MENU[card].n) });
   }
   g.used[s].push(kind);
   if (!check(g)) { if (!canCall(g, g.turn)) nextTurn(g); }

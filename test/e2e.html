@@ -65,7 +65,11 @@ const only = Q.get('games')?.split(',');
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rnd = n => Math.floor(Math.random() * n);
-const WORDS = ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
+// ?lang=en plays every game with the English UI and reports any Thai text left on screen
+const EN_UI = new URLSearchParams(location.search).get('lang') === 'en';
+try { EN_UI ? localStorage.setItem('bg_lang', 'en') : localStorage.removeItem('bg_lang'); } catch {}
+const WORDS = EN_UI ? ['red', 'big', 'eat', 'fly', 'water', 'hot', 'fast', 'round', 'sweet', 'loud', 'soft', 'tall']
+  : ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
 // Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
 const SKIP = new Set(['qr', 'settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
   'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
@@ -75,9 +79,9 @@ const RARE = { cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, 
 function fill(doc) {
   const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
   set('wg', WORDS[rnd(WORDS.length)]);
-  set('jc0', WORDS[rnd(WORDS.length)]); set('jc1', WORDS[rnd(WORDS.length)] + 'ๆ');
+  set('jc0', WORDS[rnd(WORDS.length)]); set('jc1', WORDS[rnd(WORDS.length)] + (EN_UI ? 's' : 'ๆ'));
   set('jg', WORDS[rnd(WORDS.length)]);
-  set('cw', 'ใบ้' + 'กขคงจฉชซ'[rnd(8)] + 'อ' + 'กขคงจฉชซ'[rnd(8)]);
+  set('cw', EN_UI ? 'hint' + 'bcdfgk'[rnd(6)] + 'a' + 'mnprst'[rnd(6)] : 'ใบ้' + 'กขคงจฉชซ'[rnd(8)] + 'อ' + 'กขคงจฉชซ'[rnd(8)]);
 }
 // ── UI audit: looks at what is actually drawn on a phone-sized screen and reports layout problems ──
 const UI = Q.get('ui') !== '0';
@@ -98,6 +102,16 @@ function audit(win, found) {
   // 2. placeholder text that leaked into the UI
   const txt = doc.body.innerText;
   const leak = txt.match(/undefined|\bNaN\b|\[object Object\]|\$\{|\bnull\b/);
+  if (EN_UI) {   // Thai left on an English screen (the language picker's own "ไทย" is fine)
+    const w = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const v = n.nodeValue.replace(/\s+/g, ' ').trim();
+      if (/[\u0E00-\u0E7F]/.test(v) && !n.parentElement.closest('.notr, script, style') && n.parentElement.closest('body')) add('Thai text', v.slice(0, 90));
+    }
+    for (const el of doc.querySelectorAll('[title], [placeholder], [aria-label]')) for (const a of ['title', 'placeholder', 'aria-label']) {
+      const v = el.getAttribute(a); if (v && /[\u0E00-\u0E7F]/.test(v)) add('Thai attribute', a + ': ' + v.slice(0, 80));
+    }
+  }
   if (leak) add('broken text', 'body', leak[0] + ' … ' + txt.slice(Math.max(0, leak.index - 30), leak.index + 30).replace(/\s+/g, ' '));
   const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && win.getComputedStyle(el).visibility !== 'hidden' && !el.closest('details:not([open])'); };
   for (const el of doc.querySelectorAll(BOXES)) {
@@ -141,7 +155,7 @@ function scoutTurn(doc) {
   }
   if (!q('[data-act=scshow]')) return false;         // not my turn
   const hand = qa('[data-act=sccard]').map(c => [+c.querySelector('b').textContent, 0]);
-  const tablePanel = qa('.panel').find(p => p.querySelector('h2')?.textContent.startsWith('บนโต๊ะ'));
+  const tablePanel = qa('.panel').find(p => /^(บนโต๊ะ|On the table)/.test(p.querySelector('h2')?.textContent || ''));
   const active = tablePanel ? [...tablePanel.querySelectorAll('.scard b')].map(b => [+b.textContent, 0]) : [];
   const ac = active.length ? SC.classify(active) : null;
   let best = null;

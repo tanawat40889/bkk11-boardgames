@@ -1,4 +1,5 @@
 import { shuffle, rint } from './rng.js';
+import { PAIRS_EN } from './undercover-en.js';
 
 // Similar-but-different word pairs. Which side goes to civilians is random each round.
 export const PAIRS = [
@@ -380,7 +381,9 @@ export function validate(n, uc, white) {
   return e;
 }
 
-export function deal(sids, uc, white, recent = []) {
+export const pairs = wl => (wl === 'en' ? PAIRS_EN : PAIRS);
+export function deal(sids, uc, white, recent = [], wl = 'th') {
+  const PAIRS = pairs(wl);
   let pool = PAIRS.map((_, i) => i).filter(i => !recent.includes(i));
   if (!pool.length) pool = PAIRS.map((_, i) => i);
   const pair = pool[rint(pool.length)];
