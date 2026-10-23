@@ -821,3 +821,19 @@ button.hnwho { cursor: pointer; } .hnwho b { flex: 1; }
 html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
 .spells { grid-template-columns: repeat(2, minmax(0, 1fr)); } .spell b, .spell small { overflow-wrap: anywhere; }
 .quests { grid-template-columns: repeat(5, minmax(0, 1fr)); } .qc { min-width: 0; } .qc small { overflow-wrap: anywhere; }
+
+/* Home: game badges floating up in the background */
+.floaters { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.fl { position: absolute; left: var(--x); bottom: calc(-1 * var(--s) - 20px); animation: fl-rise var(--t) linear var(--d) infinite; will-change: transform, opacity; }
+.fl .gemo { width: var(--s); height: var(--s); animation: fl-sway calc(var(--t) / 4) ease-in-out var(--d) infinite alternate; filter: saturate(.9) blur(.4px); }
+@keyframes fl-rise {
+  0% { transform: translateY(0) rotate(var(--r)); opacity: 0; }
+  12% { opacity: .2; }
+  80% { opacity: .2; }
+  100% { transform: translateY(calc(-100dvh - 2 * var(--s) - 40px)) rotate(calc(var(--r) * -1)); opacity: 0; }
+}
+@keyframes fl-sway { from { transform: translateX(calc(var(--w) * -1)); } to { transform: translateX(var(--w)); } }
+.home { position: relative; z-index: 1; }
+.gstrip { display: none; }
+@media (prefers-reduced-motion: reduce) { .fl, .fl .gemo { animation: none; } .fl { bottom: auto; top: calc(var(--x) * .9); opacity: .12; } }
+.home .panel, .home .hello { background: hsl(var(--h) 32% 17% / .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }

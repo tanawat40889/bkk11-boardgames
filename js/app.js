@@ -1361,8 +1361,13 @@ const btn = (act, label, cls = '', data = {}, dis = false) =>
   `<button class="btn ${cls}" data-act="${act}" ${Object.entries(data).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} ${dis ? 'disabled' : ''}>${label}</button>`;
 
 // First visit: pick a name and a colour before anything else.
+// Home background: every game's badge drifting up slowly and faintly (all motion is CSS; this only spreads them out).
+const floaters = () => `<div class="floaters" aria-hidden="true">${Object.keys(GAMES).map((k, i, a) => {
+  const t = 22 + ((i * 7) % 15);   // 22–36 s per trip
+  return `<span class="fl" style="--x:${(i * 61 + 7) % 96}%;--t:${t}s;--d:${-((i * t) / a.length).toFixed(1)}s;--s:${44 + ((i * 13) % 40)}px;--r:${((i % 5) - 2) * 9}deg;--w:${10 + (i % 4) * 8}px">${gbadge(k)}</span>`;
+}).join('')}</div>`;
 function setupView() {
-  return `<main class="wrap home setup">
+  return `${floaters()}<main class="wrap home setup">
     <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ!</h1><p>ตั้งชื่อและเลือกสีที่ชอบก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙ ตั้งค่า</p></header></div>
     <div class="hcol hr">
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
@@ -1399,7 +1404,7 @@ function home() {
   if (S.setup) return setupView();
   const last = LS.get('bg_last', null);
   const lastOk = last && now() - last.t < 12 * 3600e3;
-  return `<main class="wrap home">
+  return `${floaters()}<main class="wrap home">
     <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>BKK11 Boardgames</h1><p>ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน</p></header>
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
     <button class="hello" data-act="settings">${S.name ? `<span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...S.name][0])}</span><span>สวัสดี <b>${esc(S.name)}</b></span>` : '<span>ตั้งชื่อของคุณ</span>'}<span class="gear">${gi('gear')} ตั้งค่า</span></button></div>
@@ -1408,7 +1413,6 @@ function home() {
       ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div></section>
     <section class="panel"><h2>สร้างห้องใหม่</h2>
       ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}
-      <div class="gstrip">${Object.keys(GAMES).map(k => gbadge(k, 'xs')).join('')}</div>
       <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
     ${installHint()}</div>
   </main>
