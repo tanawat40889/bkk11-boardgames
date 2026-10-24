@@ -1698,6 +1698,14 @@ t('coup: steal, ambassador exchange, winner', () => {
   g.hand.s1[0].up = true; g.turn = 's0'; g.coins.s0 = 7; CP.declare(g, 's0', 'coup', 's1'); CP.loseCard(g, 's1', 1);
   assert.equal(g.winner, 's0'); assert.equal(g.phase, 'over');
 });
+t('coup: response windows get their own id; host can step past a quiet player', () => {
+  const g = CP.newGame(sids(4), 0); cpSet(g, 's0', 'duke', 'duke'); cpSet(g, 's1', 'captain', 'contessa');
+  CP.declare(g, 's0', 'tax'); const w = g.w;
+  CP.respond(g, 's1', 'pass'); assert.equal(g.w, w, 'answers in the same window keep its id');
+  CP.respond(g, 's2', 'pass'); CP.respond(g, 's3', 'pass'); assert.notEqual(g.w, w);
+  g.coins.s1 = 7; CP.declare(g, 's1', 'coup', 's2'); assert.equal(g.phase, 'lose');
+  assert.ok(CP.forceStep(g)); assert.ok(g.hand.s2[0].up); assert.equal(g.turn, 's2');
+});
 t('coup: 3000 random games end with one survivor; cards conserved', () => {
   for (let k = 0; k < 3000; k++) {
     const g = CP.newGame(sids(2 + rint(5)), 0);

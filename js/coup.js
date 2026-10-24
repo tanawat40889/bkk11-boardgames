@@ -18,7 +18,7 @@ export function newGame(sids, first = 0) {
   const deck = shuffle(CARDS.flatMap(c => [c, c, c])), hand = {}, coins = {};
   for (const s of sids) { hand[s] = [{ c: deck.pop(), up: false }, { c: deck.pop(), up: false }]; coins[s] = START; }
   if (sids.length === 2) coins[sids[first]] = 1;   // 2-player rule: the starting player begins with 1 coin
-  return { sids: [...sids], deck, hand, coins, turn: sids[first], phase: 'turn', pend: null, block: null, resp: {}, lose: [], after: null, chal: null, pool: null, n: 0, log: [], winner: null };
+  return { sids: [...sids], deck, hand, coins, turn: sids[first], phase: 'turn', pend: null, block: null, resp: {}, lose: [], after: null, chal: null, pool: null, n: 0, w: 0, log: [], winner: null };
 }
 
 export const alive = (g, s) => !!g.hand[s]?.some(c => !c.up);
@@ -44,7 +44,7 @@ export function declare(g, s, act, t = null) {
   if (A.cost > g.coins[s]) return false;
   g.coins[s] -= A.cost;
   g.pend = { actor: s, act, t: A.target ? t : null, paid: A.cost };
-  g.block = null; g.chal = null; g.resp = {}; g.n++;
+  g.block = null; g.chal = null; g.resp = {}; g.w++; g.n++;
   log(g, { t: 'act', sid: s, act, to: g.pend.t });
   if (act === 'income') { g.coins[s]++; return endTurn(g), true; }
   if (act === 'coup') { queueLose(g, t); g.after = 'end'; return proceed(g), true; }
@@ -65,7 +65,7 @@ export function respond(g, s, kind, card) {
   if (kind === 'chal' && g.phase === 'chal') { g.n++; challenge(g, s, p.actor, ACTS[p.act].claim, 'blockstage', 'fail'); return true; }
   if (kind === 'chal' && g.phase === 'bchal') { g.n++; challenge(g, s, g.block.by, g.block.card, 'end', 'resolve'); return true; }
   if (kind === 'block' && g.phase === 'block' && ACTS[p.act].blockBy.includes(card)) {
-    g.block = { by: s, card }; g.resp = {}; g.phase = 'bchal'; g.n++;
+    g.block = { by: s, card }; g.resp = {}; g.w++; g.phase = 'bchal'; g.n++;
     log(g, { t: 'block', sid: s, card });
     return true;
   }
@@ -125,7 +125,7 @@ export function loseCard(g, s, i) {
 function startBlock(g) {
   const A = ACTS[g.pend.act];
   if (!alive(g, g.pend.actor)) return endTurn(g);
-  g.resp = {};
+  g.resp = {}; g.w++;
   if (!A.blockBy) return resolve(g);
   g.phase = 'block';
   if (!responders(g).length) resolve(g);
@@ -160,6 +160,13 @@ export function exchange(g, s, keep) {
   return true;
 }
 
+// Host override when a player has gone quiet: reveal their first face-down card / keep their current cards.
+export function forceStep(g) {
+  if (g.phase === 'lose') return loseCard(g, g.lose[0], g.hand[g.lose[0]].findIndex(x => !x.up));
+  if (g.phase === 'exch') { const n = g.hand[g.pend.actor].filter(x => !x.up).length; return exchange(g, g.pend.actor, [...Array(n).keys()]); }
+  return passAll(g);
+}
+
 function checkWin(g) {
   const l = live(g);
   if (l.length === 1) { g.winner = l[0]; g.phase = 'over'; g.lose = []; return true; }
@@ -167,7 +174,7 @@ function checkWin(g) {
 }
 function endTurn(g) {
   if (checkWin(g)) return;
-  g.phase = 'turn'; g.resp = {}; g.lose = []; g.after = null;
+  g.phase = 'turn'; g.resp = {}; g.w++; g.lose = []; g.after = null;
   const i = g.sids.indexOf(g.turn);
   for (let k = 1; k <= g.sids.length; k++) { const s = g.sids[(i + k) % g.sids.length]; if (alive(g, s)) { g.turn = s; break; } }
 }

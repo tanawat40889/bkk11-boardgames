@@ -205,7 +205,7 @@ function pubOf() {
     } else if (H.game === 'cp') {
       p.cp = {
         phase: g.phase, turn: g.turn, coins: g.coins, pend: g.pend, block: g.block, chal: g.chal, n: g.n, winner: g.winner,
-        lose: g.lose[0] || null, waiting: CP.waiting(g), deck: g.deck.length, log: g.log.slice(-8), nl: g.log.length,
+        lose: g.lose[0] || null, waiting: CP.waiting(g), w: g.w, deck: g.deck.length, log: g.log.slice(-8), nl: g.log.length,
         cards: Object.fromEntries(g.sids.map(x => [x, g.hand[x].map(c => (c.up || g.winner ? { c: c.c, up: c.up } : { c: null, up: false }))])),
       };
     } else if (H.game === 'hn') {
@@ -763,7 +763,8 @@ function hostAct(m, p) {
       break;
     }
     case 'cpact': case 'cpresp': case 'cplose': case 'cpexch': {
-      if (H.phase !== 'cp' || m.n !== g.n) break;   // a tap made on an older screen
+      // answers in a challenge/block window come from several players at once, so they are matched to the window, not the move
+      if (H.phase !== 'cp' || (m.t === 'cpresp' ? m.w !== g.w : m.n !== g.n)) break;
       const ok = m.t === 'cpact' ? CP.declare(g, sid, m.act, m.to) : m.t === 'cpresp' ? CP.respond(g, sid, m.kind, m.card)
         : m.t === 'cplose' ? CP.loseCard(g, sid, +m.i) : CP.exchange(g, sid, m.keep);
       if (ok) broadcast();
@@ -1168,7 +1169,7 @@ const HA = {
   lfnext() { if (H.phase === 'lf' && LF.next(H.g)) { lfClock(); broadcast(); } },
   rrnext() { if (H.phase === 'rr' && RR.nextRound(H.g)) broadcast(); },
   rrgo() { const g = H.g; if (H.phase === 'rr' && g.phase === 'challenge') { for (const s of RR.players(g)) if (!g.cdone[s]) RR.ready(g, s); rrClock(); broadcast(); } },
-  cppass() { if (H.phase === 'cp' && CP.passAll(H.g)) broadcast(); },
+  cppass() { if (H.phase === 'cp' && CP.forceStep(H.g)) broadcast(); },
   odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
   ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
   cttovote() { if (H.phase === 'ct' && CZ.toVote(H.g)) broadcast(); },
@@ -2643,11 +2644,11 @@ function cpV() {
     else if (c.phase === 'bchal') act = `<section class="panel cpwin"><p>${what}</p><p><b>${esc(pn(c.block.by))}</b> บล็อกด้วย <b>${CPC[c.block.card][0]}</b></p>${wait ? `<div class="row">${btn('cpresp', '🫵 ท้าการบล็อก', 'primary', { k: 'chal' })}${btn('cpresp', 'เชื่อ ผ่าน', 'ghost', { k: 'pass' })}</div>` : `<p class="muted small">รอคนอื่นตัดสินใจ (${c.waiting.length})</p>`}${host}</section>`;
     else if (c.phase === 'lose') act = c.lose === mine
       ? `<section class="panel cpwin"><h2>💔 คุณเสียอิทธิพล — เลือกการ์ดที่จะเปิดทิ้ง</h2><div class="cphand">${v.hand.map((k, i) => (k.up ? cpCard(k.c, 'dead') : cpCard(k.c, '', `data-act="cplose" data-i="${i}"`))).join('')}</div></section>`
-      : `<p class="muted center">รอ ${esc(pn(c.lose))} เลือกการ์ดที่จะเปิดทิ้ง…</p>`;
+      : `<p class="muted center">รอ ${esc(pn(c.lose))} เลือกการ์ดที่จะเปิดทิ้ง…</p>${isHostView() ? btn('cppass', '⏭ เปิดใบแรกให้แทน (ถ้าเขาหลุด)', 'ghost wide') : ''}`;
     else if (c.phase === 'exch') {
       const need = v.hand.filter(k => !k.up).length;
       act = v.pool ? `<section class="panel cpwin"><h2>🔄 เลือกเก็บ ${need} ใบ</h2><div class="cphand">${v.pool.map((k, i) => cpCard(k, S.cpKeep.includes(i) ? 'on' : '', `data-act="cpkeep" data-i="${i}"`)).join('')}</div>${btn('cpexch', `✔ เก็บใบที่เลือก (${S.cpKeep.length}/${need})`, 'primary wide', {}, S.cpKeep.length !== need)}</section>`
-        : `<p class="muted center">รอ ${esc(pn(p.actor))} แลกการ์ด…</p>`;
+        : `<p class="muted center">รอ ${esc(pn(p.actor))} แลกการ์ด…</p>${isHostView() ? btn('cppass', '⏭ เก็บการ์ดเดิมให้แทน (ถ้าเขาหลุด)', 'ghost wide') : ''}`;
     }
   }
   if (c.chal && c.phase !== 'turn') act = `<p class="center cpres ${c.chal.truth ? 'ok' : 'bad'}">${esc(pn(c.chal.ch))} ท้า ${esc(pn(c.chal.cl))} — ${c.chal.truth ? `มี${CPC[c.chal.card][0]}จริง!` : 'โกหก!'}</p>` + act;
@@ -3347,7 +3348,7 @@ const ACT = {
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
   cpact: d => { const A = CP.ACTS[d.a]; if (A.target) { S.cpAct = S.cpAct === d.a ? null : d.a; return render(); } send({ t: 'cpact', n: S.pub.cp.n, act: d.a }); S.cpAct = null; },
   cpto: d => { if (S.cpAct) send({ t: 'cpact', n: S.pub.cp.n, act: S.cpAct, to: d.sid }); S.cpAct = null; },
-  cpresp: d => send({ t: 'cpresp', n: S.pub.cp.n, kind: d.k, card: d.c || null }),
+  cpresp: d => send({ t: 'cpresp', w: S.pub.cp.w, kind: d.k, card: d.c || null }),
   cplose: d => send({ t: 'cplose', n: S.pub.cp.n, i: +d.i }),
   cpkeep: d => { const i = +d.i; S.cpKeep = S.cpKeep.includes(i) ? S.cpKeep.filter(x => x !== i) : [...S.cpKeep, i]; render(); },
   cpexch: () => { send({ t: 'cpexch', n: S.pub.cp.n, keep: S.cpKeep }); S.cpKeep = []; },
