@@ -1217,6 +1217,7 @@ function setOnline(on) {
 function hello() { S.conn?.send('in', { t: 'join', pid: S.pid, name: S.name }); }
 
 function startClient() {
+  S.online = true; S.offSince = 0;
   const c = S.conn;
   c.sub('pub', (v, raw) => { S.hostSeen = now(); S.pubH = hash(raw); return !v || v.closed ? leave('เจ้าของห้องปิดห้องแล้ว') : applyPub(v); });
   c.sub('p/' + S.pid, (v, raw) => {
@@ -1249,6 +1250,7 @@ function startClient() {
 }
 
 function startHost() {
+  S.online = true; S.offSince = 0;   // a fresh connection is up
   H.settings.uc ||= { auto: true, uc: 1, white: 0 };
   H.settings.av ||= AV.defaults();
   H.settings.ins ||= { min: 5 };
@@ -1341,6 +1343,7 @@ function leave(msg = '') {
       LS.del('bg_host_' + H.room);
     } else S.conn.send('in', { t: 'leave', pid: S.pid });
     const c = S.conn;
+    c.onStatus = null;
     setTimeout(() => c.end(), 400);
   }
   clearInterval(hostTimer); clearInterval(pingTimer);

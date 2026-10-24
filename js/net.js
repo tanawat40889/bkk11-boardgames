@@ -60,7 +60,7 @@ export class Room {
       if (s) try { v = JSON.parse(s); } catch { return; }
       try { f(v, s); } catch (e) { console.error(e); }
     });
-    const down = () => { if (!this.online) return; this.online = false; this.drops++; this.onStatus?.(false); };
+    const down = () => { if (!this.online || this.ended) return; this.online = false; this.drops++; this.onStatus?.(false); };
     c.on('offline', down);
     c.on('close', down);
     c.on('connect', () => { this.online = true; this.onStatus?.(true); });
@@ -69,7 +69,8 @@ export class Room {
   send(k, v, retain = false) { this.c.publish(this.base + k, v == null ? '' : JSON.stringify(v), { qos: 1, retain }); }
   // mqtt.js already retries every second; only nudge it when it is truly idle (a second reconnect() would open a duplicate socket).
   kick() { if (!this.c.connected && !this.c.reconnecting) this.c.reconnect(); }
-  end() { this.c.end(); }
+  // a room we left on purpose must not report itself as dropped (that used to mark the next room offline)
+  end() { this.ended = true; this.onStatus = null; this.c.end(); }
 }
 
 const free = v => !v || v.closed;
