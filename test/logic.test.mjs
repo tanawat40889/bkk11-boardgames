@@ -22,6 +22,7 @@ import * as RR from '../js/roulette.js';
 import * as LF from '../js/lift.js';
 import * as TB from '../js/toybattle.js';
 import * as HN from '../js/hanabi.js';
+import * as CP from '../js/coup.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1636,6 +1637,90 @@ t('hanabi: 3000 random games end; cards are never lost or duplicated', () => {
       assert.ok(g.clues >= 0 && g.clues <= 8 && g.fuses >= 0);
     }
     assert.ok(['boom', 'deck', 'perfect'].includes(g.why));
+  }
+});
+
+const cpSet = (g, s, a, b) => { g.hand[s] = [{ c: a, up: false }, { c: b, up: false }]; };
+t('coup: setup, income, foreign aid, must coup at 10', () => {
+  const g = CP.newGame(sids(4), 0);
+  for (const s of g.sids) { assert.equal(g.hand[s].length, 2); assert.equal(g.coins[s], 2); }
+  assert.equal(g.deck.length + 8, 15);
+  const two = CP.newGame(sids(2), 1); assert.equal(two.coins.s1, 1); assert.equal(two.coins.s0, 2);
+  assert.ok(!CP.declare(g, 's1', 'income'), 'not your turn');
+  assert.ok(CP.declare(g, 's0', 'income')); assert.equal(g.coins.s0, 3); assert.equal(g.turn, 's1');
+  assert.ok(CP.declare(g, 's1', 'aid')); assert.equal(g.phase, 'block');
+  for (const s of ['s0', 's2', 's3']) CP.respond(g, s, 'pass');
+  assert.equal(g.coins.s1, 4); assert.equal(g.turn, 's2');
+  g.coins.s2 = 10; assert.ok(!CP.declare(g, 's2', 'income'), 'must coup'); assert.ok(!CP.declare(g, 's2', 'coup', 's2'));
+  assert.ok(CP.declare(g, 's2', 'coup', 's3')); assert.equal(g.coins.s2, 3); assert.equal(g.phase, 'lose');
+  assert.ok(!CP.loseCard(g, 's0', 0)); assert.ok(CP.loseCard(g, 's3', 1)); assert.ok(g.hand.s3[1].up); assert.equal(g.turn, 's3');
+});
+t('coup: challenges both ways, the truthful card is swapped', () => {
+  const g = CP.newGame(sids(3), 0);
+  cpSet(g, 's0', 'duke', 'captain'); cpSet(g, 's1', 'contessa', 'assassin'); cpSet(g, 's2', 'ambassador', 'duke');
+  CP.declare(g, 's0', 'tax'); assert.equal(g.phase, 'chal');
+  CP.respond(g, 's1', 'chal');
+  assert.ok(g.chal.truth); assert.equal(g.phase, 'lose'); assert.deepEqual(g.lose, ['s1']);
+  assert.equal(g.deck.length, 9, 'the shown duke went back and a new card was drawn');
+  CP.loseCard(g, 's1', 0); assert.equal(g.coins.s0, 5, 'tax still happens'); assert.equal(g.turn, 's1');
+  CP.declare(g, 's1', 'tax');
+  CP.respond(g, 's2', 'chal'); assert.ok(!g.chal.truth); assert.deepEqual(g.lose, ['s1']);
+  CP.loseCard(g, 's1', 1); assert.ok(!CP.alive(g, 's1')); assert.equal(g.coins.s1, 2, 'no tax for a bluff'); assert.equal(g.turn, 's2');
+});
+t('coup: assassination, contessa block, bluffed block costs two influence', () => {
+  const g = CP.newGame(sids(3), 0);
+  cpSet(g, 's0', 'assassin', 'duke'); cpSet(g, 's1', 'captain', 'duke'); cpSet(g, 's2', 'contessa', 'ambassador');
+  g.coins.s0 = 6;
+  assert.ok(CP.declare(g, 's0', 'assn', 's2')); assert.equal(g.coins.s0, 3);
+  CP.respond(g, 's1', 'pass'); CP.respond(g, 's2', 'pass'); assert.equal(g.phase, 'block'); assert.deepEqual(CP.responders(g), ['s2']);
+  CP.respond(g, 's2', 'block', 'contessa'); assert.equal(g.phase, 'bchal');
+  CP.respond(g, 's0', 'pass'); CP.respond(g, 's1', 'pass');
+  assert.equal(g.turn, 's1', 'blocked'); assert.ok(CP.alive(g, 's2')); assert.equal(g.coins.s0, 3, 'coins stay spent when blocked');
+  // s1 bluffs contessa against s0's assassination later
+  g.turn = 's0'; g.phase = 'turn'; g.coins.s0 = 3; cpSet(g, 's1', 'captain', 'duke');
+  CP.declare(g, 's0', 'assn', 's1'); CP.passAll(g);
+  CP.respond(g, 's1', 'block', 'contessa'); CP.respond(g, 's0', 'chal');
+  assert.ok(!g.chal.truth); assert.equal(g.phase, 'lose');
+  CP.loseCard(g, 's1', 0); assert.equal(g.phase, 'lose', 'then the assassination lands'); CP.loseCard(g, 's1', 1);
+  assert.ok(!CP.alive(g, 's1'));
+  const h = CP.newGame(sids(3), 0); cpSet(h, 's0', 'duke', 'duke'); h.coins.s0 = 3;
+  CP.declare(h, 's0', 'assn', 's1'); CP.respond(h, 's1', 'chal'); assert.equal(h.coins.s0, 3, 'a bluffed assassination is refunded');
+});
+t('coup: steal, ambassador exchange, winner', () => {
+  const g = CP.newGame(sids(2), 0);
+  cpSet(g, 's0', 'captain', 'ambassador'); cpSet(g, 's1', 'duke', 'duke'); g.coins.s0 = 2; g.coins.s1 = 1;
+  CP.declare(g, 's0', 'steal', 's1'); CP.respond(g, 's1', 'pass'); CP.respond(g, 's1', 'pass');
+  assert.equal(g.coins.s0, 3); assert.equal(g.coins.s1, 0, 'takes only what there is');
+  CP.declare(g, 's1', 'income'); CP.declare(g, 's0', 'exch'); CP.respond(g, 's1', 'pass');
+  assert.equal(g.phase, 'exch'); const pool = CP.exchPool(g, 's0'); assert.equal(pool.length, 4);
+  assert.ok(!CP.exchange(g, 's0', [0])); assert.ok(CP.exchange(g, 's0', [2, 3]));
+  assert.deepEqual(g.hand.s0.map(x => x.c), [pool[2], pool[3]]); assert.equal(g.deck.length, 11);
+  g.hand.s1[0].up = true; g.turn = 's0'; g.coins.s0 = 7; CP.declare(g, 's0', 'coup', 's1'); CP.loseCard(g, 's1', 1);
+  assert.equal(g.winner, 's0'); assert.equal(g.phase, 'over');
+});
+t('coup: 3000 random games end with one survivor; cards conserved', () => {
+  for (let k = 0; k < 3000; k++) {
+    const g = CP.newGame(sids(2 + rint(5)), 0);
+    let steps = 0;
+    while (!g.winner) {
+      assert.ok(++steps < 3000, 'never ends');
+      if (g.phase === 'turn') {
+        const s = g.turn, others = CP.live(g).filter(x => x !== s), t = others[rint(others.length)];
+        const acts = Object.keys(CP.ACTS).filter(a => CP.ACTS[a].cost <= g.coins[s] && (g.coins[s] < 10 || a === 'coup'));
+        assert.ok(CP.declare(g, s, acts[rint(acts.length)], t));
+      } else if (g.phase === 'lose') { const s = g.lose[0]; const i = g.hand[s].findIndex(x => !x.up); assert.ok(CP.loseCard(g, s, i)); }
+      else if (g.phase === 'exch') { const n = g.hand[g.pend.actor].filter(x => !x.up).length; assert.ok(CP.exchange(g, g.pend.actor, [...Array(n).keys()].map(i => i + 1))); }
+      else {
+        const s = CP.waiting(g)[0], r = rint(6);
+        if (r === 0) assert.ok(CP.respond(g, s, 'chal') || g.phase === 'block');
+        else if (r === 1 && g.phase === 'block') assert.ok(CP.respond(g, s, 'block', CP.ACTS[g.pend.act].blockBy[0]));
+        else if (CP.waiting(g).includes(s)) assert.ok(CP.respond(g, s, 'pass'));
+      }
+      const cards = g.deck.length + (g.pool?.length || 0) + g.sids.reduce((a, s) => a + g.hand[s].length, 0);
+      assert.equal(cards, 15);
+      for (const s of g.sids) assert.ok(g.coins[s] >= 0);
+    }
+    assert.equal(CP.live(g).length, 1);
   }
 });
 
