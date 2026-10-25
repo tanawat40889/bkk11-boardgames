@@ -877,3 +877,56 @@ html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
 .itc b { font-size: 1.3rem; } .itc small { font-size: .68rem; color: var(--muted); } .itc em { font-style: normal; font-size: .72rem; max-width: 90px; text-align: center; overflow-wrap: anywhere; }
 .itc.bad { background: #ff5d7322; border-color: var(--bad); }
 .itlast { padding: 8px 12px; border-radius: 12px; background: #0003; } .itlast.ok { color: var(--ok); } .itlast.bad { color: var(--bad); }
+
+/* ── Wine theme (default) ── */
+:root[data-theme=wine] { --h: 350; --sm: .88; --lm: .86; --bg: #4a1c26; --bg2: #5b2430; --card: #652936; --line: #7e3a48; --text: #fff2f3; --muted: #dba8b0; --accent: #e5484d; --accent2: #f6e27a; }
+:root[data-theme=wine] body { background: radial-gradient(120% 70% at 30% -10%, #6e2a37 0%, var(--bg) 55%) fixed; }
+:root[data-theme=wine] .panel { border-color: #ffffff14; }
+:root[data-theme=wine] .btn.primary { background: linear-gradient(160deg, #f0605f, #d53a46); border-color: transparent; box-shadow: 0 6px 18px #e5484d55; }
+
+/* ── Home (dashboard style) ── */
+.home2 .floaters { opacity: .7; }
+.htop { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 0 4px; }
+.greet { margin: 0; font-size: 1.35rem; font-weight: 500; color: #ff8a92; } .greet b { color: var(--text); font-weight: 700; }
+.ib.me { width: 48px; height: 48px; padding: 0; } .ib.me .av { width: 40px; height: 40px; font-size: 1.1rem; }
+.joinbar { display: flex; align-items: center; gap: 10px; margin: 12px 0 16px; padding: 6px 6px 6px 18px; border-radius: 99px; background: var(--bg2); border: 1px solid var(--line); }
+.joinbar > .gi { opacity: .6; flex: none; }
+.joinbar input { flex: 1; min-width: 0; border: 0; background: transparent; box-shadow: none; padding: 8px 0; letter-spacing: .12em; font-weight: 600; }
+.joinbar input::placeholder { letter-spacing: 0; font-weight: 400; }
+.joinbar .btn { border-radius: 99px; min-height: 44px; padding: 0 20px; }
+.hero { position: relative; overflow: hidden; border-radius: 28px; padding: 22px 20px 20px; min-height: 260px; color: #fff;
+  background: radial-gradient(90% 120% at 100% 30%, hsl(var(--gh) 70% 45% / .55), transparent 60%), linear-gradient(125deg, #ef6461, #cf3d4b 55%, #8c2738);
+  box-shadow: 0 18px 40px #0005, inset 0 0 0 1px #ffffff1f; }
+.hero h2 { position: relative; z-index: 1; margin: 12px 0 6px; font-size: 2rem; line-height: 1.1; max-width: 70%; }
+.hero p { position: relative; z-index: 1; margin: 0 0 12px; max-width: 62%; font-size: .88rem; line-height: 1.45; color: #ffe9ea; }
+.hchips, .hmeta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 99px; background: #0000002e; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.chip.yel { background: #f6e27a; color: #3d2400; }
+.hbtns { position: relative; z-index: 1; margin-top: 14px; } .hbtns .btn { background: #fff; color: #b8303f; box-shadow: 0 6px 16px #0004; border-radius: 99px; }
+.hbtns .ib { background: #ffffff33; border-color: #ffffff55; color: #fff; font-size: 1.4rem; }
+.hart { position: absolute; right: -26px; bottom: -22px; z-index: 0; transform: rotate(-12deg); }
+.hart .gemo { width: 190px; height: 190px; border-radius: 44px; box-shadow: 0 24px 50px #0006, inset 0 0 0 3px #ffffff40; animation: floaty 5s ease-in-out infinite; }
+.sechead { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 0 10px; } .sechead h2 { margin: 0; font-size: 1.25rem; }
+.hscroll { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 14px; margin: 0 -16px; padding-left: 16px; scrollbar-width: none; }
+.hscroll::-webkit-scrollbar { display: none; }
+.gcard2 { flex: none; width: 148px; min-height: 196px; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 3px; padding: 14px; border-radius: 24px; border: 0; color: #fff; text-align: left; font: inherit; cursor: pointer; position: relative; overflow: hidden;
+  background: linear-gradient(165deg, hsl(var(--gh) 62% 48%), hsl(var(--gh) 55% 24%)); box-shadow: 0 10px 24px #0005, inset 0 0 0 1px #ffffff26; }
+.gcard2 .gemo { position: absolute; top: 14px; left: 14px; width: 64px; height: 64px; }
+.gcard2 b { font-size: 1.02rem; line-height: 1.2; } .gcard2 small { font-size: .74rem; opacity: .85; }
+.gcard2:active, .rec:active { transform: scale(.97); }
+.reclist { display: grid; gap: 10px; }
+.rec { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border-radius: 22px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.rec .gemo { width: 56px; height: 56px; border-radius: 16px; flex: none; } .rec span { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.rec small { color: var(--muted); font-size: .78rem; } .rec i { font-style: normal; font-size: 1.5rem; color: var(--muted); }
+.cta { margin-top: 16px; border-radius: 24px; } .cta h2 { margin-top: 0; }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) {
+  main.wrap.home.home2 { max-width: 1180px; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 28px; align-items: start; min-height: 0; padding-top: 28px; }
+  .home2 .hero { min-height: 320px; padding: 30px 30px 26px; } .home2 .hero h2 { font-size: 2.6rem; }
+  .home2 .hart .gemo { width: 260px; height: 260px; border-radius: 60px; } .home2 .hart { right: -10px; bottom: -30px; }
+  .home2 .hscroll { margin: 0; padding-left: 2px; } .home2 .hr { padding-top: 64px; }
+}
+.hero .hbtns .btn.primary { flex: none; background: #fff; color: #b8303f; box-shadow: 0 6px 16px #0004; padding: 0 22px; }
+.hero .hbtns { display: flex; align-items: center; gap: 10px; }
+.hero .hbtns .ib { display: grid; place-items: center; flex: none; }
+.joinbar input.code-in { text-align: left; font-size: 1rem; }
+@media (max-width: 600px) { .hart { right: -34px; bottom: -34px; } .hart .gemo { width: 130px; height: 130px; border-radius: 32px; } .hero h2 { font-size: 1.75rem; max-width: 80%; } .hero p { max-width: 74%; } }

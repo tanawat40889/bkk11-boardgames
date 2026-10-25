@@ -71,7 +71,7 @@ try { EN_UI ? localStorage.setItem('bg_lang', 'en') : localStorage.removeItem('b
 const WORDS = EN_UI ? ['red', 'big', 'eat', 'fly', 'water', 'hot', 'fast', 'round', 'sweet', 'loud', 'soft', 'tall']
   : ['แดง', 'ใหญ่', 'กิน', 'บิน', 'น้ำ', 'ร้อน', 'เร็ว', 'กลม', 'หวาน', 'ดัง', 'นุ่ม', 'สูง'];
 // Never clicked by the bot: navigation, settings, harmless toggles and host overrides.
-const SKIP = new Set(['qr', 'settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
+const SKIP = new Set(['playg', 'feat', 'qr', 'settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
   'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
 // Clicked rarely so games still make progress.
 const RARE = { ittheme: 0.05, cppass: 0.05, cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3, ctfinish: 0.02, cttovote: 0.3, ctstart: 0.3, rracc: 0.15, rrgo: 0.05 };
@@ -119,7 +119,7 @@ function audit(win, found) {
     if (!vis(el)) continue;
     const r = el.getBoundingClientRect(), cs = win.getComputedStyle(el);
     // 3. sticking out of the screen (side-scrolling strips are fine)
-    if ((r.right > W + 1 || r.left < -1) && !el.closest('.tabs')) add('off screen', el, `left ${Math.round(r.left)} right ${Math.round(r.right)} (screen ${W})`);
+    if ((r.right > W + 1 || r.left < -1) && !el.closest('.tabs, .hscroll')) add('off screen', el, `left ${Math.round(r.left)} right ${Math.round(r.right)} (screen ${W})`);
     // 4. content bigger than its box (text cut off or spilling out)
     // (a winner banner's moving shine is a clipped decoration, not content)
     if (!el.matches('.banner.win') && cs.textOverflow !== 'ellipsis' && (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 3) && cs.display !== 'inline' && el.clientWidth > 0)

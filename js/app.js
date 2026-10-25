@@ -43,14 +43,14 @@ const mkStore = get => ({
 const LS = mkStore(() => localStorage), SS = mkStore(() => sessionStorage);
 
 // Colour themes (hue per theme; the shades live in style.css). Kept per device, shared by every room.
-const THEMES = { violet: ['ม่วง', 250], blue: ['น้ำเงิน', 218], teal: ['ฟ้าเขียว', 186], green: ['เขียว', 150], orange: ['ส้ม', 24], red: ['แดง', 352], pink: ['ชมพู', 322] };
+const THEMES = { wine: ['ไวน์', 350], violet: ['ม่วง', 250], blue: ['น้ำเงิน', 218], teal: ['ฟ้าเขียว', 186], green: ['เขียว', 150], orange: ['ส้ม', 24], red: ['แดง', 352], pink: ['ชมพู', 322] };
 function setTheme(t) {
-  if (!THEMES[t]) t = 'violet';
+  if (!THEMES[t]) t = 'wine';
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem('bg_theme', t); } catch {}
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', getComputedStyle(document.documentElement).backgroundColor);
 }
-const curTheme = () => (THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'violet');
+const curTheme = () => (THEMES[document.documentElement.dataset.theme] ? document.documentElement.dataset.theme : 'wine');
 const langPicker = () => `<div class="seg langs notr">${[['th', 'ไทย'], ['en', 'English']].map(([k, n]) => `<button class="${lang === k ? 'on' : ''}" data-act="lang" data-l="${k}">${n}</button>`).join('')}</div>`;
 const themePicker = () => `<div class="themes">${Object.entries(THEMES).map(([k, [n, h]]) =>
   `<button class="tsw ${curTheme() === k ? 'on' : ''}" style="--th:${h}" data-act="theme" data-t="${k}" aria-label="ธีมสี${n}" title="${n}"></button>`).join('')}</div>`;
@@ -1450,17 +1450,35 @@ function home() {
   if (S.setup) return setupView();
   const last = LS.get('bg_last', null);
   const lastOk = last && now() - last.t < 12 * 3600e3;
-  return `${floaters()}<main class="wrap home">
-    <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>BKK11 Boardgames</h1><p>ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน</p></header>
-    ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
-    <button class="hello" data-act="settings">${S.name ? `<span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...S.name][0])}</span><span>สวัสดี <b>${esc(S.name)}</b></span>` : '<span>ตั้งชื่อของคุณ</span>'}<span class="gear">${gi('gear')} ตั้งค่า</span></button></div>
-    <div class="hcol hr"><section class="panel"><h2>เข้าร่วมห้อง</h2>
-      <div class="row"><input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="ABCD" value="${esc(S.codeIn)}">
-      ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div></section>
-    <section class="panel"><h2>สร้างห้องใหม่</h2>
-      ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}
-      <p class="muted small center">${Object.keys(GAMES).length} เกม · เปลี่ยนเกมได้ตลอดในห้องเดียวกัน</p></section>
-    ${installHint()}</div>
+  const keys = Object.keys(GAMES), day = Math.floor(Date.now() / 864e5);
+  const fk = keys[(day + (S.feat || 0)) % keys.length], F = GAMES[fk];
+  const rec = [1, 2, 3].map(k => keys[(day + (S.feat || 0) + k * 5) % keys.length]);
+  const hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : hr < 20 ? 'สวัสดีตอนเย็น' : 'สวัสดีตอนค่ำ';
+  const card = k => { const G = GAMES[k]; return `<button class="gcard2" style="--gh:${GHUE[k]}" data-act="playg" data-game="${k}">${gbadge(k)}<b>${G.s}</b><small>${playersTxt(G)} · ~${G.t} นาที</small></button>`; };
+  return `${floaters()}<main class="wrap home home2">
+    <div class="hcol hl">
+      <div class="htop"><h1 class="greet">${greet}, <b>${esc(S.name || '')}</b></h1>
+        <button class="ib me" data-act="settings" aria-label="ตั้งค่า"><span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...(S.name || '?')][0])}</span></button></div>
+      ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
+      <div class="joinbar">${gi('key', 'inl')}<input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="รหัสห้อง เช่น ABCD" value="${esc(S.codeIn)}">
+        ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div>
+      <section class="hero" style="--gh:${GHUE[fk]}">
+        <div class="hchips"><span class="chip yel">🔥 แนะนำวันนี้</span>${F.c.map(c => `<span class="chip">${CATS[c]}</span>`).join('')}</div>
+        <h2>${F.n}</h2><p>${F.d}</p>
+        <div class="hmeta"><span class="chip">${gi('people', 'inl')}${playersTxt(F)}</span><span class="chip">${gi('hourglass', 'inl')}~${F.t} นาที</span></div>
+        <div class="row hbtns">${btn('playg', '▶ เล่นเกมนี้', 'primary', { game: fk }, !!S.busy)}<button class="ib" data-act="feat" aria-label="เกมอื่น">›</button></div>
+        <span class="hart">${gbadge(fk)}</span>
+      </section>
+      <div class="sechead"><h2>เกมทั้งหมด <span class="muted small">${keys.length} เกม</span></h2></div>
+      <div class="hscroll">${keys.map(card).join('')}</div>
+    </div>
+    <div class="hcol hr">
+      <div class="sechead"><h2>ลองเล่นดูไหม</h2></div>
+      <div class="reclist">${rec.map(k => `<button class="rec" data-act="playg" data-game="${k}">${gbadge(k, 'xs')}<span><b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></span><i>›</i></button>`).join('')}</div>
+      <section class="panel cta"><h2>สร้างห้องใหม่</h2><p class="muted small">ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน · เปลี่ยนเกมได้ตลอดในห้อง</p>
+        ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}</section>
+      ${installHint()}
+    </div>
   </main>
   ${S.settings ? settingsView() : ''}
   ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">
@@ -3304,6 +3322,8 @@ function toggleSel(v) {
 
 const ACT = {
   create: d => createRoom(d.game),
+  playg: d => createRoom(d.game),
+  feat: () => { S.feat = (S.feat || 0) + 1; render(); },
   join: () => joinRoom(S.codeIn),
   resume: () => { const l = LS.get('bg_last', null); if (l) resume(l); },
   rejoin: () => { S.joinErr = ''; render(); hello(); },
