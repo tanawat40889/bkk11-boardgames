@@ -21,6 +21,7 @@ import * as LF from './lift.js';
 import * as TB from './toybattle.js';
 import * as HN from './hanabi.js';
 import * as CP from './coup.js';
+import * as IT from './ito.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -77,12 +78,13 @@ const GAMES = {
   tb: { n: 'Toy Battle', s: 'Toy Battle', e: '🧸', min: TB.MIN, max: TB.MAX, t: 20, c: ['card'], d: 'สงครามของเล่น 2 คน วางทหารให้ต่อกับฐาน ล้อมเขตเก็บเหรียญ หรือบุกยึด H.Q. ศัตรู' },
   hn: { n: 'Hanabi', s: 'Hanabi', e: '🎆', min: HN.MIN, max: HN.MAX, t: 25, c: ['coop'], d: 'ช่วยกันจุดพลุ เห็นไพ่ทุกคนยกเว้นของตัวเอง ใบ้กันให้ลงไพ่ถูกลำดับ 1→5' },
   cp: { n: 'Coup', s: 'Coup', e: '👑', min: CP.MIN, max: CP.MAX, t: 15, c: ['card'], d: 'อ้างว่ามีตัวละครที่ไม่มีก็ได้ ใครสงสัยก็ท้า โกหกโดนจับได้เสียอิทธิพล เหลือรอดคนสุดท้ายชนะ' },
+  it: { n: 'ito', s: 'ito', e: '🔢', min: IT.MIN, max: IT.MAX, t: 20, c: ['coop', 'word'], d: 'ได้เลขลับ 1–100 แล้วบอกเลขเป็นคำตามหัวข้อ เช่น “สัตว์ที่น่ากลัว” ช่วยกันวางเรียงจากน้อยไปมาก' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -97,7 +99,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -201,6 +203,12 @@ function pubOf() {
       p.cu = {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
+      };
+    } else if (H.game === 'it') {
+      p.it = {
+        phase: g.phase, level: g.level, lives: g.lives, theme: g.theme, table: g.table, last: g.last, over: g.over, n: g.n,
+        hints: Object.fromEntries(g.sids.map(x => [x, g.hand[x].map((_, i) => g.hints[x]?.[i] || '')])), left: Object.fromEntries(g.sids.map(x => [x, g.hand[x].length])),
+        hands: g.phase === 'over' ? g.hand : null,
       };
     } else if (H.game === 'cp') {
       p.cp = {
@@ -338,6 +346,8 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'it') {
+    v.hand = g.hand[sid];
   } else if (H.game === 'cp') {
     v.hand = g.hand[sid];
     v.pool = g.phase === 'exch' && g.pend?.actor === sid ? CP.exchPool(g, sid) : null;
@@ -762,6 +772,13 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'ithint': case 'itplay': {
+      if (H.phase !== 'it') break;
+      // the card the player saw must still be their lowest (their screen may lag behind)
+      if (m.t === 'itplay' && g.hand[sid]?.[0] !== m.card) break;
+      if (m.t === 'ithint' ? IT.setHint(g, sid, +m.i, m.text) : IT.play(g, sid)) broadcast();
+      break;
+    }
     case 'cpact': case 'cpresp': case 'cplose': case 'cpexch': {
       // answers in a challenge/block window come from several players at once, so they are matched to the window, not the move
       if (H.phase !== 'cp' || (m.t === 'cpresp' ? m.w !== g.w : m.n !== g.n)) break;
@@ -1066,6 +1083,8 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'it') {
+      H.g = IT.newGame(sids, H.recentIT || []); H.recentIT = H.g.recent; H.phase = 'it'; H.endsAt = null;
     } else if (H.game === 'cp') {
       H.g = CP.newGame(shuffle(sids)); H.phase = 'cp'; H.endsAt = null;
     } else if (H.game === 'hn') {
@@ -1169,6 +1188,8 @@ const HA = {
   lfnext() { if (H.phase === 'lf' && LF.next(H.g)) { lfClock(); broadcast(); } },
   rrnext() { if (H.phase === 'rr' && RR.nextRound(H.g)) broadcast(); },
   rrgo() { const g = H.g; if (H.phase === 'rr' && g.phase === 'challenge') { for (const s of RR.players(g)) if (!g.cdone[s]) RR.ready(g, s); rrClock(); broadcast(); } },
+  itnext() { if (H.phase === 'it' && IT.nextLevel(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
+  ittheme() { if (H.phase === 'it' && IT.newTheme(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
   cppass() { if (H.phase === 'cp' && CP.forceStep(H.g)) broadcast(); },
   odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
   ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
@@ -1492,7 +1513,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1542,7 +1563,7 @@ function pickerView() {
 }
 
 // games whose secret words / places come from a word list (the room picks the list's language)
-const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn']);
+const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn', 'it']);
 function lobby() {
   const p = S.pub, n = pl().length, host = isHostView(), G = GAMES[p.game];
   let settings = '', errs = [];
@@ -1584,6 +1605,9 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'it') {
+    if (n < IT.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${IT.MIN} คน`);
+    settings = `<p class="muted small">ช่วยกันทั้งทีม ${IT.LEVELS} ด่าน (ด่าน N ได้คนละ N ใบ) · ${IT.LIVES} ชีวิต · หัวข้อ ${IT.THEMES.length} แบบ</p>`;
   } else if (p.game === 'cp') {
     if (n < CP.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CP.MIN} คน`);
     if (n > CP.MAX) errs.push(`Coup เล่นได้สูงสุด ${CP.MAX} คน`);
@@ -2602,6 +2626,27 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── ito ──
+function itV() {
+  const t = S.pub.it, v = S.priv, mine = me(), en = S.pub.wl === 'en', th = IT.THEMES[t.theme];
+  const theme = `<section class="panel ittheme"><small>หัวข้อ</small><b class="notr">${esc(en ? th[1] : th[0])}</b><span class="itscale"><span>1 = น้อยสุด</span><span>100 = มากสุด</span></span>
+    ${isHostView() && t.phase === 'talk' && !t.table.length ? btn('ittheme', '🔀 เปลี่ยนหัวข้อ', 'ghost small') : ''}</section>`;
+  const head = `<p class="center skstatus">ด่าน <b>${t.level}</b>/${IT.LEVELS} · ${'❤️'.repeat(t.lives)}${'🖤'.repeat(IT.LIVES - t.lives)}</p>`;
+  const table = `<section class="panel"><h2>บนโต๊ะ (เรียงน้อย → มาก)</h2>${t.table.length ? `<div class="ittable">${t.table.map(x => `<div class="itc ${x.ok ? '' : 'bad'}"><b>${x.c}</b><small>${esc(pn(x.sid))}</small>${x.hint ? `<em class="notr">${esc(x.hint)}</em>` : ''}</div>`).join('')}</div>` : '<p class="muted">ยังไม่มีใครวาง</p>'}</section>`;
+  const hints = `<section class="panel"><h2>คำใบ้ของทุกคน</h2><ul class="ithints">${pl().map(x => `<li>${av(x.sid, 'sm')}<b>${esc(x.name)}</b><span>${t.left[x.sid] ? t.hints[x.sid].map(h => `<span class="ith notr">${h ? esc(h) : '…'}</span>`).join('') : '<span class="muted small">วางหมดแล้ว ✔</span>'}</span></li>`).join('')}</ul></section>`;
+  const last = t.last ? `<p class="center itlast ${t.last.miss.length ? 'bad' : 'ok'}">${esc(pn(t.last.sid))} วาง <b>${t.last.c}</b> — ${t.last.miss.length ? `<span>พลาด! เสีย ${t.last.miss.length} ชีวิต</span> <span class="notr">(${t.last.miss.map(m => `${esc(pn(m.sid))}: ${m.c}`).join(', ')})</span>` : 'ถูกต้อง ✔'}</p>` : '';
+  if (t.phase === 'over' || t.phase === 'clear') {
+    const win = t.phase === 'clear' || t.over === 'win';
+    return `${head}<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${t.phase === 'clear' ? `ผ่านด่าน ${t.level}!` : t.over === 'win' ? `ผ่านครบ ${IT.LEVELS} ด่าน! ใจตรงกันสุดๆ` : 'ชีวิตหมด'}</div></div>${last}${theme}${table}
+      ${isHostView() ? (t.phase === 'clear' ? btn('itnext', `▶ ด่าน ${t.level + 1} (หัวข้อใหม่)`, 'primary wide big') : `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>`) : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
+  }
+  const mineP = v.hand?.length ? `<section class="panel itmine"><h2>เลขของคุณ <span class="muted small">(ห้ามบอกเลข! บอกเป็นคำตามหัวข้อ)</span></h2>
+      ${v.hand.map((c, i) => `<div class="itrow"><span class="itn">${c}</span><input id="ih${i}" maxlength="40" placeholder="คำใบ้ เช่น ${en ? 'a tiger' : 'เสือ'}" value="${esc(S.ih[i] ?? t.hints[mine]?.[i] ?? '')}">${btn('ithint', 'ส่ง', 'ghost small', { i })}</div>`).join('')}
+      ${btn('itplay', `🃏 วางเลข ${v.hand[0]}`, 'primary wide big')}<p class="muted small center">คุยกันได้ เรียงลำดับกันเอง แล้วใครคิดว่าเลขตัวเองต่ำสุดก็วางได้เลย</p></section>`
+    : '<section class="panel center"><p>✔ วางหมดแล้ว รอเพื่อน</p></section>';
+  return `${head}${last}${theme}${mineP}${hints}${table}`;
+}
+
 // ── Coup ──
 const CPC = { duke: ['ดยุก', 'crown', 'เก็บภาษี +3 · บล็อกรับเงินช่วยเหลือ'], assassin: ['นักฆ่า', 'assassin', 'จ่าย 3 ลอบสังหาร'], captain: ['กัปตัน', 'robhand', 'ขโมย 2 เหรียญ · บล็อกการขโมย'],
   ambassador: ['ทูต', 'swap', 'แลกการ์ดกับกอง · บล็อกการขโมย'], contessa: ['เคานท์เตส', 'ring', 'บล็อกการลอบสังหาร'] };
@@ -2988,7 +3033,14 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'cp' ? `
+  const body = g === 'it' ? `
+    <p><b>เป้าหมาย:</b> ช่วยกันทั้งทีม วางเลขทุกใบเรียงจากน้อยไปมาก ผ่านให้ครบ ${IT.LEVELS} ด่าน</p>
+    <ol><li>ทุกคนได้เลขลับ 1–100 (ด่าน N ได้คนละ N ใบ) และมีหัวข้อ 1 อัน เช่น "สัตว์ที่น่ากลัว"</li>
+    <li><b>ห้ามบอกเลข</b> — ให้บอกเป็นสิ่งที่เข้ากับหัวข้อแทน เลขมาก = มาก เช่น เลข 95 อาจบอกว่า "ฉลาม" เลข 10 อาจบอกว่า "กระต่าย" พิมพ์คำใบ้ลงในแอปให้ทุกคนเห็นได้</li>
+    <li>คุยกัน ถามกัน เรียงลำดับกันเอง แล้วใครคิดว่าเลขตัวเองต่ำสุดก็กดวาง (แอปวางใบต่ำสุดของคุณเสมอ)</li>
+    <li>ถ้ามีคนยังถือเลขที่ต่ำกว่าใบที่เพิ่งวาง = พลาด เสีย 1 ชีวิตต่อใบ และใบนั้นถูกเปิดลงโต๊ะ</li>
+    <li>วางครบทุกใบ = ผ่านด่าน (ด่านใหม่ได้หัวข้อใหม่) · ชีวิตหมด ${IT.LIVES} ดวง = แพ้</li></ol>
+    <p class="muted small">หัวข้อแสดงตาม "ภาษาของคำในเกม" ที่เจ้าของห้องเลือก</p>` : g === 'cp' ? `
     <p><b>เป้าหมาย:</b> เป็นคนสุดท้ายที่ยังมีอิทธิพล (การ์ดคว่ำ) เหลืออยู่</p>
     <ol><li>การ์ด 15 ใบ: ดยุก นักฆ่า กัปตัน ทูต เคานท์เตส อย่างละ 3 · ทุกคนได้การ์ดคว่ำ 2 ใบ (= อิทธิพล 2) และ 2 เหรียญ (เล่น 2 คน คนเริ่มได้ 1 เหรียญ)</li>
     <li>ถึงตาคุณ เลือก 1 การกระทำ: <b>รายได้</b> +1 · <b>เงินช่วยเหลือ</b> +2 (ดยุกบล็อกได้) · <b>รัฐประหาร</b> จ่าย 7 ให้คนหนึ่งเสียอิทธิพล (บล็อกไม่ได้ · มี 10 เหรียญต้องทำ)</li>
@@ -3209,7 +3261,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = [];
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = [];
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -3346,6 +3398,8 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  ithint: d => { const i = +d.i, t = (S.ih[i] ?? '').trim(); if (t) send({ t: 'ithint', i, text: t }); },
+  itplay: () => { const h = S.priv.hand; if (h?.length && confirm(`วางเลข ${h[0]} ?`)) { send({ t: 'itplay', card: h[0] }); S.ih = []; } },
   cpact: d => { const A = CP.ACTS[d.a]; if (A.target) { S.cpAct = S.cpAct === d.a ? null : d.a; return render(); } send({ t: 'cpact', n: S.pub.cp.n, act: d.a }); S.cpAct = null; },
   cpto: d => { if (S.cpAct) send({ t: 'cpact', n: S.pub.cp.n, act: S.cpAct, to: d.sid }); S.cpAct = null; },
   cpresp: d => send({ t: 'cpresp', w: S.pub.cp.w, kind: d.k, card: d.c || null }),
@@ -3467,6 +3521,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'name') S.name = e.target.value;
+  if (/^ih\d$/.test(e.target.id)) S.ih[+e.target.id.slice(2)] = e.target.value;
   if (e.target.id === 'sname') { S.sname = e.target.value; const b = document.querySelector('[data-act=savename]'); if (b) b.disabled = !cleanName(S.sname) || cleanName(S.sname) === S.name; }
   if (e.target.id === 'wg') S.wg = e.target.value;
   if (e.target.id === 'jc0' || e.target.id === 'jc1') { S.jc ||= ['', '']; S.jc[+e.target.id[2]] = e.target.value; }

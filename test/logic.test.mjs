@@ -23,6 +23,7 @@ import * as LF from '../js/lift.js';
 import * as TB from '../js/toybattle.js';
 import * as HN from '../js/hanabi.js';
 import * as CP from '../js/coup.js';
+import * as IT from '../js/ito.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1729,6 +1730,38 @@ t('coup: 3000 random games end with one survivor; cards conserved', () => {
       for (const s of g.sids) assert.ok(g.coins[s] >= 0);
     }
     assert.equal(CP.live(g).length, 1);
+  }
+});
+
+t('ito: deal, hints, ascending play, mistakes cost lives, levels', () => {
+  const g = IT.newGame(sids(3));
+  for (const s of g.sids) assert.equal(g.hand[s].length, 1);
+  const all = Object.values(g.hand).flat(); assert.equal(new Set(all).size, 3);
+  g.hand = { s0: [10], s1: [40], s2: [70] };
+  assert.ok(IT.setHint(g, 's0', 0, 'แมว')); assert.ok(!IT.setHint(g, 's0', 1, 'x'));
+  assert.ok(IT.play(g, 's0')); assert.equal(g.lives, 3); assert.equal(g.table[0].hint, 'แมว');
+  assert.ok(IT.play(g, 's2')); assert.equal(g.lives, 2, '40 was still out'); assert.deepEqual(g.table.map(x => x.c), [10, 40, 70]);
+  assert.equal(g.phase, 'clear'); assert.ok(IT.nextLevel(g)); assert.equal(g.level, 2);
+  for (const s of g.sids) assert.equal(g.hand[s].length, 2);
+  g.hand = { s0: [5, 90], s1: [20, 30], s2: [60, 95] }; g.lives = 1;
+  IT.play(g, 's2'); assert.equal(g.phase, 'over'); assert.equal(g.over, 'lose'); assert.equal(g.lives, 0);
+  const t = IT.newGame(sids(2)); const th = t.theme; assert.ok(IT.newTheme(t)); assert.ok(IT.THEMES[t.theme]);
+  IT.play(t, 's0'); assert.ok(!IT.newTheme(t), 'theme is fixed once cards are played');
+});
+t('ito: 2000 random games end in a win or a loss', () => {
+  for (let k = 0; k < 2000; k++) {
+    const g = IT.newGame(sids(2 + rint(9)));
+    let n = 0;
+    while (g.phase !== 'over') {
+      assert.ok(++n < 500);
+      if (g.phase === 'clear') { IT.nextLevel(g); continue; }
+      const who = g.sids.filter(s => g.hand[s].length);
+      // a decent team: usually the lowest card goes first
+      const s = rint(4) ? who.reduce((a, b) => (g.hand[a][0] < g.hand[b][0] ? a : b)) : who[rint(who.length)];
+      assert.ok(IT.play(g, s));
+      assert.equal(IT.left(g) + g.table.length, g.sids.length * g.level);
+    }
+    assert.ok(['win', 'lose'].includes(g.over));
   }
 });
 

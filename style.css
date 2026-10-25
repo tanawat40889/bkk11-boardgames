@@ -862,3 +862,18 @@ html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
 .cpcheat { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; } .cpcheat li { display: flex; align-items: center; gap: 8px; font-size: .85rem; }
 @media (min-width: 960px) and (min-aspect-ratio: 5/4) { .cpboard { grid-template-columns: repeat(3, 1fr); } }
 .cpwin .row { flex-wrap: wrap; } .cpwin .row .btn { flex: 1 1 120px; min-width: 0; }
+
+/* ito */
+.ittheme { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: var(--accent2); }
+.ittheme small { color: var(--muted); } .ittheme b { font-size: 1.4rem; color: var(--accent2); }
+.itscale { display: flex; justify-content: space-between; width: 100%; max-width: 320px; font-size: .75rem; color: var(--muted); }
+.itrow { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .itrow input { flex: 1; min-width: 0; }
+.itn { flex: none; width: 54px; height: 54px; border-radius: 12px; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; color: #3a2600; background: linear-gradient(160deg, #ffe58a, #f0a020); box-shadow: 0 3px 6px #0007; }
+.ithints { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ithints li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .ithints li > b { min-width: 60px; }
+.ith { display: inline-block; padding: 3px 10px; margin: 2px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); font-size: .85rem; }
+.ittable { display: flex; flex-wrap: wrap; gap: 8px; }
+.itc { display: flex; flex-direction: column; align-items: center; min-width: 64px; padding: 6px 8px; border-radius: 10px; background: #3ecf8e22; border: 2px solid var(--ok); }
+.itc b { font-size: 1.3rem; } .itc small { font-size: .68rem; color: var(--muted); } .itc em { font-style: normal; font-size: .72rem; max-width: 90px; text-align: center; overflow-wrap: anywhere; }
+.itc.bad { background: #ff5d7322; border-color: var(--bad); }
+.itlast { padding: 8px 12px; border-radius: 12px; background: #0003; } .itlast.ok { color: var(--ok); } .itlast.bad { color: var(--bad); }
