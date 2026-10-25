@@ -79,6 +79,7 @@ export const EN = {
   "❌ ผิด": "❌ Wrong",
   "❌ ผิด — เสียการ์ดใบนี้และใบถัดไป": "❌ Wrong — this card and the next are lost",
   "❌ ล้มเหลว": "❌ Fail",
+  "➕ สร้างห้องแบบไม่เลือกเกม": "➕ New room (pick a game later)",
   "➕ สร้างห้อง แล้วเลือกเกม": "➕ Create a room and pick a game",
   "⭐ ใช้ดาว — ทิ้งใบต่ำสุด: {}": "⭐ Use a star — discard lowest: {}",
   "⭐ ดาว:": "⭐ Star:",

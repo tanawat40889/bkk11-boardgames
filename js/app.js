@@ -1462,6 +1462,7 @@ function home() {
       ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
       <div class="joinbar">${gi('key', 'inl')}<input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="รหัสห้อง เช่น ABCD" value="${esc(S.codeIn)}">
         ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div>
+      ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้องแบบไม่เลือกเกม', 'ghost wide newroom', {}, !!S.busy)}
       <section class="hero" style="--gh:${GHUE[fk]}">
         <div class="hchips"><span class="chip yel">🔥 แนะนำวันนี้</span>${F.c.map(c => `<span class="chip">${CATS[c]}</span>`).join('')}</div>
         <h2>${F.n}</h2><p>${F.d}</p>
@@ -1475,8 +1476,6 @@ function home() {
     <div class="hcol hr">
       <div class="sechead"><h2>ลองเล่นดูไหม</h2></div>
       <div class="reclist">${rec.map(k => `<button class="rec" data-act="playg" data-game="${k}">${gbadge(k, 'xs')}<span><b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></span><i>›</i></button>`).join('')}</div>
-      <section class="panel cta"><h2>สร้างห้องใหม่</h2><p class="muted small">ทุกคนเปิดเว็บนี้บนมือถือตัวเอง แล้วเข้าห้องเดียวกัน · เปลี่ยนเกมได้ตลอดในห้อง</p>
-        ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้อง แล้วเลือกเกม', 'primary wide big', {}, !!S.busy)}</section>
       ${installHint()}
     </div>
   </main>

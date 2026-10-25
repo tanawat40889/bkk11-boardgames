@@ -930,3 +930,4 @@ html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
 .hero .hbtns .ib { display: grid; place-items: center; flex: none; }
 .joinbar input.code-in { text-align: left; font-size: 1rem; }
 @media (max-width: 600px) { .hart { right: -34px; bottom: -34px; } .hart .gemo { width: 130px; height: 130px; border-radius: 32px; } .hero h2 { font-size: 1.75rem; max-width: 80%; } .hero p { max-width: 74%; } }
+.btn.newroom { margin: -4px 0 16px; border-radius: 99px; min-height: 48px; border: 1px dashed #ffffff40; background: #ffffff0d; }
