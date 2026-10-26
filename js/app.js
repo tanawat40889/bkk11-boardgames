@@ -1475,7 +1475,7 @@ function home() {
     </div>
     <div class="hcol hr">
       <div class="sechead"><h2>ลองเล่นดูไหม</h2></div>
-      <div class="reclist">${rec.map(k => `<button class="rec" data-act="playg" data-game="${k}">${gbadge(k, 'xs')}<span><b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></span><i>›</i></button>`).join('')}</div>
+      <div class="reclist">${rec.map(k => `<button class="rec" data-act="playg" data-game="${k}">${gbadge(k, 'xs')}<span class="rect"><b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></span><i>›</i></button>`).join('')}</div>
       ${installHint()}
     </div>
   </main>
