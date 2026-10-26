@@ -1463,15 +1463,27 @@ function fanMove(to) {
   const fan = document.querySelector('.fan'), n = fanKeys().length;
   S.fan = ((to % n) + n) % n;
   if (!fan) return render();
-  fan.querySelectorAll('.fcard').forEach((c, i) => { const d = fanOff(i, S.fan, n), a = Math.abs(d); c.style.setProperty('--d', d); c.style.setProperty('--a', a); c.style.zIndex = 20 - a; c.classList.toggle('cur', !a); });
+  fan.querySelectorAll('.fcard').forEach((c, i) => {
+    const d = fanOff(i, S.fan, n), a = Math.abs(d), was = +c.style.getPropertyValue('--d');
+    // a card wrapping round from one end to the other jumps instead of sweeping across the fan
+    if (Math.abs(d - was) > 1) { c.style.transition = 'none'; requestAnimationFrame(() => requestAnimationFrame(() => (c.style.transition = ''))); }
+    c.style.setProperty('--d', d); c.style.setProperty('--a', a); c.style.zIndex = 20 - a; c.classList.toggle('cur', !a);
+    if (a > 3) { c.setAttribute('aria-hidden', 'true'); c.tabIndex = -1; } else { c.removeAttribute('aria-hidden'); c.removeAttribute('tabindex'); }
+  });
   const cta = document.querySelector('.fancta'), tmp = document.createElement('div');
   tmp.innerHTML = fanView(); cta.replaceWith(tmp.querySelector('.fancta'));
   if (lang === 'en') translate(document.querySelector('.fancta'));
   lastHtml = null;
 }
 // swipe on the fan
-let fanX = null;
-addEventListener('pointerdown', e => { fanX = e.target.closest?.('.fan') ? e.clientX : null; }, true);
+let fanX = null, fanTouched = 0;
+addEventListener('pointerdown', e => { fanX = e.target.closest?.('.fan') ? e.clientX : null; if (fanX != null) fanTouched = now(); }, true);
+// autoplay: the fan keeps turning on its own, and rests for a while after the player touches it
+setInterval(() => {
+  if (!document.querySelector('.fan') || document.hidden || S.busy || S.settings || document.querySelector('.modal') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (now() - fanTouched < 8000) return;
+  fanMove((S.fan || 0) + 1);
+}, 3200);
 addEventListener('pointerup', e => {
   if (fanX == null) return;
   const dx = e.clientX - fanX; fanX = null;
@@ -3355,7 +3367,7 @@ const ACT = {
   playg: d => createRoom(d.game),
   feat: () => { S.feat = (S.feat || 0) + 1; render(); },
   fan: d => { if (now() - (S.fanSwiped || 0) < 400) return; const i = +d.i; if (i === (S.fan || 0) % fanKeys().length) return createRoom(fanKeys()[i]); fanMove(i); },
-  fanmv: d => fanMove((S.fan || 0) + +d.d),
+  fanmv: d => { fanTouched = now(); fanMove((S.fan || 0) + +d.d); },
   hcat: d => { S.hcat = d.c; S.fan = 0; render(); },
   join: () => joinRoom(S.codeIn),
   resume: () => { const l = LS.get('bg_last', null); if (l) resume(l); },
