@@ -22,6 +22,8 @@ import * as TB from './toybattle.js';
 import * as HN from './hanabi.js';
 import * as CP from './coup.js';
 import * as IT from './ito.js';
+import * as BS from './battleship.js';
+import * as GW from './guesswho.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -79,12 +81,14 @@ const GAMES = {
   hn: { n: 'Hanabi', s: 'Hanabi', e: '🎆', min: HN.MIN, max: HN.MAX, t: 25, c: ['coop'], d: 'ช่วยกันจุดพลุ เห็นไพ่ทุกคนยกเว้นของตัวเอง ใบ้กันให้ลงไพ่ถูกลำดับ 1→5' },
   cp: { n: 'Coup', s: 'Coup', e: '👑', min: CP.MIN, max: CP.MAX, t: 15, c: ['card'], d: 'อ้างว่ามีตัวละครที่ไม่มีก็ได้ ใครสงสัยก็ท้า โกหกโดนจับได้เสียอิทธิพล เหลือรอดคนสุดท้ายชนะ' },
   it: { n: 'ito', s: 'ito', e: '🔢', min: IT.MIN, max: IT.MAX, t: 20, c: ['coop', 'word'], d: 'ได้เลขลับ 1–100 แล้วบอกเลขเป็นคำตามหัวข้อ เช่น “สัตว์ที่น่ากลัว” ช่วยกันวางเรียงจากน้อยไปมาก' },
+  bs: { n: 'Battleship', s: 'Battleship', e: '🚢', min: BS.MIN, max: BS.MAX, t: 20, c: ['card'], d: 'เกมเรือรบ 2 คน ซ่อนกองเรือในทะเล แล้วผลัดกันยิง ยิงโดนได้ยิงต่อ จมเรือศัตรูให้หมดก่อนชนะ' },
+  gw: { n: 'Guess Who?', s: 'Guess Who?', e: '🧑', min: GW.MIN, max: GW.MAX, t: 15, c: ['ded'], d: 'ทายว่าคนลับของอีกฝ่ายคือใครใน 24 คน ถามคำถามใช่/ไม่ใช่ทีละข้อ แล้วทายให้ถูก' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -99,7 +103,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], gwQ: null, gwG: false, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -204,6 +208,12 @@ function pubOf() {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
       };
+    } else if (H.game === 'bs') {
+      p.bs = { phase: g.phase, turn: g.turn, ready: g.ready, shots: g.shots, last: g.last, winner: g.winner, n: g.n, seats: g.sids,
+        sunk: Object.fromEntries(g.sids.map(x => [x, BS.sunk(g, x)])), fleets: g.winner ? g.fleet : null };
+    } else if (H.game === 'gw') {
+      p.gw = { turn: g.turn, log: g.log.slice(-10), winner: g.winner, why: g.why, n: g.n, seats: g.sids, left: Object.fromEntries(g.sids.map(x => [x, GW.PEOPLE.length - g.down[x].length])),
+        secrets: g.winner ? g.secret : null };
     } else if (H.game === 'it') {
       p.it = {
         phase: g.phase, level: g.level, lives: g.lives, theme: g.theme, table: g.table, last: g.last, over: g.over, n: g.n,
@@ -346,6 +356,10 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'bs') {
+    v.fleet = g.fleet[sid];
+  } else if (H.game === 'gw') {
+    v.secret = g.secret[sid]; v.down = g.down[sid];
   } else if (H.game === 'it') {
     v.hand = g.hand[sid];
   } else if (H.game === 'cp') {
@@ -772,6 +786,16 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'bsre': case 'bsready': case 'bsfire': {
+      if (H.phase !== 'bs' || m.n !== g.n) break;   // a tap made on an older screen
+      if (m.t === 'bsre' ? BS.reroll(g, sid) : m.t === 'bsready' ? BS.ready(g, sid) : BS.fire(g, sid, +m.c)) broadcast();
+      break;
+    }
+    case 'gwask': case 'gwflip': case 'gwguess': {
+      if (H.phase !== 'gw' || (m.t !== 'gwflip' && m.n !== g.n)) break;
+      if (m.t === 'gwask' ? GW.ask(g, sid, m.q) : m.t === 'gwflip' ? GW.toggle(g, sid, +m.i) : GW.guess(g, sid, +m.i)) broadcast();
+      break;
+    }
     case 'ithint': case 'itplay': {
       if (H.phase !== 'it') break;
       // the card the player saw must still be their lowest (their screen may lag behind)
@@ -1083,6 +1107,10 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'bs') {
+      H.g = BS.newGame(sids, rint(2)); H.phase = 'bs'; H.endsAt = null;
+    } else if (H.game === 'gw') {
+      H.g = GW.newGame(sids, rint(2)); H.phase = 'gw'; H.endsAt = null;
     } else if (H.game === 'it') {
       H.g = IT.newGame(sids, H.recentIT || []); H.recentIT = H.g.recent; H.phase = 'it'; H.endsAt = null;
     } else if (H.game === 'cp') {
@@ -1573,7 +1601,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1665,6 +1693,9 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'bs' || p.game === 'gw') {
+    if (n !== 2) errs.push(`${G.s} เล่นได้ 2 คนเท่านั้น`);
+    settings = p.game === 'bs' ? '<p class="muted small">ทะเล 10×10 · เรือ 5 ลำ (5, 4, 3, 3, 2 ช่อง) · ยิงโดนได้ยิงต่อ</p>' : `<p class="muted small">${GW.PEOPLE.length} คน · คำถาม ${GW.QUESTIONS.length} แบบ · ทายผิดแพ้ทันที</p>`;
   } else if (p.game === 'it') {
     if (n < IT.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${IT.MIN} คน`);
     settings = `<p class="muted small">ช่วยกันทั้งทีม ${IT.LEVELS} ด่าน (ด่าน N ได้คนละ N ใบ) · ${IT.LIVES} ชีวิต · หัวข้อ ${IT.THEMES.length} แบบ</p>`;
@@ -2686,6 +2717,73 @@ function ucEndV() {
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
 }
 
+// ── Battleship ──
+const BSN = { carrier: 'เรือบรรทุกเครื่องบิน', battleship: 'เรือประจัญบาน', cruiser: 'เรือลาดตระเวน', sub: 'เรือดำน้ำ', destroyer: 'เรือพิฆาต' };
+function bsGrid(cells, attr) { return `<div class="bsgrid">${cells.map((c, i) => `<${attr(i) ? 'button' : 'span'} class="bsc ${c}" ${attr(i)}></${attr(i) ? 'button' : 'span'}>`).join('')}</div>`; }
+function bsV() {
+  const b = S.pub.bs, v = S.priv, mine = me(), opp = b.seats.find(x => x !== mine), my = b.turn === mine && b.phase === 'play';
+  const ship = new Map(v.fleet.flatMap(sh => sh.cells.map(c => [c, sh.id])));
+  const enemyShots = b.shots[opp] || {}, myShots = b.shots[mine] || {};
+  const own = bsGrid([...Array(100).keys()].map(c => `${ship.has(c) ? 'ship' : ''} ${enemyShots[c] || ''}`), () => '');
+  const sunkMine = b.sunk[mine] || [], sunkOpp = b.sunk[opp] || [];
+  const fleetList = sunk => `<div class="bsfleet">${BS.FLEET.map(([id, len]) => `<span class="${sunk.includes(id) ? 'sunk' : ''}"><i>${'■'.repeat(len)}</i>${BSN[id]}</span>`).join('')}</div>`;
+  if (b.phase === 'place') {
+    const rd = b.ready.includes(mine);
+    return `<h1 class="ph">⚓ วางกองเรือ</h1><p class="center muted small">เรือ 5 ลำวางแบบสุ่ม ไม่ติดกัน · กดสุ่มใหม่ได้จนกว่าจะพอใจ</p>
+      <section class="panel bswrap"><h2>ทะเลของคุณ</h2>${own}${fleetList([])}</section>
+      ${rd ? `<p class="center ok-text">✔ พร้อมแล้ว รออีกฝ่าย (${b.ready.length}/2)</p>` : `<div class="row">${btn('bsre', '🔀 สุ่มใหม่', 'ghost')}${btn('bsready', '✔ พร้อมรบ', 'primary')}</div>`}`;
+  }
+  const last = b.last ? `<p class="center bslast ${b.last.hit ? 'hit' : ''}">${esc(pn(b.last.by))} ยิง ${String.fromCharCode(65 + Math.floor(b.last.cell / 10))}${(b.last.cell % 10) + 1} — ${b.last.sank ? `จม${BSN[b.last.sank]}! 💥` : b.last.hit ? 'โดน! 🔥' : 'พลาด 💧'}</p>` : '';
+  const enemy = bsGrid([...Array(100).keys()].map(c => `${myShots[c] || ''} ${b.fleets && b.fleets[opp].some(sh => sh.cells.includes(c)) ? 'ship' : ''}`), i => (my && !myShots[i] ? `data-act="bsfire" data-c="${i}" aria-label="ยิงช่อง ${i}"` : ''));
+  if (b.winner) return `<div class="banner ${b.winner === mine ? 'win' : 'lose'}"><div class="bt">${b.winner === mine ? 'คุณชนะ! จมกองเรือศัตรูหมดแล้ว' : `${esc(pn(b.winner))} ชนะ`}</div></div>${last}
+    <section class="panel bswrap"><h2>ทะเลของ ${esc(pn(opp))}</h2>${enemy}</section><section class="panel bswrap"><h2>ทะเลของคุณ</h2>${own}</section>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  return `${last}<p class="ask center">${my ? '🎯 ตาคุณ — แตะทะเลศัตรูเพื่อยิง (โดนได้ยิงต่อ)' : `รอ ${esc(pn(b.turn))} ยิง…`}</p>
+    <section class="panel bswrap ${my ? 'aim' : ''}"><h2>ทะเลของ ${esc(pn(opp))} <span class="muted small">จมแล้ว ${sunkOpp.length}/5</span></h2>${enemy}${fleetList(sunkOpp)}</section>
+    <section class="panel bswrap small"><h2>ทะเลของคุณ <span class="muted small">โดนจม ${sunkMine.length}/5</span></h2>${own}</section>`;
+}
+// ── Guess Who? ──
+const GWHAIR = { black: '#2a1f1b', brown: '#7a4a24', blond: '#e8c35a', red: '#c4492a', white: '#e6e6e6' }, GWSKIN = ['#f6d3b3', '#e8b48c', '#c98a5c', '#8d5a3b'];
+const GWSH = { red: '#e14b4b', blue: '#3a7bd5', green: '#3aa66b', yellow: '#e8c13a' };
+function gwFace(p) {
+  const h = GWHAIR[p.hair], sk = GWSKIN[p.skin];
+  return `<svg viewBox="0 0 100 110" class="gwf" aria-hidden="true">
+    ${p.len === 'long' ? `<path d="M20 50 Q18 95 30 100 L70 100 Q82 95 80 50 Z" fill="${h}"/>` : ''}
+    <path d="M18 110 Q20 82 50 80 Q80 82 82 110 Z" fill="${GWSH[p.sh]}"/>
+    <rect x="43" y="66" width="14" height="16" rx="5" fill="${sk}"/>
+    <ellipse cx="50" cy="50" rx="24" ry="27" fill="${sk}"/>
+    ${p.len !== 'bald' ? `<path d="M26 46 Q26 20 50 20 Q74 20 74 46 Q66 32 50 33 Q34 32 26 46 Z" fill="${h}"/>` : `<path d="M28 40 Q27 30 31 27 M72 40 Q73 30 69 27" stroke="${h}" stroke-width="4" fill="none"/>`}
+    ${p.hat ? `<path d="M22 30 Q50 6 78 30 Z" fill="#4b3a8f"/><rect x="18" y="28" width="64" height="6" rx="3" fill="#3a2d70"/>` : ''}
+    <circle cx="41" cy="50" r="3" fill="#222"/><circle cx="59" cy="50" r="3" fill="#222"/>
+    ${p.gl ? `<g fill="none" stroke="#222" stroke-width="2.4"><circle cx="41" cy="50" r="7"/><circle cx="59" cy="50" r="7"/><path d="M48 50 L52 50"/></g>` : ''}
+    <path d="M44 63 Q50 ${p.f ? 68 : 66} 56 63" stroke="#8a3b2b" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    ${p.br ? `<path d="M30 58 Q32 78 50 80 Q68 78 70 58 Q62 70 50 70 Q38 70 30 58 Z" fill="${h === '#e6e6e6' ? '#cfcfcf' : h}"/>` : ''}
+    ${p.er ? `<circle cx="26" cy="58" r="3" fill="#f6d55c"/><circle cx="74" cy="58" r="3" fill="#f6d55c"/>` : ''}
+  </svg>`;
+}
+const GWQ = Object.fromEntries(GW.QUESTIONS.map(q => [q[0], q[1]]));
+function gwV() {
+  const w = S.pub.gw, v = S.priv, mine = me(), opp = w.seats.find(x => x !== mine), my = w.turn === mine && !w.winner;
+  const board = `<div class="gwboard ${S.gwG ? 'guessing' : ''}">${GW.PEOPLE.map((p, i) => { const dn = v.down.includes(i);
+    return `<button class="gwc ${dn ? 'down' : ''}" data-act="gwface" data-i="${i}" ${w.winner || (S.gwG && dn) ? 'disabled' : ''}>${gwFace(p)}<b class="notr">${p.n}</b></button>`; }).join('')}</div>`;
+  const mineCard = `<div class="gwmine">${gwFace(GW.PEOPLE[v.secret])}<span><small>คนลับของคุณ</small><b class="notr">${GW.PEOPLE[v.secret].n}</b></span></div>`;
+  const logP = `<section class="panel"><h2>คำถามที่ผ่านมา</h2><ol class="log">${[...w.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ถาม: ${GWQ[e.q]} → <b class="${e.yes ? 'ok-text' : 'bad-text'}">${e.yes ? 'ใช่' : 'ไม่ใช่'}</b></li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
+  if (w.winner) {
+    const z = w.why;
+    return `<div class="banner ${w.winner === mine ? 'win' : 'lose'}"><div class="bt">${w.winner === mine ? 'คุณชนะ!' : `${esc(pn(w.winner))} ชนะ`}</div>
+      <div>${esc(pn(z.by))} ทายว่า <b class="notr">${GW.PEOPLE[z.i].n}</b> — ${z.ok ? 'ถูกต้อง!' : 'ผิด!'}</div></div>
+      <div class="gwreveal">${w.seats.map(x => `<div>${gwFace(GW.PEOPLE[w.secrets[x]])}<small>คนลับของ ${esc(pn(x))}</small><b class="notr">${GW.PEOPLE[w.secrets[x]].n}</b></div>`).join('')}</div>${logP}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  }
+  const act = my ? `<section class="panel gwact"><h2>👉 ตาคุณ — ถาม 1 ข้อ หรือทายเลย</h2>
+      <div class="gwqs">${GW.QUESTIONS.map(q => `<button class="${S.gwQ === q[0] ? 'on' : ''}" data-act="gwq" data-q="${q[0]}">${q[1]}</button>`).join('')}</div>
+      <div class="row">${btn('gwask', S.gwQ ? `❓ ถาม: ${GWQ[S.gwQ]}` : 'เลือกคำถามก่อน', 'primary', {}, !S.gwQ)}${btn('gwmode', S.gwG ? 'ยกเลิกการทาย' : '🎯 ทายเลย', 'ghost')}</div>
+      ${S.gwG ? '<p class="ask center">แตะคนที่คิดว่าเป็นคนลับของอีกฝ่าย (ผิด = แพ้ทันที)</p>' : ''}</section>`
+    : `<p class="muted center">รอ ${esc(pn(w.turn))} ถาม…</p>`;
+  return `${mineCard}${act}<section class="panel"><h2>เหลือ ${w.left[mine]} คน <span class="muted small">(แอปพับคนที่ไม่ใช่ให้แล้ว · แตะเพื่อพับ/เปิดเองได้)</span></h2>${board}</section>
+    <p class="center muted small">${esc(pn(opp))} เหลือ ${w.left[opp]} คน</p>${logP}`;
+}
+
 // ── ito ──
 function itV() {
   const t = S.pub.it, v = S.priv, mine = me(), en = S.pub.wl === 'en', th = IT.THEMES[t.theme];
@@ -3093,7 +3191,15 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'it' ? `
+  const body = g === 'bs' ? `
+    <p><b>เป้าหมาย:</b> จมกองเรือของอีกฝ่ายให้หมดก่อน</p>
+    <ol><li>ทะเลคนละ 10×10 ช่อง · เรือ 5 ลำ: 5, 4, 3, 3, 2 ช่อง วางแนวนอนหรือแนวตั้ง ไม่ติดกัน (แอปสุ่มให้ กดสุ่มใหม่ได้)</li>
+    <li>ผลัดกันแตะช่องในทะเลศัตรูเพื่อยิง · โดน 🔥 ได้ยิงต่อ · พลาด 💧 เปลี่ยนตา</li>
+    <li>ยิงโดนครบทุกช่องของเรือลำไหน = เรือลำนั้นจม · จมครบ 5 ลำ = ชนะ</li></ol>` : g === 'gw' ? `
+    <p><b>เป้าหมาย:</b> ทายให้ถูกว่าคนลับของอีกฝ่ายคือใคร</p>
+    <ol><li>มี ${GW.PEOPLE.length} คนบนกระดาน ทั้งสองฝ่ายได้คนลับคนละ 1 คน</li>
+    <li>ถึงตาคุณ เลือกถามคำถามใช่/ไม่ใช่ 1 ข้อ เช่น "ใส่แว่นไหม?" — แอปตอบตามจริงแทนอีกฝ่าย แล้วพับคนที่ไม่ใช่บนกระดานคุณให้อัตโนมัติ</li>
+    <li>หรือกด "ทายเลย" แล้วแตะคน · ทายถูก = ชนะ · ทายผิด = แพ้ทันที</li></ol>` : g === 'it' ? `
     <p><b>เป้าหมาย:</b> ช่วยกันทั้งทีม วางเลขทุกใบเรียงจากน้อยไปมาก ผ่านให้ครบ ${IT.LEVELS} ด่าน</p>
     <ol><li>ทุกคนได้เลขลับ 1–100 (ด่าน N ได้คนละ N ใบ) และมีหัวข้อ 1 อัน เช่น "สัตว์ที่น่ากลัว"</li>
     <li><b>ห้ามบอกเลข</b> — ให้บอกเป็นสิ่งที่เข้ากับหัวข้อแทน เลขมาก = มาก เช่น เลข 95 อาจบอกว่า "ฉลาม" เลข 10 อาจบอกว่า "กระต่าย" พิมพ์คำใบ้ลงในแอปให้ทุกคนเห็นได้</li>
@@ -3321,7 +3427,7 @@ function render() {
   if (p) {
     const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = [];
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = []; S.gwQ = null; S.gwG = false;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -3463,6 +3569,13 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  bsre: () => send({ t: 'bsre', n: S.pub.bs.n }),
+  bsready: () => send({ t: 'bsready', n: S.pub.bs.n }),
+  bsfire: d => send({ t: 'bsfire', n: S.pub.bs.n, c: +d.c }),
+  gwq: d => { S.gwQ = S.gwQ === d.q ? null : d.q; render(); },
+  gwask: () => { if (S.gwQ) send({ t: 'gwask', n: S.pub.gw.n, q: S.gwQ }); S.gwQ = null; },
+  gwmode: () => { S.gwG = !S.gwG; render(); },
+  gwface: d => { const i = +d.i; if (S.gwG) { if (confirm(`ทายว่าเป็น ${GW.PEOPLE[i].n}? (ผิด = แพ้ทันที)`)) send({ t: 'gwguess', n: S.pub.gw.n, i }); S.gwG = false; } else send({ t: 'gwflip', i }); },
   ithint: d => { const i = +d.i, t = (S.ih[i] ?? '').trim(); if (t) send({ t: 'ithint', i, text: t }); },
   itplay: () => { const h = S.priv.hand; if (h?.length && confirm(`วางเลข ${h[0]} ?`)) { send({ t: 'itplay', card: h[0] }); S.ih = []; } },
   cpact: d => { const A = CP.ACTS[d.a]; if (A.target) { S.cpAct = S.cpAct === d.a ? null : d.a; return render(); } send({ t: 'cpact', n: S.pub.cp.n, act: d.a }); S.cpAct = null; },

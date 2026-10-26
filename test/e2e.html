@@ -58,8 +58,8 @@ function hook(w) {
 // chaos: how many times per scenario a random player (or the host) refreshes their browser mid-game
 const CHAOS = Q.has('chaos') ? +Q.get('chaos') : 2;
 // game -> player counts to try
-const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3], ct: [6], bd: [5], od: [4], rr: [4], lf: [4], tb: [2], hn: [3], cp: [4], it: [4] };
-const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5], ct: [4, 6, 8], bd: [4, 6, 8], od: [2, 4, 6], rr: [2, 4, 6], lf: [2, 5, 8], tb: [2], hn: [2, 4, 5], cp: [2, 4, 6], it: [2, 5, 10] };
+const LIVE_PLAN = { onuw: [5], spyfall: [5], uc: [5], av: [6], ins: [5], jo: [4], cn: [5], mi: [3], sc: [4], sk: [4], sh: [6], cu: [4], tc: [4], sa: [5], ab: [3], ct: [6], bd: [5], od: [4], rr: [4], lf: [4], tb: [2], hn: [3], cp: [4], it: [4], bs: [2], gw: [2] };
+const PLAN = LIVE ? LIVE_PLAN : { onuw: [3, 6, 10], spyfall: [3, 7, 10], uc: [4, 6, 10], av: [5, 7, 10], ins: [4, 7], jo: [3, 5, 8], cn: [4, 7, 10], mi: [2, 4, 8], sc: [3, 4, 5], sk: [3, 5, 8], sh: [5, 7, 10], cu: [2, 5, 8], tc: [2, 5, 8], sa: [4, 7, 10], ab: [2, 3, 5], ct: [4, 6, 8], bd: [4, 6, 8], od: [2, 4, 6], rr: [2, 4, 6], lf: [2, 5, 8], tb: [2], hn: [2, 4, 5], cp: [2, 4, 6], it: [2, 5, 10], bs: [2], gw: [2] };
 const only = Q.get('games')?.split(',');
 // ?n=4 plays only that table size; ?hold=60 freezes the bots after 60 ticks so you can look at the screens
 const ONLY_N = +Q.get('n') || 0, HOLD = +Q.get('hold') || 0;
@@ -74,7 +74,7 @@ const WORDS = EN_UI ? ['red', 'big', 'eat', 'fly', 'water', 'hot', 'fast', 'roun
 const SKIP = new Set(['fan', 'fanmv', 'hcat', 'playg', 'feat', 'qr', 'settings', 'savename', 'setupdone', 'theme', 'noresume', 'leave', 'abort', 'lobby', 'again', 'rules', 'pick', 'cat', 'hgame', 'share', 'qr', 'install', 'kick', 'noop', 'resume', 'create', 'join', 'rejoin',
   'set', 'deck', 'autodeck', 'ucauto', 'atoggle', 'voice', 'pause', 'extend', 'cshuffle', 'hfound', 'htie', 'uskip', 'uaccept', 'jok', 'jedit', 'decoy', 'sccancel', 'start', 'sadecoy']);
 // Clicked rarely so games still make progress.
-const RARE = { ittheme: 0.05, cppass: 0.05, cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3, ctfinish: 0.02, cttovote: 0.3, ctstart: 0.3, rracc: 0.15, rrgo: 0.05 };
+const RARE = { gwmode: 0.04, bsre: 0.2, ittheme: 0.05, cppass: 0.05, cumode: 0.15, cufmode: 0.15, shveto: 0.3, show: 0.25, hide: 0.1, rules: 0.02, reveal: 0.03, guessmode: 0.05, cteam: 0.03, cmaster: 0.05, jforce: 0.02, skn: 0.3, cnn: 0.2, scturn: 0.2, finish: 0.02, mprop: 0.1, mdecline: 0.2, cpass: 0.1, jpass: 0.2, jstrike: 0.15, tovote: 0.2, itovote: 0.3, ctfinish: 0.02, cttovote: 0.3, ctstart: 0.3, rracc: 0.15, rrgo: 0.05 };
 
 function fill(doc) {
   const set = (id, v) => { const el = doc.getElementById(id); if (el && !el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
@@ -86,7 +86,7 @@ function fill(doc) {
 }
 // ── UI audit: looks at what is actually drawn on a phone-sized screen and reports layout problems ──
 const UI = Q.get('ui') !== '0';
-const BOXES = '.itc, .itn, .cpc, .cpa, .cpp, .hnc, .hnb, .tbt, .tbside, .lff, .lfdrv, .lfcard, .rrp, .rrbig, .rrac, .rrc, .ocard, .omi, .opl, .bdie, .bdmat, .cdie, .stone, .spell, .abmat, .abev, .pol, .slot, .cell, .camel, .ltile, .tcard, .tcslap, .gbtn, .smat, .try, .hcard, .btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
+const BOXES = '.gwc, .bsc, .itc, .itn, .cpc, .cpa, .cpp, .hnc, .hnb, .tbt, .tbside, .lff, .lfdrv, .lfcard, .rrp, .rrbig, .rrac, .rrc, .ocard, .omi, .opl, .bdie, .bdmat, .cdie, .stone, .spell, .abmat, .abev, .pol, .slot, .cell, .camel, .ltile, .tcard, .tcslap, .gbtn, .smat, .try, .hcard, .btn, .pick, .ccell, .mini, .loc, .qc, .gcard, .vtok, .qcard, .clue, .chip, .who, .tag, .scard, .mcard, .disc, .mat, .mhead b, .secret, .banner, .timer, .cclue, .role, .ghero, .players li, th, td';
 function audit(win, found) {
   const doc = win.document, W = win.innerWidth, main = doc.querySelector('main');
   if (!main) return;
@@ -130,7 +130,7 @@ function audit(win, found) {
   const rects = acts.map(el => el.getBoundingClientRect());
   acts.forEach((el, i) => {
     const r = rects[i];
-    if ((r.width < 30 || r.height < 30) && !el.classList.contains('flipin')) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);   // (a card mid-flip is briefly narrow)
+    if ((r.width < (el.classList.contains('bsc') ? 22 : 30) || r.height < (el.classList.contains('bsc') ? 22 : 30)) && !el.classList.contains('flipin')) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);   // (a card mid-flip is briefly narrow)
     if (!el.textContent.trim() && !el.querySelector('img, i, span, b') && !el.getAttribute('aria-label')) add('button without label', el);
     for (let j = i + 1; j < acts.length; j++) {
       if (el.contains(acts[j]) || acts[j].contains(el)) continue;
@@ -194,10 +194,23 @@ function itoTurn(wins) {
   pick.b.click();
 }
 
+// Guess Who?: ask questions until few faces are left, then guess one that is still standing
+function gwTurn(doc) {
+  const q = s => doc.querySelector(s), qa = s => [...doc.querySelectorAll(s)];
+  if (!q('[data-act=gwmode]')) return false;   // not my turn
+  const up = qa('.gwc:not(.down)');
+  if (q('.gwboard.guessing')) { up[rnd(up.length)]?.click(); return true; }
+  if (up.length <= 2 || Math.random() < 0.05) { q('[data-act=gwmode]').click(); return true; }
+  if (!q('[data-act=gwq].on')) { const qs = qa('[data-act=gwq]'); qs[rnd(qs.length)].click(); return true; }
+  q('[data-act=gwask]').click();
+  return true;
+}
+
 function act(win, game) {
   const doc = win.document;
   fill(doc);
   if (game === 'sc' && SC && scoutTurn(doc)) return;
+  if (game === 'gw') { if (!gwTurn(doc) && Math.random() < 0.1) doc.querySelectorAll('[data-act=gwface]')[rnd(24)]?.click(); return; }
   const els = [...doc.querySelectorAll('[data-act]')].filter(el => {
     const a = el.dataset.act;
     if (el.disabled || SKIP.has(a)) return false;

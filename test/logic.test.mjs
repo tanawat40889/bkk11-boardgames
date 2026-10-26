@@ -24,6 +24,8 @@ import * as TB from '../js/toybattle.js';
 import * as HN from '../js/hanabi.js';
 import * as CP from '../js/coup.js';
 import * as IT from '../js/ito.js';
+import * as BS from '../js/battleship.js';
+import * as GW from '../js/guesswho.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1762,6 +1764,40 @@ t('ito: 2000 random games end in a win or a loss', () => {
       assert.equal(IT.left(g) + g.table.length, g.sids.length * g.level);
     }
     assert.ok(['win', 'lose'].includes(g.over));
+  }
+});
+
+t('battleship: fleets never overlap or touch; placement, firing, extra shot on hit, win', () => {
+  for (let k = 0; k < 500; k++) {
+    const f = BS.randomFleet(), all = f.flatMap(s => s.cells);
+    assert.equal(all.length, 17); assert.equal(new Set(all).size, 17);
+    for (const a of f) for (const b of f) if (a !== b) for (const x of a.cells) for (const y of b.cells)
+      assert.ok(Math.abs(Math.floor(x / 10) - Math.floor(y / 10)) > 1 || Math.abs((x % 10) - (y % 10)) > 1, 'ships touch');
+  }
+  const g = BS.newGame(['A', 'B'], 0);
+  assert.ok(!BS.fire(g, 'A', 0), 'not before both are ready'); assert.ok(BS.reroll(g, 'A'));
+  BS.ready(g, 'A'); assert.ok(!BS.reroll(g, 'A')); BS.ready(g, 'B'); assert.equal(g.phase, 'play');
+  const shipCells = new Set(g.fleet.B.flatMap(s => s.cells)), miss = [...Array(100).keys()].find(c => !shipCells.has(c)), hit = [...shipCells][0];
+  assert.ok(BS.fire(g, 'A', hit)); assert.equal(g.turn, 'A', 'hit = shoot again'); assert.ok(!BS.fire(g, 'A', hit), 'same cell twice');
+  assert.ok(BS.fire(g, 'A', miss)); assert.equal(g.turn, 'B');
+  g.turn = 'A'; for (const c of shipCells) BS.fire(g, 'A', c);
+  assert.equal(g.winner, 'A'); assert.deepEqual(BS.sunk(g, 'B').length, 5);
+});
+t('guess who: answers are truthful, faces go down, guessing decides the game', () => {
+  const g = GW.newGame(['A', 'B'], 0);
+  assert.notEqual(g.secret.A, g.secret.B);
+  const target = GW.PEOPLE[g.secret.B];
+  assert.ok(!GW.ask(g, 'B', 'f'), 'not your turn'); assert.ok(GW.ask(g, 'A', 'gl'));
+  assert.equal(g.log[0].yes, !!target.gl); assert.equal(g.turn, 'B');
+  assert.ok(!g.down.A.includes(g.secret.B), 'the real one never goes down');
+  for (const i of g.down.A) assert.notEqual(!!GW.PEOPLE[i].gl, !!target.gl);
+  GW.ask(g, 'B', 'f'); assert.ok(GW.toggle(g, 'A', 3));
+  assert.ok(GW.guess(g, 'A', g.secret.B)); assert.equal(g.winner, 'A');
+  const h = GW.newGame(['A', 'B'], 0); GW.guess(h, 'A', (h.secret.B + 1) % 24); assert.equal(h.winner, 'B', 'a wrong guess loses');
+  for (let k = 0; k < 300; k++) {   // asking every question always narrows it to exactly one person
+    const q = GW.newGame(['A', 'B'], 0);
+    for (const [id] of GW.QUESTIONS) { q.turn = 'A'; GW.ask(q, 'A', id); }
+    assert.deepEqual(GW.PEOPLE.map((_, i) => i).filter(i => !q.down.A.includes(i)), [q.secret.B]);
   }
 });
 
