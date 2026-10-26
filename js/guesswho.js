@@ -40,7 +40,7 @@ export function ask(g, s, qid) {
   g.turn = other(g, s); g.n++;
   return true;
 }
-export function toggle(g, s, i) { if (g.winner || !(i >= 0 && i < PEOPLE.length)) return false; g.down[s] = g.down[s].includes(i) ? g.down[s].filter(x => x !== i) : [...g.down[s], i]; g.n++; return true; }
+export function toggle(g, s, i) { if (g.winner || !(i >= 0 && i < PEOPLE.length)) return false; g.down[s] = g.down[s].includes(i) ? g.down[s].filter(x => x !== i) : [...g.down[s], i]; return true; }   // (no g.n bump: flipping your own board must not void the other player's pending question)
 // Name the other player's person: right wins, wrong loses.
 export function guess(g, s, i) {
   if (g.winner || s !== g.turn || !(i >= 0 && i < PEOPLE.length)) return false;

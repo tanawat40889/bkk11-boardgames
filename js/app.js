@@ -2765,7 +2765,7 @@ const GWQ = Object.fromEntries(GW.QUESTIONS.map(q => [q[0], q[1]]));
 function gwV() {
   const w = S.pub.gw, v = S.priv, mine = me(), opp = w.seats.find(x => x !== mine), my = w.turn === mine && !w.winner;
   const board = `<div class="gwboard ${S.gwG ? 'guessing' : ''}">${GW.PEOPLE.map((p, i) => { const dn = v.down.includes(i);
-    return `<button class="gwc ${dn ? 'down' : ''}" data-act="gwface" data-i="${i}" ${w.winner || (S.gwG && dn) ? 'disabled' : ''}>${gwFace(p)}<b class="notr">${p.n}</b></button>`; }).join('')}</div>`;
+    return `<button class="gwc ${dn ? 'down' : ''}" data-act="gwface" data-i="${i}" ${w.winner ? 'disabled' : ''}>${gwFace(p)}<b class="notr">${p.n}</b></button>`; }).join('')}</div>`;
   const mineCard = `<div class="gwmine">${gwFace(GW.PEOPLE[v.secret])}<span><small>คนลับของคุณ</small><b class="notr">${GW.PEOPLE[v.secret].n}</b></span></div>`;
   const logP = `<section class="panel"><h2>คำถามที่ผ่านมา</h2><ol class="log">${[...w.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ถาม: ${GWQ[e.q]} → <b class="${e.yes ? 'ok-text' : 'bad-text'}">${e.yes ? 'ใช่' : 'ไม่ใช่'}</b></li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
   if (w.winner) {

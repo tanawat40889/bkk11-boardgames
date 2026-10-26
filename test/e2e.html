@@ -199,7 +199,7 @@ function gwTurn(doc) {
   const q = s => doc.querySelector(s), qa = s => [...doc.querySelectorAll(s)];
   if (!q('[data-act=gwmode]')) return false;   // not my turn
   const up = qa('.gwc:not(.down)');
-  if (q('.gwboard.guessing')) { up[rnd(up.length)]?.click(); return true; }
+  if (q('.gwboard.guessing')) { (up.length ? up : qa('.gwc'))[rnd(up.length || 24)].click(); return true; }
   if (up.length <= 2 || Math.random() < 0.05) { q('[data-act=gwmode]').click(); return true; }
   if (!q('[data-act=gwq].on')) { const qs = qa('[data-act=gwq]'); qs[rnd(qs.length)].click(); return true; }
   q('[data-act=gwask]').click();
