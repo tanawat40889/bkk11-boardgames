@@ -3354,7 +3354,7 @@ const ACT = {
   create: d => createRoom(d.game),
   playg: d => createRoom(d.game),
   feat: () => { S.feat = (S.feat || 0) + 1; render(); },
-  fan: d => { if (now() - (S.fanSwiped || 0) < 400) return; const i = +d.i; if (i === S.fan % fanKeys().length) return createRoom(fanKeys()[i]); fanMove(i); },
+  fan: d => { if (now() - (S.fanSwiped || 0) < 400) return; const i = +d.i; if (i === (S.fan || 0) % fanKeys().length) return createRoom(fanKeys()[i]); fanMove(i); },
   fanmv: d => fanMove((S.fan || 0) + +d.d),
   hcat: d => { S.hcat = d.c; S.fan = 0; render(); },
   join: () => joinRoom(S.codeIn),

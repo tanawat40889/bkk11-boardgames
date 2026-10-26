@@ -134,6 +134,7 @@ function audit(win, found) {
     if (!el.textContent.trim() && !el.querySelector('img, i, span, b') && !el.getAttribute('aria-label')) add('button without label', el);
     for (let j = i + 1; j < acts.length; j++) {
       if (el.contains(acts[j]) || acts[j].contains(el)) continue;
+      if (el.closest('.fan') && acts[j].closest('.fan')) continue;   // the fanned cards overlap on purpose (the top one takes the tap)
       const q = rects[j], w = Math.min(r.right, q.right) - Math.max(r.left, q.left), h = Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top);
       if (w > 4 && h > 4 && w * h > 0.25 * Math.min(r.width * r.height, q.width * q.height)) add('buttons overlap', el, `with ${acts[j].dataset.act}: ${acts[j].textContent.trim().slice(0, 20)}`);
     }
