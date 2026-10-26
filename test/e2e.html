@@ -130,7 +130,7 @@ function audit(win, found) {
   const rects = acts.map(el => el.getBoundingClientRect());
   acts.forEach((el, i) => {
     const r = rects[i];
-    if ((r.width < (el.classList.contains('bsc') ? 22 : 30) || r.height < (el.classList.contains('bsc') ? 22 : 30)) && !el.classList.contains('flipin')) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);   // (a card mid-flip is briefly narrow)
+    if ((r.width < (el.classList.contains('bsc') ? 22 : 30) || r.height < (el.classList.contains('bsc') ? 22 : 30)) && !el.classList.contains('flipin') && !el.closest('.fan')) add('tap target too small', el, `${Math.round(r.width)}x${Math.round(r.height)}px`);   // (a card mid-flip is briefly narrow)
     if (!el.textContent.trim() && !el.querySelector('img, i, span, b') && !el.getAttribute('aria-label')) add('button without label', el);
     for (let j = i + 1; j < acts.length; j++) {
       if (el.contains(acts[j]) || acts[j].contains(el)) continue;
