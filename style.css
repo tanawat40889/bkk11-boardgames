@@ -931,3 +931,32 @@ html[lang=en] .mini.sm b { font-size: .42rem; overflow-wrap: anywhere; }
 .joinbar input.code-in { text-align: left; font-size: 1rem; }
 @media (max-width: 600px) { .hart { right: -34px; bottom: -34px; } .hart .gemo { width: 130px; height: 130px; border-radius: 32px; } .hero h2 { font-size: 1.75rem; max-width: 80%; } .hero p { max-width: 74%; } }
 .btn.newroom { margin: -4px 0 16px; border-radius: 99px; min-height: 48px; border: 1px dashed #ffffff40; background: #ffffff0d; }
+
+/* All games: fanned card carousel */
+.fancats { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 0 4px; } .fancats::-webkit-scrollbar { display: none; }
+.fancats button { flex: none; padding: 6px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg2); color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; }
+.fancats button.on { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+.fan { position: relative; height: 330px; margin: 0 -16px; overflow: hidden; touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  background: linear-gradient(transparent 0 62%, #0000002a), repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px 44px), repeating-linear-gradient(0deg, #ffffff08 0 1px, transparent 1px 44px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8% 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8% 92%, transparent); }
+.fcard { position: absolute; left: 50%; top: 22px; width: 180px; height: 262px; margin-left: -90px; padding: 16px 14px; border: 0; border-radius: 26px; color: #fff; font: inherit; text-align: left; cursor: pointer; overflow: hidden;
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: radial-gradient(circle at 30% 120%, #ffffff22 0 18%, transparent 19%), repeating-radial-gradient(circle at 70% 20%, #ffffff12 0 2px, transparent 2px 14px), linear-gradient(165deg, hsl(var(--gh) 68% 56%), hsl(var(--gh) 60% 34%));
+  box-shadow: 0 18px 34px #0006, inset 0 0 0 2px #ffffff30;
+  transform-origin: 50% 230%; transform: rotate(calc(var(--d) * 13deg)) scale(calc(1 - var(--a) * .05));
+  opacity: calc(1.25 - var(--a) * .3); transition: transform .55s cubic-bezier(.2, .8, .2, 1), opacity .4s, filter .4s; will-change: transform; }
+.fcard:not(.cur) { filter: saturate(.85) brightness(.9); }
+.fcard[aria-hidden] { opacity: 0; pointer-events: none; }
+.fcard .fk { font-size: .7rem; font-weight: 700; letter-spacing: .04em; opacity: .85; text-transform: uppercase; }
+.fcard .ft { font-size: 1.45rem; line-height: 1.05; font-weight: 800; margin-top: 2px; text-shadow: 0 2px 0 #0003; max-width: 100%; overflow-wrap: anywhere; }
+.fcard .fp { margin-top: 8px; display: inline-flex; align-items: center; gap: 3px; padding: 3px 10px; border-radius: 99px; background: #0000003a; font-size: .74rem; font-weight: 600; }
+.fcard .gemo { position: absolute; right: -10px; bottom: -12px; width: 132px; height: 132px; border-radius: 34px; transform: rotate(-8deg); box-shadow: 0 10px 24px #0005, inset 0 0 0 3px #ffffff40; }
+.fcard.cur .gemo { animation: floaty 4s ease-in-out infinite; }
+.fnav { position: absolute; top: 135px; z-index: 30; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ffffff40; background: #00000055; color: #fff; font-size: 1.5rem; line-height: 1; cursor: pointer; backdrop-filter: blur(4px); }
+.fnav.l { left: 14px; } .fnav.r { right: 14px; }
+.fancta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-top: 4px; border-radius: 22px; background: var(--bg2); border: 1px solid var(--line); }
+.fancta > span { flex: 1; min-width: 0; display: flex; flex-direction: column; } .fancta b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .fancta small { color: var(--muted); font-size: .78rem; }
+.fancta .btn { flex: none; border-radius: 99px; padding: 0 22px; }
+@media (min-width: 960px) and (min-aspect-ratio: 5/4) { .home2 .fan { margin: 0; height: 360px; } .home2 .fcard { width: 200px; height: 290px; margin-left: -100px; } .home2 .fnav { top: 150px; } }
+@media (prefers-reduced-motion: reduce) { .fcard { transition: none; } }
+.fcard { transform-origin: 50% 210%; transform: rotate(calc(var(--d) * 17deg)) scale(calc(1 - var(--a) * .07)); }

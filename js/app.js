@@ -1446,6 +1446,38 @@ function settingsView() {
   </div></div>`;
 }
 
+// "All games": a fan of cards that swings around a pivot below the screen (swipe, arrows or tap a side card).
+const fanKeys = () => Object.keys(GAMES).filter(k => (S.hcat || 'all') === 'all' || GAMES[k].c.includes(S.hcat));
+const fanOff = (i, cur, n) => { let d = i - cur; if (d > n / 2) d -= n; if (d < -n / 2) d += n; return d; };
+function fanView() {
+  const ks = fanKeys(), n = ks.length, cur = ((S.fan || 0) % n + n) % n, k = ks[cur], G = GAMES[k];
+  return `<div class="fancats tabs">${Object.entries(CATS).map(([c, l]) => `<button class="${(S.hcat || 'all') === c ? 'on' : ''}" data-act="hcat" data-c="${c}">${l}</button>`).join('')}</div>
+    <div class="fan" data-n="${n}">${ks.map((g, i) => { const d = fanOff(i, cur, n), a = Math.abs(d), F = GAMES[g];
+      return `<button class="fcard ${a ? '' : 'cur'}" style="--gh:${GHUE[g]};--d:${d};--a:${a};z-index:${20 - a}" data-act="fan" data-i="${i}" ${a > 3 ? 'tabindex="-1" aria-hidden="true"' : ''}>
+        <span class="fk">${CATS[F.c[0]]}</span><b class="ft">${F.s}</b><span class="fp">${gi('people', 'inl')}${playersTxt(F)}</span>${gbadge(g)}</button>`; }).join('')}
+      <button class="fnav l" data-act="fanmv" data-d="-1" aria-label="ก่อนหน้า">‹</button><button class="fnav r" data-act="fanmv" data-d="1" aria-label="ถัดไป">›</button></div>
+    <div class="fancta"><span><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที · ${cur + 1}/${n}</small></span>${btn('playg', '▶ เล่น', 'primary', { game: k }, !!S.busy)}</div>`;
+}
+// Move the fan in place so the cards animate (a full re-render would just jump).
+function fanMove(to) {
+  const fan = document.querySelector('.fan'), n = fanKeys().length;
+  S.fan = ((to % n) + n) % n;
+  if (!fan) return render();
+  fan.querySelectorAll('.fcard').forEach((c, i) => { const d = fanOff(i, S.fan, n), a = Math.abs(d); c.style.setProperty('--d', d); c.style.setProperty('--a', a); c.style.zIndex = 20 - a; c.classList.toggle('cur', !a); });
+  const cta = document.querySelector('.fancta'), tmp = document.createElement('div');
+  tmp.innerHTML = fanView(); cta.replaceWith(tmp.querySelector('.fancta'));
+  if (lang === 'en') translate(document.querySelector('.fancta'));
+  lastHtml = null;
+}
+// swipe on the fan
+let fanX = null;
+addEventListener('pointerdown', e => { fanX = e.target.closest?.('.fan') ? e.clientX : null; }, true);
+addEventListener('pointerup', e => {
+  if (fanX == null) return;
+  const dx = e.clientX - fanX; fanX = null;
+  if (Math.abs(dx) > 40) { S.fanSwiped = now(); fanMove((S.fan || 0) + (dx < 0 ? 1 : -1)); }
+}, true);
+
 function home() {
   if (S.setup) return setupView();
   const last = LS.get('bg_last', null);
@@ -1454,7 +1486,6 @@ function home() {
   const fk = keys[(day + (S.feat || 0)) % keys.length], F = GAMES[fk];
   const rec = [1, 2, 3].map(k => keys[(day + (S.feat || 0) + k * 5) % keys.length]);
   const hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : hr < 20 ? 'สวัสดีตอนเย็น' : 'สวัสดีตอนค่ำ';
-  const card = k => { const G = GAMES[k]; return `<button class="gcard2" style="--gh:${GHUE[k]}" data-act="playg" data-game="${k}">${gbadge(k)}<b>${G.s}</b><small>${playersTxt(G)} · ~${G.t} นาที</small></button>`; };
   return `${floaters()}<main class="wrap home home2">
     <div class="hcol hl">
       <div class="htop"><h1 class="greet">${greet}, <b>${esc(S.name || '')}</b></h1>
@@ -1471,7 +1502,7 @@ function home() {
         <span class="hart">${gbadge(fk)}</span>
       </section>
       <div class="sechead"><h2>เกมทั้งหมด <span class="muted small">${keys.length} เกม</span></h2></div>
-      <div class="hscroll">${keys.map(card).join('')}</div>
+      ${fanView()}
     </div>
     <div class="hcol hr">
       <div class="sechead"><h2>ลองเล่นดูไหม</h2></div>
@@ -3323,6 +3354,9 @@ const ACT = {
   create: d => createRoom(d.game),
   playg: d => createRoom(d.game),
   feat: () => { S.feat = (S.feat || 0) + 1; render(); },
+  fan: d => { if (now() - (S.fanSwiped || 0) < 400) return; const i = +d.i; if (i === S.fan % fanKeys().length) return createRoom(fanKeys()[i]); fanMove(i); },
+  fanmv: d => fanMove((S.fan || 0) + +d.d),
+  hcat: d => { S.hcat = d.c; S.fan = 0; render(); },
   join: () => joinRoom(S.codeIn),
   resume: () => { const l = LS.get('bg_last', null); if (l) resume(l); },
   rejoin: () => { S.joinErr = ''; render(); hello(); },
