@@ -26,6 +26,9 @@ import * as CP from '../js/coup.js';
 import * as IT from '../js/ito.js';
 import * as BS from '../js/battleship.js';
 import * as GW from '../js/guesswho.js';
+import * as LD from '../js/liarsdice.js';
+import * as DC from '../js/decrypto.js';
+import * as LL from '../js/loveletter.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1798,6 +1801,93 @@ t('guess who: answers are truthful, faces go down, guessing decides the game', (
     const q = GW.newGame(['A', 'B'], 0);
     for (const [id] of GW.QUESTIONS) { q.turn = 'A'; GW.ask(q, 'A', id); }
     assert.deepEqual(GW.PEOPLE.map((_, i) => i).filter(i => !q.down.A.includes(i)), [q.secret.B]);
+  }
+});
+
+t("liar's dice: bids must rise, calling settles against the real count, last player with dice wins", () => {
+  const g = LD.newGame(['A', 'B', 'C'], 5, 1); g.turn = 'A';
+  assert.equal(LD.total(g), 15); assert.ok(!LD.call(g, 'A'), 'nothing to call yet');
+  assert.ok(!LD.bid(g, 'A', 2, 1), 'no bids on ones when wild'); assert.ok(!LD.bid(g, 'B', 2, 3), 'not your turn');
+  assert.ok(LD.bid(g, 'A', 2, 3)); assert.equal(g.turn, 'B');
+  assert.ok(!LD.bid(g, 'B', 2, 2), 'same count, lower face'); assert.ok(!LD.bid(g, 'B', 1, 6)); assert.ok(LD.bid(g, 'B', 2, 5)); assert.ok(LD.bid(g, 'C', 3, 2));
+  assert.equal(LD.minQ(g, 2), 4); assert.equal(LD.minQ(g, 6), 3);
+  g.dice = { A: [1, 2, 2, 4, 6], B: [3, 3, 5, 5, 6], C: [1, 1, 4, 4, 6] };   // twos incl. wild ones: A 3, C 2 = 5
+  assert.equal(LD.count(g, 2), 5);
+  assert.ok(LD.call(g, 'A')); assert.equal(g.res.loser, 'A', 'the bid was true: the caller loses'); assert.equal(g.cnt.A, 4);
+  assert.ok(LD.nextRound(g)); assert.equal(g.turn, 'A'); assert.equal(g.dice.A.length, 4); assert.equal(g.bid, null);
+  LD.bid(g, 'A', 15, 6); g.dice = { A: [2, 2, 2, 2], B: [3, 3, 3, 3, 3], C: [4, 4, 4, 4, 4] }; LD.call(g, 'B'); assert.equal(g.res.loser, 'A', 'a false bid: the bidder loses');
+  const h = LD.newGame(['A', 'B'], 1, 0); h.turn = 'A'; h.dice = { A: [1], B: [1] };
+  assert.ok(LD.bid(h, 'A', 1, 1), 'ones are biddable without wilds'); LD.bid(h, 'B', 2, 1); LD.call(h, 'A');
+  assert.equal(h.res.loser, 'A'); assert.equal(h.winner, 'B'); assert.ok(!LD.nextRound(h));
+  for (let k = 0; k < 200; k++) {   // random games always end with one player left
+    const r = LD.newGame(['A', 'B', 'C', 'D'], 3, k % 2);
+    for (let step = 0; step < 500 && !r.winner; step++) {
+      if (r.phase === 'reveal') { LD.nextRound(r); continue; }
+      const F = LD.faces(r), f = F[rint(F.length)], q = LD.minQ(r, f);
+      if (r.bid && (rint(3) === 0 || !LD.valid(r, q, f))) assert.ok(LD.call(r, r.turn)); else assert.ok(LD.bid(r, r.turn, q, f));
+    }
+    assert.ok(r.winner); assert.equal(LD.alive(r).length, 1);
+  }
+});
+t('decrypto: teams, codes, decoding, interception from round 2, tokens decide the game', () => {
+  const g = DC.newGame(['A', 'B', 'C', 'D', 'E'], [], 'th');
+  assert.equal(g.mem.r.length, 3); assert.equal(g.mem.b.length, 2); assert.equal(new Set([...g.kw.r, ...g.kw.b]).size, 8);
+  for (const t of DC.TEAMS) { assert.equal(new Set(g.code[t]).size, 3); assert.ok(g.code[t].every(n => n >= 1 && n <= 4)); }
+  const er = g.enc.r, eb = g.enc.b, gr = g.mem.r.find(s => s !== er), gb = g.mem.b.find(s => s !== eb);
+  assert.ok(!DC.clue(g, gr, ['a', 'b', 'c']), 'only the encryptor'); assert.ok(!DC.clue(g, er, ['a', '', 'c']), 'all 3 clues');
+  assert.ok(DC.clue(g, er, ['a', 'b', 'c'])); assert.equal(g.phase, 'clue'); assert.ok(DC.clue(g, eb, ['d', 'e', 'f'])); assert.equal(g.phase, 'guess');
+  assert.ok(!DC.canGuess(g, er, 'r'), 'the encryptor cannot decode'); assert.ok(!DC.canGuess(g, gr, 'b'), 'no interception in round 1');
+  assert.ok(!DC.guess(g, gr, 'r', [1, 1, 2]), 'digits must differ');
+  assert.ok(DC.guess(g, gr, 'r', g.code.r)); assert.ok(!DC.guess(g, er === gr ? gr : g.mem.r.find(s => s !== er && s !== gr), 'r', g.code.r), 'first answer locks');
+  const wrong = c => [c[1], c[0], c[2]];
+  assert.ok(DC.guess(g, gb, 'b', wrong(g.code.b))); assert.equal(g.phase, 'reveal');
+  assert.deepEqual(g.tok, { r: { i: 0, m: 0 }, b: { i: 0, m: 1 } }); assert.equal(g.hist.r.length, 1); assert.equal(g.winner, null);
+  assert.ok(DC.next(g)); assert.equal(g.round, 2); assert.notEqual(g.enc.r, er, 'encryptor rotates');
+  DC.clue(g, g.enc.r, ['x', 'y', 'z']); DC.clue(g, g.enc.b, ['u', 'v', 'w']);
+  const any = (t, not) => g.mem[t].find(s => s !== not);
+  assert.ok(DC.guess(g, any('b', g.enc.b), 'b', wrong(g.code.b))); assert.equal(g.phase, 'guess', 'still waiting for interceptions');
+  assert.ok(DC.guess(g, g.enc.r, 'b', [1, 2, 3].join() === g.code.b.join() ? [2, 1, 3] : [1, 2, 3]), 'encryptors may intercept');
+  assert.ok(DC.guess(g, any('r', g.enc.r), 'r', g.code.r)); assert.ok(DC.guess(g, g.enc.b, 'r', g.code.r));
+  assert.equal(g.tok.b.m, 2); assert.equal(g.tok.b.i, 1); assert.equal(g.winner, 'r', 'two miscommunications lose');
+  for (let k = 0; k < 100; k++) {   // random play always ends by round 8
+    const h = DC.newGame(['A', 'B', 'C', 'D'], [], k % 2 ? 'en' : 'th');
+    while (!h.winner) {
+      for (const t of DC.TEAMS) DC.clue(h, h.enc[t], ['1', '2', '3']);
+      for (const s of h.sids) for (const x of DC.TEAMS) if (DC.canGuess(h, s, x)) DC.guess(h, s, x, rint(2) ? h.code[x] : [...h.code[x]].reverse());
+      if (!h.winner) assert.ok(DC.next(h));
+    }
+    assert.ok(h.round <= DC.ROUNDS); assert.ok(['r', 'b', 'tie'].includes(h.winner));
+  }
+});
+
+t('love letter: card effects, forced Countess, handmaid, round end by deck, spy bonus, game end', () => {
+  const g = LL.newGame(['A', 'B', 'C']);
+  assert.equal(g.deck.length + g.sids.length + 1 + (g.aside != null ? 1 : 0), 21);
+  const set = (turn, hands, deck = [1, 1, 1, 1, 1]) => { g.turn = turn; g.hand = hands; g.deck = [...deck]; g.out = {}; g.prot = {}; g.phase = 'play'; for (const s of g.sids) g.disc[s] = []; g.spy = {}; };
+  set('A', { A: [1, 2], B: [5], C: [9] });
+  assert.ok(!LL.play(g, 'A', 1, 'B', 1), 'a Guard cannot name a Guard'); assert.ok(!LL.play(g, 'B', 5, 'A'), 'not your turn');
+  assert.ok(LL.play(g, 'A', 1, 'C', 9)); assert.ok(g.out.C); assert.equal(g.turn, 'B'); assert.equal(g.hand.B.length, 2);
+  set('A', { A: [8, 7], B: [3], C: [4] }); assert.ok(!LL.play(g, 'A', 7, 'B'), 'Countess must be played with the King'); assert.ok(LL.play(g, 'A', 8));
+  set('A', { A: [3, 6], B: [4], C: [2] }); LL.play(g, 'A', 3, 'B'); assert.ok(g.out.B, 'baron: lower card is out');
+  set('A', { A: [4, 2], B: [3], C: [2] }, [1, 1, 9]); LL.play(g, 'A', 4); assert.ok(g.prot.A);
+  assert.ok(!LL.play(g, 'B', 3, 'A'), 'protected'); assert.ok(LL.play(g, 'B', 3, 'C')); assert.ok(g.out.C);
+  set('A', { A: [5, 1], B: [9], C: [2] }); LL.play(g, 'A', 5, 'B'); assert.ok(g.out.B, 'princess discarded = out');
+  set('A', { A: [7, 1], B: [9], C: [2] }); LL.play(g, 'A', 7, 'B'); assert.deepEqual(g.hand.A, [9]);
+  set('A', { A: [2, 1], B: [6], C: [2] }); LL.play(g, 'A', 2, 'B'); assert.deepEqual(g.peek.A, { who: 'B', v: 6 });
+  set('A', { A: [6, 1], B: [6], C: [2] }, [3, 4, 5, 7]); LL.play(g, 'A', 6); assert.equal(g.phase, 'chan'); assert.equal(g.hand.A.length, 3);
+  assert.ok(LL.keep(g, 'A', 7)); assert.deepEqual(g.hand.A, [7]); assert.equal(g.deck.length, 3, 'two went back under, B drew one');
+  const r0 = { ...g.tok }; set('A', { A: [0, 4], B: [7], C: [9] }, []);
+  LL.play(g, 'A', 0); assert.equal(g.phase, 'end', 'empty deck ends the round'); assert.deepEqual(g.res.win, ['C']); assert.equal(g.res.spy, 'A');
+  assert.equal(g.tok.C, r0.C + 1); assert.equal(g.tok.A, r0.A + 1);
+  for (let k = 0; k < 300; k++) {   // random games always finish
+    const h = LL.newGame(['A', 'B', 'C', 'D', 'E', 'F'].slice(0, 2 + (k % 5)));
+    for (let step = 0; step < 5000 && !h.winner; step++) {
+      if (h.phase === 'end') { assert.ok(LL.next(h)); continue; }
+      if (h.phase === 'chan') { assert.ok(LL.keep(h, h.chan, h.hand[h.chan][rint(h.hand[h.chan].length)])); continue; }
+      const s = h.turn, hand = h.hand[s], v = LL.mustCountess(hand) ? 8 : hand[rint(2)], T = LL.CARDS[v][1] ? LL.targets(h, s, v) : [];
+      assert.ok(LL.play(h, s, v, T.length ? T[rint(T.length)] : null, LL.GUESS[rint(LL.GUESS.length)]), `play ${v}`);
+    }
+    assert.ok(h.winner); assert.ok(h.tok[h.winner] >= h.need);
   }
 });
 

@@ -24,6 +24,9 @@ import * as CP from './coup.js';
 import * as IT from './ito.js';
 import * as BS from './battleship.js';
 import * as GW from './guesswho.js';
+import * as LD from './liarsdice.js';
+import * as DC from './decrypto.js';
+import * as LL from './loveletter.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -83,12 +86,15 @@ const GAMES = {
   it: { n: 'ito', s: 'ito', e: '🔢', min: IT.MIN, max: IT.MAX, t: 20, c: ['coop', 'word'], d: 'ได้เลขลับ 1–100 แล้วบอกเลขเป็นคำตามหัวข้อ เช่น “สัตว์ที่น่ากลัว” ช่วยกันวางเรียงจากน้อยไปมาก' },
   bs: { n: 'Battleship', s: 'Battleship', e: '🚢', min: BS.MIN, max: BS.MAX, t: 20, c: ['card'], d: 'เกมเรือรบ 2 คน ซ่อนกองเรือในทะเล แล้วผลัดกันยิง ยิงโดนได้ยิงต่อ จมเรือศัตรูให้หมดก่อนชนะ' },
   gw: { n: 'Guess Who?', s: 'Guess Who?', e: '🧑', min: GW.MIN, max: GW.MAX, t: 15, c: ['ded'], d: 'ทายว่าคนลับของอีกฝ่ายคือใครใน 24 คน ถามคำถามใช่/ไม่ใช่ทีละข้อ แล้วทายให้ถูก' },
+  ld: { n: "Liar's Dice", s: "Liar's Dice", e: '🎲', min: LD.MIN, max: LD.MAX, t: 15, c: ['card'], d: 'ทุกคนทอยเต๋าลับในถ้วย แล้วประมูลว่าทั้งวงมีเลขนี้กี่ลูก ไม่เชื่อก็เรียก “โกหก!” ใครผิดเสียเต๋า 1 ลูก' },
+  dc: { n: 'Decrypto', s: 'Decrypto', e: '📻', min: DC.MIN, max: DC.MAX, t: 30, c: ['word'], d: '2 ทีม ใบ้รหัส 3 หลักจากคำลับ 4 คำให้ทีมตัวเองถอดได้ แต่อย่าให้ทีมตรงข้ามดักฟังรหัสได้' },
+  ll: { n: 'Love Letter', s: 'Love Letter', e: '💌', min: LL.MIN, max: LL.MAX, t: 20, c: ['card', 'ded'], d: 'ส่งจดหมายรักถึงเจ้าหญิง ถือไพ่ 1 ใบ จั่ว 1 ลง 1 ใช้พลังการ์ดเขี่ยคนอื่นออก หรือถือใบสูงสุดตอนกองหมด' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark', ld: 'dice', dc: 'eye', ll: 'heart' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30, ld: 15, dc: 160, ll: 300 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -103,7 +109,7 @@ const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.
 const S = {
   conn: null, room: null, pid: null, isHost: false, name: LS.get('bg_name', ''), setup: !LS.get('bg_name', ''), codeIn: new URLSearchParams(location.search).get('r')?.toUpperCase() || '',
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
-  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], gwQ: null, gwG: false, cw: '', cnN: 1,
+  key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], gwQ: null, gwG: false, ldQ: null, ldF: null, llC: null, llT: null, llG: null, dcC: ['', '', ''], dcG: {}, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
@@ -145,7 +151,7 @@ function newHost(room, game, name) {
   return {
     room, game, phase: 'lobby', round: 0, endsAt: null, paused: null, g: null, recent: [],
     players: [{ sid: 's' + uid(6), pid: S.pid, name, seen: now() }],
-    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 }, od: { sec: 3 }, wl: lang },
+    settings: { onuw: { auto: true, deck: null, night: 15, day: 300 }, spyfall: { spies: 1, min: 8 }, uc: { auto: true, uc: 1, white: 0 }, av: AV.defaults(), ins: { min: 5 }, jo: { rounds: 13 }, ct: { sec: 8 }, od: { sec: 3 }, ld: { dice: 5, wild: 1 }, wl: lang },
   };
 }
 
@@ -208,6 +214,14 @@ function pubOf() {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
       };
+    } else if (H.game === 'll') {
+      p.ll = { phase: g.phase, round: g.round, turn: g.turn, chan: g.chan, tok: g.tok, need: g.need, out: g.out, prot: g.prot, disc: g.disc, spy: g.spy, up: g.up, deck: g.deck.length, log: g.log.slice(-12), res: g.res, winner: g.winner, n: g.n, seats: g.sids };
+    } else if (H.game === 'ld') {
+      p.ld = { phase: g.phase, turn: g.turn, bid: g.bid, cnt: g.cnt, wild: g.wild, res: g.res, winner: g.winner, round: g.round, log: g.log.slice(-8), n: g.n, seats: g.sids, total: LD.total(g) };
+    } else if (H.game === 'dc') {
+      const show = g.phase !== 'clue';
+      p.dc = { phase: g.phase, round: g.round, team: g.team, mem: g.mem, enc: g.enc, tok: g.tok, hist: g.hist, res: g.res, winner: g.winner, n: g.n,
+        clues: show ? g.clues : null, gave: { r: !!g.clues.r, b: !!g.clues.b }, guessed: Object.fromEntries(DC.TEAMS.map(x => [x, Object.keys(g.guess[x])])), kw: g.winner ? g.kw : null };
     } else if (H.game === 'bs') {
       p.bs = { phase: g.phase, turn: g.turn, ready: g.ready, shots: g.shots, last: g.last, winner: g.winner, n: g.n, seats: g.sids,
         sunk: Object.fromEntries(g.sids.map(x => [x, BS.sunk(g, x)])), fleets: g.winner ? g.fleet : null };
@@ -356,6 +370,13 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'll') {
+    v.hand = g.hand[sid] || []; v.peek = g.peek[sid] || null;
+  } else if (H.game === 'ld') {
+    v.dice = g.dice[sid] || [];
+  } else if (H.game === 'dc') {
+    const t = g.team[sid];
+    if (t) { v.team = t; v.kw = g.kw[t]; if (g.enc[t] === sid && g.phase !== 'reveal') v.code = g.code[t]; }
   } else if (H.game === 'bs') {
     v.fleet = g.fleet[sid];
   } else if (H.game === 'gw') {
@@ -786,6 +807,21 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'llplay': case 'llkeep': {
+      if (H.phase !== 'll' || m.n !== g.n) break;
+      if (m.t === 'llplay' ? LL.play(g, sid, +m.v, m.to ?? null, m.g == null ? null : +m.g) : LL.keep(g, sid, +m.v)) broadcast();
+      break;
+    }
+    case 'ldbid': case 'ldcall': {
+      if (H.phase !== 'ld' || m.n !== g.n) break;
+      if (m.t === 'ldbid' ? LD.bid(g, sid, +m.q, +m.f) : LD.call(g, sid)) broadcast();
+      break;
+    }
+    case 'dcclue': case 'dcguess': {
+      if (H.phase !== 'dc') break;
+      if (m.t === 'dcclue' ? DC.clue(g, sid, m.c) : DC.guess(g, sid, m.x, Array.isArray(m.c) ? m.c.map(Number) : null)) broadcast();
+      break;
+    }
     case 'bsre': case 'bsready': case 'bsfire': {
       if (H.phase !== 'bs' || m.n !== g.n) break;   // a tap made on an older screen
       if (m.t === 'bsre' ? BS.reroll(g, sid) : m.t === 'bsready' ? BS.ready(g, sid) : BS.fire(g, sid, +m.c)) broadcast();
@@ -1065,7 +1101,9 @@ const HA = {
   },
   wl(d) { if (H.phase === 'lobby' && (d.l === 'th' || d.l === 'en')) { H.settings.wl = d.l; broadcast(); } },
   set(d) {
-    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1] }[d.k];
+    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1], 'ld.dice': [3, 6, 1], 'ld.wild': [0, 1, 1] }[d.k];
+    if (!lim) return;
+    H.settings[g] ||= { ld: { dice: 5, wild: 1 } }[g];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
     const v = H.settings[g][k] + lim[2] * +d.d;
     if (v < lim[0] || v > lim[1]) return;
@@ -1107,6 +1145,13 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'll') {
+      H.g = LL.newGame(sids); H.phase = 'll'; H.endsAt = null;
+    } else if (H.game === 'ld') {
+      const c = H.settings.ld || { dice: 5, wild: 1 };
+      H.g = LD.newGame(sids, c.dice, c.wild); H.phase = 'ld'; H.endsAt = null;
+    } else if (H.game === 'dc') {
+      H.g = DC.newGame(sids, H.recentDC || [], H.wl); H.recentDC = [...H.g.idx, ...(H.recentDC || [])].slice(0, DC.RECENT); H.phase = 'dc'; H.endsAt = null;
     } else if (H.game === 'bs') {
       H.g = BS.newGame(sids, rint(2)); H.phase = 'bs'; H.endsAt = null;
     } else if (H.game === 'gw') {
@@ -1219,6 +1264,9 @@ const HA = {
   itnext() { if (H.phase === 'it' && IT.nextLevel(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
   ittheme() { if (H.phase === 'it' && IT.newTheme(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
   cppass() { if (H.phase === 'cp' && CP.forceStep(H.g)) broadcast(); },
+  llnext() { if (H.phase === 'll' && LL.next(H.g)) broadcast(); },
+  ldnext() { if (H.phase === 'ld' && LD.nextRound(H.g)) broadcast(); },
+  dcnext() { if (H.phase === 'dc' && DC.next(H.g)) broadcast(); },
   odnext() { if (H.phase === 'od' && OD.nextLevel(H.g)) { odClock(); broadcast(); } },
   ctstart() { if (H.phase === 'ct' && CZ.start(H.g)) { ctClock(); broadcast(); } },
   cttovote() { if (H.phase === 'ct' && CZ.toVote(H.g)) broadcast(); },
@@ -1601,7 +1649,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, ld: ldV, dc: dcV, ll: llV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1651,7 +1699,7 @@ function pickerView() {
 }
 
 // games whose secret words / places come from a word list (the room picks the list's language)
-const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn', 'it']);
+const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn', 'it', 'dc']);
 function lobby() {
   const p = S.pub, n = pl().length, host = isHostView(), G = GAMES[p.game];
   let settings = '', errs = [];
@@ -1693,6 +1741,20 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'll') {
+    if (n < LL.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LL.MIN} คน`);
+    if (n > LL.MAX) errs.push(`Love Letter เล่นได้สูงสุด ${LL.MAX} คน`);
+    settings = `<p class="muted small">การ์ด 21 ใบ · ได้ ❤ ${LL.NEED[Math.max(2, Math.min(6, n))]} อันก่อนชนะ</p>`;
+  } else if (p.game === 'ld') {
+    if (n < LD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LD.MIN} คน`);
+    if (n > LD.MAX) errs.push(`Liar's Dice เล่นได้สูงสุด ${LD.MAX} คน`);
+    const c = p.set.ld || { dice: 5, wild: 1 };
+    settings = host ? `${stepper('ld.dice', 'เต๋าคนละ', c.dice, ' ลูก')}<div class="gset"><h3>เลข 1 เป็นไวด์ (นับเป็นทุกเลข)</h3><div class="seg">${[[1, '✔ ใช้ไวด์'], [0, '✘ ไม่ใช้']].map(([k, nm]) => `<button class="${c.wild === k ? 'on' : ''}" data-act="set" data-k="ld.wild" data-d="${k - c.wild}">${nm}</button>`).join('')}</div></div>`
+      : `<p class="muted small">เต๋าคนละ ${c.dice} ลูก · เลข 1 ${c.wild ? 'เป็นไวด์' : 'ไม่ใช่ไวด์'}</p>`;
+  } else if (p.game === 'dc') {
+    if (n < DC.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${DC.MIN} คน`);
+    if (n > DC.MAX) errs.push(`Decrypto เล่นได้สูงสุด ${DC.MAX} คน`);
+    settings = `<p class="muted small">แบ่ง 2 ทีมอัตโนมัติ · ทีมละ 4 คำลับ · สูงสุด ${DC.ROUNDS} รอบ · ดักรหัสได้ 2 ครั้งชนะ · ถอดรหัสทีมตัวเองพลาด 2 ครั้งแพ้</p>`;
   } else if (p.game === 'bs' || p.game === 'gw') {
     if (n !== 2) errs.push(`${G.s} เล่นได้ 2 คนเท่านั้น`);
     settings = p.game === 'bs' ? '<p class="muted small">ทะเล 10×10 · เรือ 5 ลำ (5, 4, 3, 3, 2 ช่อง) · ยิงโดนได้ยิงต่อ</p>' : `<p class="muted small">${GW.PEOPLE.length} คน · คำถาม ${GW.QUESTIONS.length} แบบ · ทายผิดแพ้ทันที</p>`;
@@ -2784,6 +2846,149 @@ function gwV() {
     <p class="center muted small">${esc(pn(opp))} เหลือ ${w.left[opp]} คน</p>${logP}`;
 }
 
+// ── Love Letter ──
+const LLC = { 0: ['สายลับ', 'spy', 'ไม่มีผลทันที · จบรอบ ถ้าคุณเป็นคนเดียวที่รอดและเคยลง/ทิ้งสายลับ ได้ ❤ เพิ่ม 1'], 1: ['ทหารยาม', 'shield', 'ทายไพ่ในมือคนอื่น (ห้ามทายทหารยาม) ทายถูก = เขาตกรอบ'],
+  2: ['นักบวช', 'eye', 'แอบดูไพ่ในมือคนอื่น'], 3: ['บารอน', 'tophat', 'เทียบไพ่ในมือกับคนอื่น ใครน้อยกว่าตกรอบ'], 4: ['นางกำนัล', 'dove', 'ไม่มีใครเล็งคุณได้จนถึงตาถัดไปของคุณ'],
+  5: ['เจ้าชาย', 'star', 'ให้ใครก็ได้ (รวมตัวเอง) ทิ้งไพ่ในมือแล้วจั่วใหม่'], 6: ['ราชเลขา', 'scroll', 'จั่ว 2 ใบ เก็บไว้ 1 ใบ ที่เหลือใส่ใต้กอง'], 7: ['กษัตริย์', 'crown', 'แลกไพ่ในมือกับคนอื่น'],
+  8: ['เคาน์เตส', 'ring', 'ต้องลงทันที ถ้าถือคู่กับกษัตริย์หรือเจ้าชาย'], 9: ['เจ้าหญิง', 'rose', 'ถ้าลงหรือถูกบังคับทิ้งใบนี้ ตกรอบทันที'] };
+const llCard = (v, cls = '', attr = '') => `<${attr ? 'button' : 'span'} class="llc v${v} ${cls}" ${attr}><i>${v}</i>${gi(LLC[v][1])}<b>${LLC[v][0]}</b>${cls.includes('big') ? `<small>${LLC[v][2]}</small>` : ''}</${attr ? 'button' : 'span'}>`;
+function llLog(e) {
+  const P = x => `<b>${esc(pn(x))}</b>`, C = v => `<b>${LLC[v][0]}</b>`;
+  const who = e.to ? ` → ${P(e.to)}` : LL.CARDS[e.v][1] ? ' (ไม่มีเป้าหมาย ไม่มีผล)' : '';
+  const more = e.v === 1 && e.to ? ` ทายว่า ${C(e.guess)} — ${e.hit ? 'ถูก! ตกรอบ' : 'ผิด'}` : e.v === 3 && e.to ? (e.tie ? ' — เสมอ' : ` — ${P(e.lose)} ตกรอบ (ถือ ${C(e.lv)})`)
+    : e.v === 5 && e.to ? ` — ทิ้ง ${C(e.lv)}${e.lose ? ' ตกรอบ!' : ''}` : e.v === 7 && e.to ? ' — แลกไพ่กัน' : e.v === 9 ? ' — ตกรอบ!' : e.v === 2 && e.to ? ' — แอบดูไพ่' : '';
+  return `${P(e.by)} ลง ${C(e.v)}${who}${more}`;
+}
+function llV() {
+  const l = S.pub.ll, v = S.priv, mine = me(), my = l.turn === mine && l.phase === 'play';
+  const hearts = x => `<span class="lltok">${'❤'.repeat(l.tok[x])}<em>${'♡'.repeat(Math.max(0, l.need - l.tok[x]))}</em></span>`;
+  const sel = my && S.llC != null && LL.CARDS[S.llC][1] ? LL.targets({ ...l, sids: l.seats }, mine, S.llC) : [];
+  const board = `<div class="llboard">${l.seats.map(x => { const pick = sel.includes(x);
+    return `<${pick ? 'button' : 'div'} class="llp ${x === l.turn ? 'turn' : ''} ${l.out[x] ? 'out' : ''} ${pick ? 'pick' : ''} ${S.llT === x ? 'on' : ''}" ${pick ? `data-act="llt" data-s="${x}"` : ''} style="--ph:${hueOf(x)}">
+      <span class="lln">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' <em>(คุณ)</em>' : ''}</b>${l.prot[x] ? '<span title="นางกำนัล">🛡</span>' : ''}${l.out[x] ? '<span>✖</span>' : ''}</span>
+      ${hearts(x)}<span class="lldisc">${l.disc[x].map(c => `<span class="lld v${c}">${c}</span>`).join('') || '<span class="muted small">ยังไม่ลงไพ่</span>'}</span></${pick ? 'button' : 'div'}>`; }).join('')}</div>`;
+  const info = `<p class="center skstatus"><span>รอบที่ ${l.round}</span> · <span>กองเหลือ ${l.deck} ใบ</span>${l.up.length ? ` · <span>ไพ่ที่คัดออก:</span> ${l.up.map(c => `<span class="lld v${c}">${c}</span>`).join('')}` : ''} · <span>❤ ${l.need} อันชนะ</span></p>`;
+  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ol class="log">${[...l.log].reverse().map(e => `<li>${llLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
+  const cheat = `<section class="panel"><h2>การ์ดทั้งหมด (21 ใบ)</h2><ul class="llcheat">${Object.keys(LLC).map(k => `<li>${llCard(+k, 'xs')}<span><b>×${LL.CARDS[k][0]}</b> ${LLC[k][2]}</span></li>`).join('')}</ul></section>`;
+  const peek = v.peek ? `<p class="center llpeek">👁 ไพ่ของ <b>${esc(pn(v.peek.who))}</b> คือ ${llCard(v.peek.v, 'xs')}</p>` : '';
+  if (l.phase === 'end') {
+    const r = l.res;
+    const head = `<div class="banner ${r.win.includes(mine) ? 'win' : 'lose'}"><div class="bt">${r.win.map(x => esc(pn(x))).join(', ')} ได้ ❤</div>
+      <div>${r.byDeck ? 'กองหมด เทียบไพ่ในมือ ใบสูงสุดชนะ' : 'เหลือรอดคนสุดท้าย'}${r.spy ? ` · ${esc(pn(r.spy))} ได้ ❤ จากสายลับ` : ''}</div></div>
+      <div class="llreveal">${Object.entries(r.hands).map(([x, c]) => `<div>${llCard(c, 'sm')}<small>${esc(pn(x))}</small></div>`).join('')}</div>`;
+    if (l.winner) return `<div class="banner ${l.winner === mine ? 'win' : 'lose'}"><div class="bt">💌 ${l.winner === mine ? 'คุณชนะใจเจ้าหญิง!' : `${esc(pn(l.winner))} ชนะใจเจ้าหญิง`}</div></div>${head}${board}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+    return `${head}${isHostView() ? btn('llnext', '▶ รอบต่อไป', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}${board}${logP}`;
+  }
+  let act;
+  if (l.phase === 'chan') act = l.chan === mine ? `<section class="panel"><h2>📜 ราชเลขา — เลือกเก็บ 1 ใบ</h2><p class="muted small">ใบที่เหลือจะถูกใส่ไว้ใต้กอง</p><div class="llhand">${v.hand.map(c => llCard(c, 'big', `data-act="llkeep" data-v="${c}"`)).join('')}</div></section>`
+    : `<p class="muted center">${esc(pn(l.chan))} กำลังเลือกไพ่ (ราชเลขา)…</p>`;
+  else if (my) {
+    const forced = LL.mustCountess(v.hand), c = S.llC, needT = c != null && LL.CARDS[c][1];
+    const ready = c != null && (!needT || !sel.length || (S.llT && (c !== 1 || S.llG != null)));
+    act = `<section class="panel"><h2>👉 ตาคุณ — เลือกการ์ดที่จะลง</h2><div class="llhand">${v.hand.map(x => llCard(x, `big ${c === x ? 'on' : ''}`, forced && x !== 8 ? 'disabled' : `data-act="llc" data-v="${x}"`)).join('')}</div>
+      ${forced ? '<p class="ask center">ถือเคาน์เตสคู่กับกษัตริย์/เจ้าชาย ต้องลงเคาน์เตส</p>' : ''}
+      ${needT ? (sel.length ? '<p class="ask center">แตะผู้เล่นด้านล่างเพื่อเลือกเป้าหมาย</p>' : '<p class="muted center">ไม่มีใครให้เล็ง (คุ้มกันหมด) — ลงได้แต่ไม่มีผล</p>') : ''}
+      ${c === 1 && S.llT ? `<div class="llguess">${LL.GUESS.map(x => `<button class="${S.llG === x ? 'on' : ''}" data-act="llg" data-g="${x}"><i>${x}</i>${LLC[x][0]}</button>`).join('')}</div>` : ''}
+      ${btn('llplay', c == null ? 'เลือกการ์ดก่อน' : `💌 ลง <span>${LLC[c][0]}</span>${S.llT ? ` → <span class="notr">${esc(pn(S.llT))}</span>` : ''}${c === 1 && S.llG != null ? ` <span>(ทาย ${LLC[S.llG][0]})</span>` : ''}`, 'primary wide', {}, !ready)}</section>`;
+  } else act = `<p class="muted center">${l.turn ? `รอ ${esc(pn(l.turn))}…` : ''}</p>${v.hand.length ? `<section class="panel"><h2>ไพ่ในมือคุณ</h2><div class="llhand">${v.hand.map(x => llCard(x, 'big')).join('')}</div></section>` : '<p class="muted center">คุณตกรอบนี้แล้ว — ดูต่อได้</p>'}`;
+  const last = l.log.length ? `<p class="center lllast">${llLog(l.log.at(-1))}</p>` : '';
+  return `${info}${last}${peek}${act}${board}${logP}${cheat}`;
+}
+
+// ── Liar's Dice ──
+const DIEP = { 1: [5], 2: [3, 7], 3: [3, 5, 7], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
+const DIEN = { 1: 'เลข 1', 2: 'เลข 2', 3: 'เลข 3', 4: 'เลข 4', 5: 'เลข 5', 6: 'เลข 6' };
+const die = (f, cls = '') => `<span class="ldd ${cls}" aria-label="${f}">${DIEP[f].map(p => `<i style="grid-area:${Math.ceil(p / 3)}/${((p - 1) % 3) + 1}"></i>`).join('')}</span>`;
+const ldBid = b => `<b>${b.q}</b> × ${die(b.f, 'sm')}`;
+function ldV() {
+  const l = S.pub.ld, v = S.priv, mine = me(), my = l.turn === mine && l.phase === 'bid', live = l.cnt[mine] > 0;
+  const seats = `<div class="ldseats">${l.seats.map(x => `<div class="ldp ${x === l.turn && l.phase === 'bid' ? 'turn' : ''} ${l.cnt[x] ? '' : 'out'}" style="--ph:${hueOf(x)}">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' <em>(คุณ)</em>' : ''}</b>
+    <span class="ldcup">${l.phase === 'reveal' ? (l.res.dice[x] || []).map(d => die(d, `sm ${d === l.res.bid.f || (l.wild && d === 1) ? 'hit' : ''}`)).join('') : `🎲 × ${l.cnt[x]}`}</span></div>`).join('')}</div>`;
+  const mineP = live ? `<section class="panel ldmine"><h2>เต๋าของคุณ <span class="muted small">(ห้ามให้ใครเห็น)</span></h2><div class="lddice">${v.dice.map(d => die(d)).join('')}</div>${l.wild ? '<p class="muted small center">เลข 1 เป็นไวด์ นับเป็นทุกเลข</p>' : ''}</section>` : '<p class="muted center">คุณหมดเต๋าแล้ว — ดูต่อได้</p>';
+  const bidP = `<section class="panel ldbid"><small>ประมูลล่าสุด</small>${l.bid ? `<div class="ldnow">${ldBid(l.bid)}</div><small>โดย ${esc(pn(l.bid.by))}</small>` : '<div class="ldnow muted">—</div>'}<small class="muted">บนโต๊ะมีเต๋าทั้งหมด ${l.total} ลูก</small></section>`;
+  if (l.phase === 'reveal') {
+    const r = l.res, ok = r.have >= r.bid.q;
+    const head = `<div class="banner ${r.loser === mine ? 'lose' : 'win'}"><div class="bt">${esc(pn(r.by))} เรียก “โกหก!”</div>
+      <div>ประมูล ${ldBid(r.bid)} — มีจริง <b>${r.have}</b> ลูก · ${ok ? 'ประมูลถูก! คนเรียกเสียเต๋า' : 'โกหกจริง! คนประมูลเสียเต๋า'}</div><div><b>${esc(pn(r.loser))}</b> เสียเต๋า 1 ลูก${r.out ? ' และตกรอบ' : ''}</div></div>`;
+    if (l.winner) return `<div class="banner ${l.winner === mine ? 'win' : 'lose'}"><div class="bt">${l.winner === mine ? 'คุณชนะ!' : `${esc(pn(l.winner))} ชนะ`}</div><div>เหลือเต๋าคนสุดท้าย</div></div>${head}${seats}
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+    return `${head}${seats}${isHostView() ? btn('ldnext', '▶ รอบต่อไป (ทอยใหม่)', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}`;
+  }
+  let act = `<p class="muted center">รอ ${esc(pn(l.turn))} ประมูล…</p>`;
+  if (my) {
+    const F = LD.faces(l);
+    if (S.ldF == null || !F.includes(S.ldF)) { S.ldF = l.bid ? (F.find(f => LD.minQ(l, f) === l.bid.q) ?? l.bid.f) : F[0]; S.ldQ = null; }
+    S.ldQ = Math.max(S.ldQ ?? 0, LD.minQ(l, S.ldF));
+    const can = LD.valid(l, S.ldQ, S.ldF);
+    act = `<section class="panel ldact"><h2>👉 ตาคุณ — ประมูลให้สูงขึ้น หรือเรียกโกหก</h2>
+      <div class="stepper"><span>จำนวน</span><div class="sctl"><button class="sb" data-act="ldq" data-d="-1" ${S.ldQ <= LD.minQ(l, S.ldF) ? 'disabled' : ''}>−</button><b>${S.ldQ}</b><button class="sb" data-act="ldq" data-d="1" ${S.ldQ >= l.total ? 'disabled' : ''}>+</button></div></div>
+      <div class="ldfaces">${F.map(f => `<button class="${S.ldF === f ? 'on' : ''}" data-act="ldf" data-f="${f}" aria-label="${DIEN[f]}">${die(f)}</button>`).join('')}</div>
+      <p class="muted small center">ต้องสูงกว่าเดิม: จำนวนมากขึ้น หรือจำนวนเท่าเดิมแต่เลขสูงขึ้น</p>
+      <div class="row">${l.bid ? btn('ldcall', '🤥 โกหก!', 'danger') : ''}${btn('ldbid', `ประมูล ${S.ldQ} × ${DIEN[S.ldF]}`, 'primary', {}, !can)}</div></section>`;
+  }
+  const logP = l.log.length ? `<section class="panel"><h2>การประมูลรอบนี้</h2><ol class="log">${[...l.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ${ldBid(e)}</li>`).join('')}</ol></section>` : '';
+  return `<p class="center skstatus">รอบที่ ${l.round}</p>${bidP}${act}${mineP}${seats}${logP}`;
+}
+
+// ── Decrypto ──
+const DCT = { r: '🔴 ทีมแดง', b: '🔵 ทีมน้ำเงิน' };
+const dcCode = c => `<span class="dccode">${c.map(n => `<b>${n}</b>`).join('')}</span>`;
+function dcHist(d, x, kw) {
+  const cols = [1, 2, 3, 4].map(k => d.hist[x].flatMap(h => h.clues.filter((c, j) => h.code[j] === k)));
+  return `<div class="dchist">${cols.map((cl, k) => `<div><h4>${k + 1}${kw ? ` <span class="notr">${esc(kw[k])}</span>` : ''}</h4>${cl.map(c => `<span class="notr">${esc(c)}</span>`).join('') || '<span class="muted">—</span>'}</div>`).join('')}</div>`;
+}
+function dcPicker(d, x, clues) {
+  const a = S.dcG[x] || [0, 0, 0];
+  return `<div class="dcpick">${clues.map((c, j) => `<div class="dcrow"><span class="notr">${esc(c)}</span><span class="dcnum">${[1, 2, 3, 4].map(n => `<button class="${a[j] === n ? 'on' : ''}" data-act="dcpick" data-x="${x}" data-j="${j}" data-v="${n}">${n}</button>`).join('')}</span></div>`).join('')}
+    ${btn('dcguess', a.every(Boolean) ? `ส่งรหัส ${a.join('-')}` : 'เลือกเลขให้ครบ 3 ช่อง', 'primary wide', { x }, !a.every(Boolean))}</div>`;
+}
+function dcV() {
+  const d = S.pub.dc, v = S.priv, mine = me(), t = v.team, o = t ? DC.other(t) : 'b', iEnc = t && d.enc[t] === mine;
+  const tok = x => `<span class="dctok"><b>${DCT[x]}</b> ดักได้ ${'⚪'.repeat(d.tok[x].i)}${'·'.repeat(2 - Math.min(2, d.tok[x].i))} · พลาด ${'⚫'.repeat(d.tok[x].m)}${'·'.repeat(2 - Math.min(2, d.tok[x].m))}</span>`;
+  const head = `<p class="center skstatus">รอบ <b>${d.round}</b>/${DC.ROUNDS}</p><div class="dctoks">${tok('r')}${tok('b')}</div>`;
+  const teams = `<div class="dcteams">${DC.TEAMS.map(x => `<div class="dcteam t-${x}"><b>${DCT[x]}</b>${d.mem[x].map(s => `<span>${esc(pn(s))}${s === d.enc[x] && d.phase !== 'reveal' ? ' 📻' : ''}${s === mine ? ' (คุณ)' : ''}</span>`).join('')}</div>`).join('')}</div>`;
+  const kwP = t ? `<section class="panel"><h2>คำลับของ ${DCT[t]}</h2><div class="dckw">${v.kw.map((w, i) => `<div class="dck t-${t}"><i>${i + 1}</i><b class="notr">${esc(w)}</b></div>`).join('')}</div></section>` : '';
+  const histP = `<section class="panel"><h2>ประวัติคำใบ้ ${DCT[o]} <span class="muted small">(ใช้เดาว่าเลขไหนคือคำอะไร)</span></h2>${dcHist(d, o, d.kw?.[o])}</section>
+    ${t ? `<section class="panel"><h2>ประวัติคำใบ้ ${DCT[t]}</h2>${dcHist(d, t, v.kw)}</section>` : ''}`;
+  if (d.phase === 'reveal') {
+    const rows = DC.TEAMS.map(x => { const r = d.res[x];
+      return `<section class="panel dcres t-${x}"><h2>${DCT[x]} <span class="muted small">ใบ้โดย ${esc(pn(r.enc))}</span></h2>
+        <ol class="dcclues">${r.clues.map((c, j) => `<li><span class="notr">${esc(c)}</span><b>${r.code[j]}</b></li>`).join('')}</ol>
+        <p>รหัสจริง ${dcCode(r.code)}</p>
+        <p>ทีมตัวเองถอด: ${dcCode(r.dec)} ${r.decOk ? '<b class="ok-text">✔ ถูก</b>' : '<b class="bad-text">✘ พลาด (ได้ ⚫)</b>'}</p>
+        ${r.int ? `<p>${DCT[DC.other(x)]} ดัก: ${dcCode(r.int)} ${r.intOk ? '<b class="ok-text">✔ ดักได้ (ได้ ⚪)</b>' : '<b class="muted">✘ ดักไม่ได้</b>'}</p>` : '<p class="muted small">รอบแรกยังไม่มีการดักรหัส</p>'}</section>`; }).join('');
+    if (d.winner) {
+      const win = d.winner === t, tie = d.winner === 'tie';
+      return `<div class="banner ${win || tie ? 'win' : 'lose'}"><div class="bt">${tie ? 'เสมอ!' : win ? 'ทีมคุณชนะ!' : `${DCT[d.winner]} ชนะ`}</div></div>${head}${rows}
+        <section class="panel"><h2>คำลับทั้งหมด</h2>${DC.TEAMS.map(x => `<p><b>${DCT[x]}:</b> <span class="notr">${d.kw[x].map((w, i) => `${i + 1}. ${esc(w)}`).join(' · ')}</span></p>`).join('')}</section>
+        ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+    }
+    return `${head}${rows}${isHostView() ? btn('dcnext', '▶ รอบต่อไป', 'primary wide big') : '<p class="muted center">รอเจ้าของห้องไปต่อ…</p>'}${kwP}${histP}`;
+  }
+  let act = '';
+  if (d.phase === 'clue') {
+    if (iEnc && !d.gave[t] && !v.code) act = '<div class="loading"><div class="spin"></div></div>';   // new round's code still on its way
+    else if (iEnc && !d.gave[t]) {
+      act = `<section class="panel dcenc"><h2>📻 คุณเป็นคนใบ้รอบนี้ — รหัส ${dcCode(v.code)}</h2><p class="muted small">ใบ้ทีละคำให้ทีมรู้ว่าเป็นคำลับเลขไหน ห้ามให้ทีมตรงข้ามจับทางได้ ห้ามพูดคำลับตรงๆ</p>
+        ${v.code.map((k, j) => `<label class="dcin"><span>${k} <span class="notr">${esc(v.kw[k - 1])}</span></span><input id="dc${j}" maxlength="30" placeholder="คำใบ้" value="${esc(S.dcC[j] || '')}"></label>`).join('')}
+        ${btn('dcclue', '📨 ส่งคำใบ้', 'primary wide', {}, !S.dcC.every(x => x.trim()))}</section>`;
+    } else act = `<section class="panel center"><p>รอคนใบ้เขียนคำใบ้…</p>${DC.TEAMS.map(x => `<p>${DCT[x]}: ${esc(pn(d.enc[x]))} ${d.gave[x] ? '✔ ส่งแล้ว' : '…'}</p>`).join('')}</section>`;
+  } else {
+    const inter = d.round >= 2;
+    act = (t ? [t, o] : DC.TEAMS).map(x => {
+      const mineTeam = x === t, done = d.guessed[x].includes(t), need = mineTeam || inter;
+      let body;
+      if (!t || !need) body = `<ol class="dcclues">${d.clues[x].map(c => `<li><span class="notr">${esc(c)}</span></li>`).join('')}</ol>${!inter && !mineTeam ? '<p class="muted small">รอบแรกยังไม่ดักรหัส</p>' : ''}`;
+      else if (done) body = `<ol class="dcclues">${d.clues[x].map(c => `<li><span class="notr">${esc(c)}</span></li>`).join('')}</ol><p class="ok-text center">✔ ทีมคุณส่งรหัสแล้ว</p>`;
+      else if (mineTeam && iEnc) body = `<ol class="dcclues">${d.clues[x].map((c, j) => `<li><span class="notr">${esc(c)}</span><b>${v.code?.[j] ?? ''}</b></li>`).join('')}</ol><p class="muted small center">รอเพื่อนร่วมทีมถอดรหัส (ห้ามบอกใบ้เพิ่ม!)</p>`;
+      else body = `<p class="ask">${mineTeam ? 'ถอดรหัสทีมตัวเอง: แต่ละคำใบ้คือคำลับเลขไหน?' : 'ดักรหัสทีมตรงข้าม: เดาจากประวัติคำใบ้ของเขา'}</p>${dcPicker(d, x, d.clues[x])}<p class="muted small center">ใครในทีมกดส่งก่อน = คำตอบของทีม คุยกันก่อนนะ</p>`;
+      return `<section class="panel dcg t-${x}"><h2>คำใบ้ ${DCT[x]}</h2>${body}</section>`;
+    }).join('');
+  }
+  return `${head}${teams}${act}${kwP}${histP}`;
+}
+
 // ── ito ──
 function itV() {
   const t = S.pub.it, v = S.priv, mine = me(), en = S.pub.wl === 'en', th = IT.THEMES[t.theme];
@@ -3191,7 +3396,24 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'bs' ? `
+  const body = g === 'll' ? `
+    <p><b>เป้าหมาย:</b> ได้ ❤ ครบก่อน (2 คน 6 · 3 คน 5 · 4 คน 4 · 5–6 คน 3)</p>
+    <ol><li>ทุกคนถือไพ่ 1 ใบ ถึงตาจั่ว 1 ใบ แล้วเลือกลง 1 ใน 2 ใบ ใช้พลังของใบที่ลง</li>
+    <li>ตกรอบเมื่อโดนการ์ดคนอื่นเขี่ย หรือทิ้งเจ้าหญิง</li>
+    <li>จบรอบเมื่อเหลือคนเดียว หรือกองหมด — คนที่ถือเลขสูงสุดได้ ❤ (เสมอได้ทุกคน)</li>
+    <li>สายลับ: ถ้าจบรอบแล้วคุณเป็นคนเดียวที่ยังอยู่และเคยลงสายลับ ได้ ❤ เพิ่ม 1</li>
+    <li>เล่น 2 คน: คัดไพ่ออกเปิดหน้า 3 ใบทุกรอบ</li></ol>` : g === 'ld' ? `
+    <p><b>เป้าหมาย:</b> เป็นคนสุดท้ายที่ยังเหลือเต๋า</p>
+    <ol><li>ทุกคนทอยเต๋าลับในถ้วย (ค่าเริ่มต้นคนละ 5 ลูก) เห็นแค่ของตัวเอง</li>
+    <li>ผลัดกันประมูลว่า <b>ทั้งวง</b> มีเลขนี้อย่างน้อยกี่ลูก เช่น "4 × เลข 5" · ต้องสูงกว่าเดิม: จำนวนมากขึ้น หรือจำนวนเท่าเดิมแต่เลขสูงขึ้น</li>
+    <li>ไม่เชื่อคนก่อนหน้า กด "โกหก!" แล้วเปิดเต๋าทุกคน · มีถึงจำนวนที่ประมูล = คนเรียกเสียเต๋า 1 ลูก · ไม่ถึง = คนประมูลเสียเต๋า 1 ลูก</li>
+    <li>เปิดไวด์: เลข 1 นับเป็นทุกเลข (และประมูลเลข 1 ไม่ได้) · คนเสียเต๋าเริ่มรอบต่อไป · เต๋าหมด = ตกรอบ</li></ol>` : g === 'dc' ? `
+    <p><b>เป้าหมาย:</b> ดักรหัสทีมตรงข้ามได้ 2 ครั้ง ก่อนทีมตัวเองถอดรหัสพลาด 2 ครั้ง</p>
+    <ol><li>แบ่ง 2 ทีม แต่ละทีมมีคำลับ 4 คำ เลข 1–4 เห็นเฉพาะทีมตัวเอง</li>
+    <li>ทุกรอบแต่ละทีมมีคนใบ้ 1 คน (ผลัดกัน) ได้รหัส 3 หลัก เช่น 3-1-4 แล้วพิมพ์คำใบ้ 3 คำตามลำดับ เช่นคำลับ 3 = "ทะเล" อาจใบ้ว่า "เค็ม"</li>
+    <li>ทีมตัวเองเดารหัสจากคำใบ้ · ผิด = ได้ ⚫ พลาด</li>
+    <li>ตั้งแต่รอบ 2 ทีมตรงข้ามดักรหัสได้ โดยดูจากประวัติคำใบ้ทุกรอบ · ดักถูก = ได้ ⚪</li>
+    <li>ได้ ⚪ 2 อัน ชนะ · ได้ ⚫ 2 อัน แพ้ · ครบ ${DC.ROUNDS} รอบ หรือเข้าเงื่อนไขพร้อมกัน นับ ⚪ ลบ ⚫ ใครมากกว่าชนะ</li></ol>` : g === 'bs' ? `
     <p><b>เป้าหมาย:</b> จมกองเรือของอีกฝ่ายให้หมดก่อน</p>
     <ol><li>ทะเลคนละ 10×10 ช่อง · เรือ 5 ลำ: 5, 4, 3, 3, 2 ช่อง วางแนวนอนหรือแนวตั้ง ไม่ติดกัน (แอปสุ่มให้ กดสุ่มใหม่ได้)</li>
     <li>ผลัดกันแตะช่องในทะเลศัตรูเพื่อยิง · โดน 🔥 ได้ยิงต่อ · พลาด 💧 เปลี่ยนตา</li>
@@ -3425,9 +3647,9 @@ function render() {
   renderPending = false;
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}|${p.ld ? p.ld.n : ''}|${p.ll ? p.ll.n : ''}|${p.dc ? `${p.dc.phase}.${p.dc.round}` : ''}`;
     if (k !== S.key) {
-      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = []; S.gwQ = null; S.gwG = false;
+      S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = []; S.gwQ = null; S.gwG = false; S.ldQ = null; S.ldF = null; S.dcG = {}; S.llC = null; S.llT = null; S.llG = null;
       S.enter = true;   // new screen: play the entrance animation once
       S.key = k; S.reveal = false; S.sel = []; S.decoy = null; S.guess = false; S.jg = '';
       if (p.round !== S.round) { S.round = p.round; S.crossed = new Set(); }
@@ -3569,6 +3791,18 @@ const ACT = {
   cucell: d => { if (S.cuD) send({ t: 'cudes', sp: +d.sp, type: S.cuD }); },
   cufmode: d => { S.cuF = S.cuF === d.k ? null : d.k; S.cuD = 0; render(); },
   cufin: d => { if (S.cuF && confirm(`ทายว่าอูฐ${CU.NAME[d.c]}จะ${S.cuF === 'w' ? 'ชนะ' : 'เข้าเป็นตัวสุดท้าย'}?`)) send({ t: 'cufin', c: d.c, kind: S.cuF }); },
+  llc: d => { const v = +d.v; S.llC = S.llC === v ? null : v; S.llT = null; S.llG = null; render(); },
+  llt: d => { S.llT = S.llT === d.s ? null : d.s; render(); },
+  llg: d => { S.llG = +d.g; render(); },
+  llplay: () => { if (S.llC != null) send({ t: 'llplay', n: S.pub.ll.n, v: S.llC, to: S.llT, g: S.llG }); },
+  llkeep: d => send({ t: 'llkeep', n: S.pub.ll.n, v: +d.v }),
+  ldf: d => { S.ldF = +d.f; S.ldQ = Math.max(S.ldQ ?? 1, LD.minQ(S.pub.ld, S.ldF)); render(); },
+  ldq: d => { S.ldQ = Math.max(1, Math.min(S.pub.ld.total, (S.ldQ ?? 1) + +d.d)); render(); },
+  ldbid: () => { if (S.ldQ && S.ldF) send({ t: 'ldbid', n: S.pub.ld.n, q: S.ldQ, f: S.ldF }); },
+  ldcall: () => { const b = S.pub.ld.bid; if (b && confirm(`เรียกโกหก! ว่าทั้งวงมี ${DIEN[b.f]} ไม่ถึง ${b.q} ลูก?`)) send({ t: 'ldcall', n: S.pub.ld.n }); },
+  dcclue: () => { const c = S.dcC.map(x => (x || '').trim()); if (c.every(Boolean)) { send({ t: 'dcclue', c }); S.dcC = ['', '', '']; } },
+  dcpick: d => { const a = (S.dcG[d.x] ||= [0, 0, 0]), j = +d.j, v = +d.v; a[j] = a[j] === v ? 0 : v; for (let k = 0; k < 3; k++) if (k !== j && a[k] === v) a[k] = 0; render(); },
+  dcguess: d => { const a = S.dcG[d.x]; if (a?.every(Boolean)) { send({ t: 'dcguess', x: d.x, c: a }); delete S.dcG[d.x]; } },
   bsre: () => send({ t: 'bsre', n: S.pub.bs.n }),
   bsready: () => send({ t: 'bsready', n: S.pub.bs.n }),
   bsfire: d => send({ t: 'bsfire', n: S.pub.bs.n, c: +d.c }),
@@ -3705,6 +3939,7 @@ document.addEventListener('input', e => {
   if (e.target.id === 'jc0' || e.target.id === 'jc1') { S.jc ||= ['', '']; S.jc[+e.target.id[2]] = e.target.value; }
   if (e.target.id === 'jg') S.jg = e.target.value;
   if (e.target.id === 'cw') S.cw = e.target.value;
+  if (/^dc\d$/.test(e.target.id)) { S.dcC[+e.target.id[2]] = e.target.value; const b = document.querySelector('[data-act=dcclue]'); if (b) b.disabled = !S.dcC.every(x => x.trim()); }
   if (e.target.id === 'code') { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); S.codeIn = e.target.value; }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'code') joinRoom(S.codeIn); });
