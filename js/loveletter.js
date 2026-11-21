@@ -20,7 +20,8 @@ function newRound(g, first) {
   for (const s of g.sids) { g.hand[s] = [deck.pop()]; g.disc[s] = []; }
   g.turn = first; draw(g, first); g.n++;
 }
-const draw = (g, s) => { if (g.deck.length) g.hand[s].push(g.deck.pop()); else if (g.aside != null) { g.hand[s].push(g.aside); g.aside = null; } };
+// only a Prince's victim may take the face-down set-aside card when the deck is empty
+const draw = (g, s, aside = false) => { if (g.deck.length) g.hand[s].push(g.deck.pop()); else if (aside && g.aside != null) { g.hand[s].push(g.aside); g.aside = null; } };
 export const alive = g => g.sids.filter(s => !g.out[s]);
 // players a targeted card may pick (alive, not protected); a Prince may also pick yourself
 export const targets = (g, s, v) => alive(g).filter(x => (x === s ? CARDS[v][2] : !g.prot[x]));
@@ -43,7 +44,7 @@ export function play(g, s, v, to = null, guess = null) {
   else if (v === 2 && to) g.peek[s] = { who: to, v: g.hand[to][0] };
   else if (v === 3 && to) { const a = h[0], b = g.hand[to][0]; if (a !== b) { const lo = a < b ? s : to; e.lose = lo; e.lv = g.hand[lo][0]; knock(g, lo); } else e.tie = true; }
   else if (v === 4) g.prot[s] = true;
-  else if (v === 5 && to) { const old = g.hand[to].pop(); discard(g, to, old); e.lv = old; if (old === 9) { e.lose = to; knock(g, to); } else draw(g, to); }
+  else if (v === 5 && to) { const old = g.hand[to].pop(); discard(g, to, old); e.lv = old; if (old === 9) { e.lose = to; knock(g, to); } else draw(g, to, true); }
   else if (v === 7 && to) [g.hand[s], g.hand[to]] = [g.hand[to], g.hand[s]];
   else if (v === 9) { e.lose = s; knock(g, s); }
   say(g, e);

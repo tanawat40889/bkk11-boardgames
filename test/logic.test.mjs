@@ -29,6 +29,9 @@ import * as GW from '../js/guesswho.js';
 import * as LD from '../js/liarsdice.js';
 import * as DC from '../js/decrypto.js';
 import * as LL from '../js/loveletter.js';
+import { WORDS_EN } from '../js/words-en.js';
+import { LOCATIONS_EN } from '../js/spyfall-en.js';
+import { PAIRS_EN } from '../js/undercover-en.js';
 import { rint } from '../js/rng.js';
 
 let pass = 0;
@@ -1879,15 +1882,40 @@ t('love letter: card effects, forced Countess, handmaid, round end by deck, spy 
   const r0 = { ...g.tok }; set('A', { A: [0, 4], B: [7], C: [9] }, []);
   LL.play(g, 'A', 0); assert.equal(g.phase, 'end', 'empty deck ends the round'); assert.deepEqual(g.res.win, ['C']); assert.equal(g.res.spy, 'A');
   assert.equal(g.tok.C, r0.C + 1); assert.equal(g.tok.A, r0.A + 1);
-  for (let k = 0; k < 300; k++) {   // random games always finish
+  for (let k = 0; k < 3000; k++) {   // random games always finish
     const h = LL.newGame(['A', 'B', 'C', 'D', 'E', 'F'].slice(0, 2 + (k % 5)));
     for (let step = 0; step < 5000 && !h.winner; step++) {
-      if (h.phase === 'end') { assert.ok(LL.next(h)); continue; }
+      if (h.phase === 'end') { for (const c of Object.values(h.res.hands)) assert.ok(c >= 0 && c <= 9, 'every player left holds a card'); assert.ok(LL.next(h)); continue; }
       if (h.phase === 'chan') { assert.ok(LL.keep(h, h.chan, h.hand[h.chan][rint(h.hand[h.chan].length)])); continue; }
       const s = h.turn, hand = h.hand[s], v = LL.mustCountess(hand) ? 8 : hand[rint(2)], T = LL.CARDS[v][1] ? LL.targets(h, s, v) : [];
       assert.ok(LL.play(h, s, v, T.length ? T[rint(T.length)] : null, LL.GUESS[rint(LL.GUESS.length)]), `play ${v}`);
     }
     assert.ok(h.winner); assert.ok(h.tok[h.winner] >= h.need);
+  }
+});
+
+t('content lists: no blanks or duplicates, every location has 10 different roles, pairs are two different words', () => {
+  const k = s => s.normalize('NFC').toLowerCase().trim(), dup = a => a.map(k).filter((x, i, b) => b.indexOf(x) !== i);
+  for (const [name, list] of [['words th', WORDS], ['words en', WORDS_EN]]) {
+    assert.ok(list.every(w => typeof w === 'string' && w.trim() && w === w.trim()), name + ': blank or padded word');
+    assert.deepEqual(dup(list), [], name + ' has duplicates');
+  }
+  assert.ok(WORDS.length >= 600 && WORDS_EN.length >= 600, 'word lists stay big');
+  assert.equal(SF.LOCATIONS.length, LOCATIONS_EN.length, 'Thai and English Spyfall lists match');
+  for (const L of [SF.LOCATIONS, LOCATIONS_EN]) {
+    assert.deepEqual(dup(L.map(l => l.n)), []);
+    for (const l of L) { assert.ok(l.n && l.e, 'name + emoji'); assert.equal(new Set(l.r.map(k)).size, 10, `${l.n}: 10 different roles`); }
+  }
+  for (const [name, P] of [['uc th', UC.PAIRS], ['uc en', PAIRS_EN]]) {
+    for (const p of P) { assert.equal(p.length, 2, name); assert.ok(p[0].trim() && p[1].trim(), name + ' blank'); assert.notEqual(k(p[0]), k(p[1]), `${name}: ${p[0]} vs itself`); }
+    assert.deepEqual(dup(P.map(p => [k(p[0]), k(p[1])].sort().join('|'))), [], name + ' repeats a pair');
+    assert.deepEqual(dup(P.flat()), [], name + ': a word is used in two pairs');
+  }
+  assert.ok(IT.THEMES.length >= 100); assert.ok(IT.THEMES.every(t => t.length === 2 && t[0].trim() && t[1].trim()));
+  assert.deepEqual(dup(IT.THEMES.map(t => t[0])), []); assert.deepEqual(dup(IT.THEMES.map(t => t[1])), []);
+  for (const wl of ['th', 'en']) assert.ok(CN.poolFor(wl).length >= 25 + CN.RECENT, `codenames ${wl} pool covers the no-repeat window`);
+  for (const wl of ['th', 'en']) for (let i = 0; i < 50; i++) {   // decrypto and just one always get distinct words
+    const d = DC.newGame(['A', 'B', 'C', 'D'], [], wl); assert.equal(new Set([...d.kw.r, ...d.kw.b]).size, 8);
   }
 });
 

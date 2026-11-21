@@ -22,6 +22,22 @@ export const THEMES = [
   ['ของที่ทำให้ง่วง', 'Things that make you sleepy'], ['ความน่ากลัวของผี', 'Scary ghosts'], ['ความแข็งแรง', 'Strong things'],
   ['ความเงียบ', 'Quiet things'], ['ของที่คนไทยชอบ', 'Things Thai people love'], ['ความวุ่นวาย', 'Chaotic places'], ['ความโรแมนติก', 'Romantic things'],
   ['ความสำคัญในชีวิต', 'Important things in life'], ['สิ่งที่ทำให้เครียด', 'Stressful things'],
+  // more themes
+  ['ความกล้า', 'Brave things'], ['ความอร่อยของขนม', 'Tasty snacks'], ['ความแพงของมื้ออาหาร', 'Pricey meals'],
+  ['ขนาดของสัตว์', 'Animal sizes'], ['ความนิยมในหมู่วัยรุ่น', 'Popular with teens'], ['ความเจ็บ', 'Painful things'],
+  ['ความสนุกของกิจกรรม', 'Fun activities'], ['ความเหนื่อยของงาน', 'Tiring jobs'], ['ความฉลาดของสัตว์', 'Smart animals'],
+  ['ความน่าขยะแขยง', 'Gross things'], ['ความนุ่ม', 'Soft things'], ['ความหอม', 'Nice smells'],
+  ['ความน่ากลัวของหนัง', 'Scary movies'], ['ความดังของคนดัง', 'Famous people'], ['ความทนทาน', 'Things that last'],
+  ['ความเปรี้ยว', 'Sour things'], ['ความขม', 'Bitter things'], ['ความเค็ม', 'Salty things'],
+  ['ความสว่าง', 'Bright things'], ['ความอบอุ่นใจ', 'Comforting things'], ['ความมีประโยชน์', 'Useful things'],
+  ['ความไกล', 'Far-away places'], ['ความเร็วของยานพาหนะ', 'Fast vehicles'], ['ความลึก', 'Deep things'],
+  // more themes
+  ['ความน่ารักของสัตว์เลี้ยง', 'Cute pets'], ['ความน่าเชื่อถือ', 'Trustworthy things'], ['ความฮา', 'Funny things'],
+  ['ความเหงา', 'Lonely places'], ['ความเร่งด่วน', 'Urgent things'], ['ความลับที่ไม่อยากให้ใครรู้', 'Secrets you\'d hide'],
+  ['ความหิว', 'How hungry it makes you'], ['ความเหนียว', 'Sticky things'], ['ความเก๋ของแฟชั่น', 'Stylish outfits'],
+  ['ความง่วง', 'Sleepy moments'], ['ความอยากกิน', 'Cravings'], ['ความประหยัด', 'Cheap things'],
+  ['ความน่ารำคาญของเสียง', 'Annoying sounds'], ['ความยากในการพูด', 'Hard words to say'], ['ความศักดิ์สิทธิ์', 'Sacred things'],
+  ['ความเปียก', 'Wet things'],
 ];
 export const handFor = lv => lv;   // level N: N cards each
 

@@ -111,6 +111,7 @@ const S = {
   pub: null, priv: null, endsAt: 0, online: true, offSince: 0, hostSeen: 0, hostDown: false, sending: false, busy: '', err: '', toast: '', joinErr: '',
   key: '', round: -1, reveal: false, sel: [], decoy: null, guess: false, crossed: new Set(), rules: false, qr: false, pick: false, cat: 'all', scSel: [], scM: null, bdKeep: [], odSel: null, odAb: null, rrN: null, rrC: null, lfI: null, tbI: null, hnI: null, hnTo: null, cpAct: null, cpKeep: [], ih: [], gwQ: null, gwG: false, ldQ: null, ldF: null, llC: null, llT: null, llG: null, dcC: ['', '', ''], dcG: {}, cw: '', cnN: 1,
   voice: LS.get('bg_voice', true),
+  open: new Set(),   // folded panels the player opened
 };
 let H = null, lastPub = '', lastTimed = 0, hostTimer = 0, pingTimer = 0, lastHb = 0;
 const sentPriv = {};
@@ -1479,6 +1480,12 @@ const me = () => S.priv?.sid;
 const isHostView = () => S.isHost;
 const pl = () => S.pub?.players || [];
 const pn = sid => pl().find(p => p.sid === sid)?.name || '?';
+// A log panel that folds shut: closed, it shows its title and the newest line only. Stays open/closed per log across renders.
+const foldLog = (key, title, list, newest = 'first') => {
+  const li = [...list.matchAll(/<li([^>]*)>(.*?)<\/li>/gs)].filter(m => !m[1].includes('muted')), top = newest === 'first' ? li[0] : li.at(-1);
+  if (!li.length) return '';   // nothing has happened yet: no empty panel
+  return `<details class="panel fold" data-fold="${key}" ${S.open.has(key) ? 'open' : ''}><summary><h2>${title}</h2><span class="foldlast">${top[2]}</span></summary>${list}</details>`;
+};
 const btn = (act, label, cls = '', data = {}, dis = false) =>
   `<button class="btn ${cls}" data-act="${act}" ${Object.entries(data).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} ${dis ? 'disabled' : ''}>${label}</button>`;
 
@@ -2224,7 +2231,7 @@ function shLog() {
     : e.t === 'vote' ? `เลือกตั้ง ${esc(pn(e.pres))} + ${esc(pn(e.chan))}: ${e.ok ? 'ผ่าน' : 'ไม่ผ่าน'}` : e.t === 'kill' ? `ประธาน ${esc(pn(e.pres))} ประหาร ${esc(pn(e.target))}`
     : e.t === 'investigate' ? `ประธาน ${esc(pn(e.pres))} ตรวจฝ่ายของ ${esc(pn(e.target))}` : e.t === 'special' ? `ประธาน ${esc(pn(e.pres))} เลือก ${esc(pn(e.target))} เป็นประธานคนถัดไป` : `วีโต้ — ทิ้งนโยบายทั้งคู่`;
   return `${L ? `<section class="panel"><h2>โหวตล่าสุด: ${esc(pn(L.pres))} + ${esc(pn(L.chan))} — ${L.ok ? 'ผ่าน' : 'ไม่ผ่าน'}</h2><div class="chips">${Object.entries(L.votes).map(([s, v]) => `<span class="who">${av(s, 'sm')}${esc(pn(s))} <b class="${v ? 'ok-text' : 'warn'}">${v ? '✔' : '✘'}</b></span>`).join('')}</div></section>` : ''}
-    ${h.log.length ? `<section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ol class="log">${h.log.map(e => `<li>${line(e)}</li>`).join('')}</ol></section>` : ''}`;
+    ${h.log.length ? `${foldLog('shlog', `เหตุการณ์ล่าสุด`, `<ol class="log">${h.log.map(e => `<li>${line(e)}</li>`).join('')}</ol>`, 'last')}` : ''}`;
 }
 function shV() {
   const h = S.pub.sh, v = S.priv, mine = me(), pres = h.pres === mine, chan = h.chan === mine, alive = h.alive.includes(mine), n = pl().length;
@@ -2372,7 +2379,7 @@ function saV() {
       ${my ? `<div class="row">${btn('sadraw', '🂠 จั่ว 2 ใบ (จบตา)', 'ghost', {}, k.played > 0)}${btn('saend', 'จบตา', 'primary', {}, k.played === 0)}</div><p class="muted small">แตะการ์ดแล้วแตะผู้เล่นเป้าหมาย · เล่นได้หลายใบ หรือจั่ว 2 ใบแทน</p>` : ''}</section>` : '<p class="alert center">คุณตายแล้ว — ดูต่อได้ แต่ห้ามบอกใบ้</p>';
   return `<p class="center skstatus">${status}</p>${hint ? `<p class="ask center">${hint}</p>` : ''}${mats}${panel}${hand}
     ${secret(myCards, 'แตะเพื่อดูการ์ดตัวตนของคุณ')}
-    <section class="panel"><h2>เหตุการณ์ล่าสุด <span class="muted small">กองจั่ว ${k.deck}</span></h2><ol class="log">${k.log.map(e => `<li>${saLine(e)}</li>`).join('')}</ol></section>`;
+    ${foldLog('salog', `เหตุการณ์ล่าสุด <span class="muted small">กองจั่ว ${k.deck}</span>`, `<ol class="log">${k.log.map(e => `<li>${saLine(e)}</li>`).join('')}</ol>`, 'last')}`;
 }
 
 /* Skull */
@@ -2409,7 +2416,7 @@ function skMine(canPlace) {
   // After a loss is settled, hand shrinks while this round's discs are still on the table.
   const hf = Math.max(0, v.hand.f - v.stack.filter(d => d === 'f').length), hs = Math.max(0, v.hand.s - v.stack.filter(d => d === 's').length);
   const hand = [...Array(hf).fill('f'), ...Array(hs).fill('s')];
-  return `<section class="panel myhand" style="--ph:${skHue(me())}"><h2>มือของคุณ <span class="muted small">(อย่าให้ใครเห็น)</span></h2>
+  return `<section class="panel myhand" style="--ph:${skHue(me())}"><h2>มือของคุณ</h2>
     <div class="dhand">${hand.length ? hand.map(d => disc(d, 'lg', canPlace ? `data-act="skplace" data-d="${d}"` : 'disabled', 'button')).join('') : '<span class="muted">ไม่มีแผ่นในมือแล้ว</span>'}</div>
     ${canPlace ? '<p class="ask center">แตะแผ่นที่จะวางคว่ำ</p>' : ''}
     <div class="dmine"><span class="small muted">กองของคุณบนโต๊ะ (ล่าง → บน)</span><span class="drow">${v.stack.length ? v.stack.map(d => disc(d, 'sm')).join('') : '<span class="muted small">— ยังไม่ได้วาง —</span>'}</span></div></section>`;
@@ -2829,7 +2836,7 @@ function gwV() {
   const board = `<div class="gwboard ${S.gwG ? 'guessing' : ''}">${GW.PEOPLE.map((p, i) => { const dn = v.down.includes(i);
     return `<button class="gwc ${dn ? 'down' : ''}" data-act="gwface" data-i="${i}" ${w.winner ? 'disabled' : ''}>${gwFace(p)}<b class="notr">${p.n}</b></button>`; }).join('')}</div>`;
   const mineCard = `<div class="gwmine">${gwFace(GW.PEOPLE[v.secret])}<span><small>คนลับของคุณ</small><b class="notr">${GW.PEOPLE[v.secret].n}</b></span></div>`;
-  const logP = `<section class="panel"><h2>คำถามที่ผ่านมา</h2><ol class="log">${[...w.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ถาม: ${GWQ[e.q]} → <b class="${e.yes ? 'ok-text' : 'bad-text'}">${e.yes ? 'ใช่' : 'ไม่ใช่'}</b></li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
+  const logP = `${foldLog('gwlog', `คำถามที่ผ่านมา`, `<ol class="log">${[...w.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ถาม: ${GWQ[e.q]} → <b class="${e.yes ? 'ok-text' : 'bad-text'}">${e.yes ? 'ใช่' : 'ไม่ใช่'}</b></li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol>`, 'first')}`;
   if (w.winner) {
     const z = w.why;
     return `<div class="banner ${w.winner === mine ? 'win' : 'lose'}"><div class="bt">${w.winner === mine ? 'คุณชนะ!' : `${esc(pn(w.winner))} ชนะ`}</div>
@@ -2842,7 +2849,7 @@ function gwV() {
       <div class="row">${btn('gwask', S.gwQ ? `❓ ถาม: ${GWQ[S.gwQ]}` : 'เลือกคำถามก่อน', 'primary', {}, !S.gwQ)}${btn('gwmode', S.gwG ? 'ยกเลิกการทาย' : '🎯 ทายเลย', 'ghost')}</div>
       ${S.gwG ? '<p class="ask center">แตะคนที่คิดว่าเป็นคนลับของอีกฝ่าย (ผิด = แพ้ทันที)</p>' : ''}</section>`
     : `<p class="muted center">รอ ${esc(pn(w.turn))} ถาม…</p>`;
-  return `${mineCard}${act}<section class="panel"><h2>เหลือ ${w.left[mine]} คน <span class="muted small">(แอปพับคนที่ไม่ใช่ให้แล้ว · แตะเพื่อพับ/เปิดเองได้)</span></h2>${board}</section>
+  return `${mineCard}${act}<section class="panel"><h2>เหลือ ${w.left[mine]} คน <span class="muted small">(แตะเพื่อพับ/เปิด)</span></h2>${board}</section>
     <p class="center muted small">${esc(pn(opp))} เหลือ ${w.left[opp]} คน</p>${logP}`;
 }
 
@@ -2868,8 +2875,8 @@ function llV() {
       <span class="lln">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' <em>(คุณ)</em>' : ''}</b>${l.prot[x] ? '<span title="นางกำนัล">🛡</span>' : ''}${l.out[x] ? '<span>✖</span>' : ''}</span>
       ${hearts(x)}<span class="lldisc">${l.disc[x].map(c => `<span class="lld v${c}">${c}</span>`).join('') || '<span class="muted small">ยังไม่ลงไพ่</span>'}</span></${pick ? 'button' : 'div'}>`; }).join('')}</div>`;
   const info = `<p class="center skstatus"><span>รอบที่ ${l.round}</span> · <span>กองเหลือ ${l.deck} ใบ</span>${l.up.length ? ` · <span>ไพ่ที่คัดออก:</span> ${l.up.map(c => `<span class="lld v${c}">${c}</span>`).join('')}` : ''} · <span>❤ ${l.need} อันชนะ</span></p>`;
-  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ol class="log">${[...l.log].reverse().map(e => `<li>${llLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
-  const cheat = `<section class="panel"><h2>การ์ดทั้งหมด (21 ใบ)</h2><ul class="llcheat">${Object.keys(LLC).map(k => `<li>${llCard(+k, 'xs')}<span><b>×${LL.CARDS[k][0]}</b> ${LLC[k][2]}</span></li>`).join('')}</ul></section>`;
+  const logP = `${foldLog('lllog', `เหตุการณ์`, `<ol class="log">${[...l.log].reverse().map(e => `<li>${llLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol>`, 'first')}`;
+  const cheat = `<details class="panel fold" data-fold="llcards" ${S.open.has('llcards') ? 'open' : ''}><summary><h2>การ์ดทั้งหมด (21 ใบ)</h2></summary><ul class="llcheat">${Object.keys(LLC).map(k => `<li>${llCard(+k, 'xs')}<span><b>×${LL.CARDS[k][0]}</b> ${LLC[k][2]}</span></li>`).join('')}</ul></details>`;
   const peek = v.peek ? `<p class="center llpeek">👁 ไพ่ของ <b>${esc(pn(v.peek.who))}</b> คือ ${llCard(v.peek.v, 'xs')}</p>` : '';
   if (l.phase === 'end') {
     const r = l.res;
@@ -2892,8 +2899,7 @@ function llV() {
       ${c === 1 && S.llT ? `<div class="llguess">${LL.GUESS.map(x => `<button class="${S.llG === x ? 'on' : ''}" data-act="llg" data-g="${x}"><i>${x}</i>${LLC[x][0]}</button>`).join('')}</div>` : ''}
       ${btn('llplay', c == null ? 'เลือกการ์ดก่อน' : `💌 ลง <span>${LLC[c][0]}</span>${S.llT ? ` → <span class="notr">${esc(pn(S.llT))}</span>` : ''}${c === 1 && S.llG != null ? ` <span>(ทาย ${LLC[S.llG][0]})</span>` : ''}`, 'primary wide', {}, !ready)}</section>`;
   } else act = `<p class="muted center">${l.turn ? `รอ ${esc(pn(l.turn))}…` : ''}</p>${v.hand.length ? `<section class="panel"><h2>ไพ่ในมือคุณ</h2><div class="llhand">${v.hand.map(x => llCard(x, 'big')).join('')}</div></section>` : '<p class="muted center">คุณตกรอบนี้แล้ว — ดูต่อได้</p>'}`;
-  const last = l.log.length ? `<p class="center lllast">${llLog(l.log.at(-1))}</p>` : '';
-  return `${info}${last}${peek}${act}${board}${logP}${cheat}`;
+  return `${info}${peek}${act}${logP}${board}${cheat}`;
 }
 
 // ── Liar's Dice ──
@@ -2905,7 +2911,7 @@ function ldV() {
   const l = S.pub.ld, v = S.priv, mine = me(), my = l.turn === mine && l.phase === 'bid', live = l.cnt[mine] > 0;
   const seats = `<div class="ldseats">${l.seats.map(x => `<div class="ldp ${x === l.turn && l.phase === 'bid' ? 'turn' : ''} ${l.cnt[x] ? '' : 'out'}" style="--ph:${hueOf(x)}">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' <em>(คุณ)</em>' : ''}</b>
     <span class="ldcup">${l.phase === 'reveal' ? (l.res.dice[x] || []).map(d => die(d, `sm ${d === l.res.bid.f || (l.wild && d === 1) ? 'hit' : ''}`)).join('') : `🎲 × ${l.cnt[x]}`}</span></div>`).join('')}</div>`;
-  const mineP = live ? `<section class="panel ldmine"><h2>เต๋าของคุณ <span class="muted small">(ห้ามให้ใครเห็น)</span></h2><div class="lddice">${v.dice.map(d => die(d)).join('')}</div>${l.wild ? '<p class="muted small center">เลข 1 เป็นไวด์ นับเป็นทุกเลข</p>' : ''}</section>` : '<p class="muted center">คุณหมดเต๋าแล้ว — ดูต่อได้</p>';
+  const mineP = live ? `<section class="panel ldmine"><h2>เต๋าของคุณ</h2><div class="lddice">${v.dice.map(d => die(d)).join('')}</div>${l.wild ? '<p class="muted small center">เลข 1 เป็นไวด์ นับเป็นทุกเลข</p>' : ''}</section>` : '<p class="muted center">คุณหมดเต๋าแล้ว — ดูต่อได้</p>';
   const bidP = `<section class="panel ldbid"><small>ประมูลล่าสุด</small>${l.bid ? `<div class="ldnow">${ldBid(l.bid)}</div><small>โดย ${esc(pn(l.bid.by))}</small>` : '<div class="ldnow muted">—</div>'}<small class="muted">บนโต๊ะมีเต๋าทั้งหมด ${l.total} ลูก</small></section>`;
   if (l.phase === 'reveal') {
     const r = l.res, ok = r.have >= r.bid.q;
@@ -2927,7 +2933,7 @@ function ldV() {
       <p class="muted small center">ต้องสูงกว่าเดิม: จำนวนมากขึ้น หรือจำนวนเท่าเดิมแต่เลขสูงขึ้น</p>
       <div class="row">${l.bid ? btn('ldcall', '🤥 โกหก!', 'danger') : ''}${btn('ldbid', `ประมูล ${S.ldQ} × ${DIEN[S.ldF]}`, 'primary', {}, !can)}</div></section>`;
   }
-  const logP = l.log.length ? `<section class="panel"><h2>การประมูลรอบนี้</h2><ol class="log">${[...l.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ${ldBid(e)}</li>`).join('')}</ol></section>` : '';
+  const logP = l.log.length ? `${foldLog('ldlog', `การประมูลรอบนี้`, `<ol class="log">${[...l.log].reverse().map(e => `<li><b>${esc(pn(e.by))}</b> ${ldBid(e)}</li>`).join('')}</ol>`, 'first')}` : '';
   return `<p class="center skstatus">รอบที่ ${l.round}</p>${bidP}${act}${mineP}${seats}${logP}`;
 }
 
@@ -2945,9 +2951,9 @@ function dcPicker(d, x, clues) {
 }
 function dcV() {
   const d = S.pub.dc, v = S.priv, mine = me(), t = v.team, o = t ? DC.other(t) : 'b', iEnc = t && d.enc[t] === mine;
-  const tok = x => `<span class="dctok"><b>${DCT[x]}</b> ดักได้ ${'⚪'.repeat(d.tok[x].i)}${'·'.repeat(2 - Math.min(2, d.tok[x].i))} · พลาด ${'⚫'.repeat(d.tok[x].m)}${'·'.repeat(2 - Math.min(2, d.tok[x].m))}</span>`;
-  const head = `<p class="center skstatus">รอบ <b>${d.round}</b>/${DC.ROUNDS}</p><div class="dctoks">${tok('r')}${tok('b')}</div>`;
-  const teams = `<div class="dcteams">${DC.TEAMS.map(x => `<div class="dcteam t-${x}"><b>${DCT[x]}</b>${d.mem[x].map(s => `<span>${esc(pn(s))}${s === d.enc[x] && d.phase !== 'reveal' ? ' 📻' : ''}${s === mine ? ' (คุณ)' : ''}</span>`).join('')}</div>`).join('')}</div>`;
+  const tok = x => `<span class="dctok" title="ดักได้ / พลาด">${'⚪'.repeat(d.tok[x].i)}${'◌'.repeat(2 - Math.min(2, d.tok[x].i))} ${'⚫'.repeat(d.tok[x].m)}${'◌'.repeat(2 - Math.min(2, d.tok[x].m))}</span>`;
+  const head = `<p class="center skstatus">รอบ <b>${d.round}</b>/${DC.ROUNDS}</p>`;
+  const teams = `<div class="dcteams">${DC.TEAMS.map(x => `<div class="dcteam t-${x}"><b>${DCT[x]} ${tok(x)}</b>${d.mem[x].map(s => `<span>${esc(pn(s))}${s === d.enc[x] && d.phase !== 'reveal' ? ' 📻' : ''}${s === mine ? ' (คุณ)' : ''}</span>`).join('')}</div>`).join('')}</div>`;
   const kwP = t ? `<section class="panel"><h2>คำลับของ ${DCT[t]}</h2><div class="dckw">${v.kw.map((w, i) => `<div class="dck t-${t}"><i>${i + 1}</i><b class="notr">${esc(w)}</b></div>`).join('')}</div></section>` : '';
   const histP = `<section class="panel"><h2>ประวัติคำใบ้ ${DCT[o]} <span class="muted small">(ใช้เดาว่าเลขไหนคือคำอะไร)</span></h2>${dcHist(d, o, d.kw?.[o])}</section>
     ${t ? `<section class="panel"><h2>ประวัติคำใบ้ ${DCT[t]}</h2>${dcHist(d, t, v.kw)}</section>` : ''}`;
@@ -2982,7 +2988,7 @@ function dcV() {
       if (!t || !need) body = `<ol class="dcclues">${d.clues[x].map(c => `<li><span class="notr">${esc(c)}</span></li>`).join('')}</ol>${!inter && !mineTeam ? '<p class="muted small">รอบแรกยังไม่ดักรหัส</p>' : ''}`;
       else if (done) body = `<ol class="dcclues">${d.clues[x].map(c => `<li><span class="notr">${esc(c)}</span></li>`).join('')}</ol><p class="ok-text center">✔ ทีมคุณส่งรหัสแล้ว</p>`;
       else if (mineTeam && iEnc) body = `<ol class="dcclues">${d.clues[x].map((c, j) => `<li><span class="notr">${esc(c)}</span><b>${v.code?.[j] ?? ''}</b></li>`).join('')}</ol><p class="muted small center">รอเพื่อนร่วมทีมถอดรหัส (ห้ามบอกใบ้เพิ่ม!)</p>`;
-      else body = `<p class="ask">${mineTeam ? 'ถอดรหัสทีมตัวเอง: แต่ละคำใบ้คือคำลับเลขไหน?' : 'ดักรหัสทีมตรงข้าม: เดาจากประวัติคำใบ้ของเขา'}</p>${dcPicker(d, x, d.clues[x])}<p class="muted small center">ใครในทีมกดส่งก่อน = คำตอบของทีม คุยกันก่อนนะ</p>`;
+      else body = `<p class="ask">${mineTeam ? 'ถอดรหัสทีมตัวเอง: แต่ละคำใบ้คือคำลับเลขไหน?' : 'ดักรหัสทีมตรงข้าม: เดาจากประวัติคำใบ้ของเขา'}</p>${dcPicker(d, x, d.clues[x])}`;
       return `<section class="panel dcg t-${x}"><h2>คำใบ้ ${DCT[x]}</h2>${body}</section>`;
     }).join('');
   }
@@ -3029,9 +3035,9 @@ function cpV() {
     return `<div class="cpp ${x.sid === c.turn && !c.winner ? 'turn' : ''} ${out ? 'out' : ''}" style="--ph:${hueOf(x.sid)}">
       <span class="cpn">${av(x.sid, 'sm')}<b>${esc(x.name)}${x.sid === mine ? ' <em>(คุณ)</em>' : ''}</b><span class="cpcoin">${gi('coins', 'gold inl')}${c.coins[x.sid]}</span></span>
       <span class="cpinf">${c.cards[x.sid].map(k => cpCard(k.up || c.winner ? k.c : null, `sm ${k.up ? 'dead' : ''}`)).join('')}</span></div>`; }).join('')}</div>`;
-  const mineP = `<section class="panel"><h2>การ์ดของคุณ <span class="muted small">(ห้ามให้ใครเห็น)</span></h2><div class="cphand">${v.hand.map(k => cpCard(k.c, k.up ? 'dead' : '')).join('')}</div>${alive ? '' : '<p class="muted small">คุณตกรอบแล้ว — ดูต่อได้</p>'}</section>`;
-  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ol class="log">${[...c.log].reverse().map(e => `<li>${cpLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
-  const cheat = `<section class="panel"><h2>ตัวละคร (อย่างละ 3 ใบ)</h2><ul class="cpcheat">${CP.CARDS.map(k => `<li>${cpCard(k, 'xs')}<span><b>${CPC[k][0]}</b> ${CPC[k][2]}</span></li>`).join('')}</ul></section>`;
+  const mineP = `<section class="panel"><h2>การ์ดของคุณ</h2><div class="cphand">${v.hand.map(k => cpCard(k.c, k.up ? 'dead' : '')).join('')}</div>${alive ? '' : '<p class="muted small">คุณตกรอบแล้ว — ดูต่อได้</p>'}</section>`;
+  const logP = `${foldLog('cplog', `เหตุการณ์`, `<ol class="log">${[...c.log].reverse().map(e => `<li>${cpLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol>`, 'first')}`;
+  const cheat = `<details class="panel fold" data-fold="cpcards" ${S.open.has('cpcards') ? 'open' : ''}><summary><h2>ตัวละคร (อย่างละ 3 ใบ)</h2></summary><ul class="cpcheat">${CP.CARDS.map(k => `<li>${cpCard(k, 'xs')}<span><b>${CPC[k][0]}</b> ${CPC[k][2]}</span></li>`).join('')}</ul></details>`;
   if (c.winner) return `<div class="banner ${c.winner === mine ? 'win' : 'lose'}"><div class="bt">${c.winner === mine ? 'คุณชนะ!' : `${esc(pn(c.winner))} ชนะ`}</div><div>เหลือรอดคนสุดท้าย</div></div>${board}${logP}
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
   const p = c.pend, claim = p && CP.ACTS[p.act].claim;
@@ -3060,7 +3066,7 @@ function cpV() {
     }
   }
   if (c.chal && c.phase !== 'turn') act = `<p class="center cpres ${c.chal.truth ? 'ok' : 'bad'}">${esc(pn(c.chal.ch))} ท้า ${esc(pn(c.chal.cl))} — ${c.chal.truth ? `มี${CPC[c.chal.card][0]}จริง!` : 'โกหก!'}</p>` + act;
-  return `${act}${board}${mineP}${cheat}${logP}`;
+  return `${act}${logP}${board}${mineP}${cheat}`;
 }
 
 // ── Hanabi ──
@@ -3093,7 +3099,7 @@ function hnV() {
     <div class="hnhand">${myKnow.map(x => `<span class="hnslot">${hnCard(x.k.c, x.k.n, `${S.hnI === x.id ? 'on' : ''} ${recent(x.id)}`, h.over ? '' : `data-act="hnsel" data-id="${x.id}"`)}${hnKnow({ ...x.k, c: null, n: null })}</span>`).join('')}</div>
     ${my && S.hnI != null ? `<div class="row">${btn('hnplay', '🎆 ลงไพ่ใบนี้', 'primary')}${btn('hndisc', '🗑️ ทิ้ง (+คำใบ้)', 'ghost', {}, h.clues >= HN.CLUES)}</div>` : ''}</section>`;
   const disc = h.disc.length ? `<section class="panel"><h2>ทิ้งแล้ว ${h.disc.length}</h2><div class="hndisc">${[...h.disc].sort().map(x => hnCard(x[0], +x.slice(1), 'sm')).join('')}</div></section>` : '';
-  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ol class="log">${[...h.log].reverse().map(e => `<li>${hnLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol></section>`;
+  const logP = `${foldLog('hnlog', `เหตุการณ์`, `<ol class="log">${[...h.log].reverse().map(e => `<li>${hnLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ol>`, 'first')}`;
   if (h.over) {
     const sc = h.why === 'boom' ? 0 : h.score;
     const msg = sc === 25 ? 'ตำนาน! พลุสมบูรณ์แบบ' : sc >= 21 ? 'ยอดเยี่ยม' : sc >= 16 ? 'ดีมาก' : sc >= 11 ? 'พอใช้' : sc >= 6 ? 'ยังไหว' : 'แป้ก…';
@@ -3132,7 +3138,7 @@ function tbV() {
   const hl = !my ? [] : t.jumbo ? t.jumbo : S.tbI != null && v.spots[S.tbI] ? v.spots[S.tbI] : [];
   const side = x => `<div class="tbside s${t.seats.indexOf(x)} ${t.turn === x && !t.winner ? 'turn' : ''}">${av(x, 'sm')}<b>${esc(pn(x))}${x === mine ? ' (คุณ)' : ''}</b>
       <span>🏅 ${t.medals[x]}/${TB.OBJECTIVE}</span><span>ชั้นวาง ${t.rackN[x]}</span><span>กอง ${t.resN[x]}</span></div>`;
-  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ul class="bdlog">${[...t.log].reverse().map(e => `<li>${tbLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul></section>`;
+  const logP = `${foldLog('tblog', `เหตุการณ์`, `<ul class="bdlog">${[...t.log].reverse().map(e => `<li>${tbLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul>`, 'first')}`;
   if (t.winner) {
     return `<div class="banner ${t.winner === mine ? 'win' : 'lose'}"><div class="bt">${t.winner === mine ? 'คุณชนะ!' : `${esc(pn(t.winner))} ชนะ`}</div>
       <div>${t.why === 'hq' ? 'ยึด H.Q. ศัตรูได้' : t.why === 'medals' ? `เก็บเหรียญครบ ${TB.OBJECTIVE}` : 'อีกฝ่ายไม่มีอะไรให้ทำแล้ว นับเหรียญ'}</div></div>
@@ -3220,7 +3226,7 @@ function rrV() {
       ${S.rrC === 'bang' ? `<p class="small muted">ยิงใคร?</p><div class="picks">${ps.filter(x => !r.dead[x.sid]).map(x => `<button class="pick" data-act="rrarg" data-arg="${x.sid}">${esc(x.name)}</button>`).join('')}</div>`
         : S.rrC === 'change' ? `<p class="small muted">เดิมพันใหม่</p><div class="picks c3">${[0, 1, 2, 3, 4, 5].map(n => `<button class="pick" data-act="rrarg" data-arg="${n}">${n}</button>`).join('')}</div>` : ''}</section>` : '';
   const gun = alive ? `<p class="center small muted">${gi('rrcyl', 'inl')} ปืนของคุณ: ${v.gun.n} ใบ (ปัง ${v.gun.b} ใบ)${v.pocket ? ` · ในกระเป๋า: ${v.pocket === 'B' ? 'ปัง! (โกงอยู่ 🤫)' : 'แชะ'}` : ''}</p>` : '';
-  const logP = `<section class="panel"><h2>เหตุการณ์</h2><ul class="bdlog">${[...r.log].reverse().filter(e => e.t !== 'bids').map(e => `<li>${rrLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul></section>`;
+  const logP = `${foldLog('rrlog', `เหตุการณ์`, `<ul class="bdlog">${[...r.log].reverse().filter(e => e.t !== 'bids').map(e => `<li>${rrLog(e)}</li>`).join('') || '<li class="muted">ยังไม่มี</li>'}</ul>`, 'first')}`;
   const head = `<p class="center skstatus">รอบที่ <b>${r.round}</b> · ถึง ${RR.WIN} แต้มชนะ</p>`;
   if (r.phase === 'end') {
     return `<div class="banner ${r.winner === mine ? 'win' : 'lose'}"><div class="bt">${r.winner ? `🏆 ${esc(pn(r.winner))} แชมป์โลก!` : 'ไม่มีใครรอด — ไม่มีแชมป์'}</div></div>${board}${logP}
@@ -3285,7 +3291,7 @@ function odV() {
         : S.odAb === 'hint' ? `<p class="small muted">ขอคำใบ้จากใคร?</p><div class="picks">${pl().filter(x => x.sid !== mine && o.n[x.sid]).map(x => `<button class="pick" data-act="oduse" data-arg="${x.sid}">${esc(x.name)}</button>`).join('')}</div>` : ''}</section>`;
   }
   return `${head}${last}${pls}
-    <section class="panel"><h2>มือของคุณ <span class="muted small">(ห้ามบอกคนอื่น)</span></h2><div class="ohand">${v.hand.length ? v.hand.map(id => odCard(id)).join('') : '<p class="muted">ว่างแล้ว ✔</p>'}</div></section>
+    <section class="panel"><h2>มือของคุณ</h2><div class="ohand">${v.hand.length ? v.hand.map(id => odCard(id)).join('') : '<p class="muted">ว่างแล้ว ✔</p>'}</div></section>
     <section class="panel"><h2>${my ? '👉 ตาคุณ — เรียกออร์เดอร์ที่อยู่ในมือ<u>คนอื่น</u>' : o.lives[mine] ? `รอ ${esc(pn(o.turn))} เรียกออร์เดอร์…` : 'หน้ายิ้มคว่ำแล้ว เรียกไม่ได้ (แต่ใช้การ์ดพิเศษได้)'}</h2>
       ${odMenu(my ? S.odSel : null, my)}${my ? btn('odcall', S.odSel ? `📣 เรียก "${OD.MENU[S.odSel].n}"` : 'เลือกเมนูก่อน', 'primary wide big', {}, !S.odSel) : ''}</section>
     ${abArea}${hints}${table}`;
@@ -3315,7 +3321,7 @@ function bdV() {
   if (b.winner) {
     const iWin = b.wsids.includes(mine);
     return `<div class="banner ${iWin ? 'win' : 'lose'}"><div class="bt">${b.winner === 'S' ? 'ฝ่ายกฎหมายชนะ!' : b.winner === 'O' ? 'โจรชนะ!' : 'คนทรยศชนะ!'}</div><div>${b.wsids.map(s => esc(pn(s))).join(', ')}</div></div>
-      ${mats}<section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ul class="bdlog">${b.log.map(e => `<li>${bdLog(e)}</li>`).join('')}</ul></section>
+      ${mats}${foldLog('bdlog', `เหตุการณ์ล่าสุด`, `<ul class="bdlog">${b.log.map(e => `<li>${bdLog(e)}</li>`).join('')}</ul>`, 'last')}
       ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
   }
   const rolling = b.phase === 'roll', left = BD.ROLLS - b.rolls, keep = S.bdKeep;
@@ -3332,7 +3338,7 @@ function bdV() {
   } else if (!my) act = `<p class="muted center">${rolling ? `รอ ${esc(pn(b.turn))} ทอยเต๋า…` : `รอ ${esc(pn(b.turn))} เลือกเป้า…`}</p>`;
   return `<p class="center skstatus">ตาของ <b>${esc(pn(b.turn))}</b>${my ? ' (คุณ)' : ''} · กองธนู ${gi('bdarrow', 'inl')}<b>${b.pile}</b></p>
     <section class="panel bdtable">${dice}${act}</section>${mats}${roleLine}
-    <section class="panel"><h2>เหตุการณ์ล่าสุด</h2><ul class="bdlog">${[...b.log].reverse().map(e => `<li>${bdLog(e)}</li>`).join('')}</ul></section>`;
+    ${foldLog('bdlog', `เหตุการณ์ล่าสุด`, `<ul class="bdlog">${[...b.log].reverse().map(e => `<li>${bdLog(e)}</li>`).join('')}</ul>`, 'first')}`;
 }
 
 // ── Cheese Thief ──
@@ -3931,6 +3937,7 @@ document.addEventListener('click', e => {
   ACT[el.dataset.act]?.(el.dataset, el);
   wake();
 });
+document.addEventListener('toggle', e => { const k = e.target.dataset?.fold; if (k) e.target.open ? S.open.add(k) : S.open.delete(k); }, true);
 document.addEventListener('input', e => {
   if (e.target.id === 'name') S.name = e.target.value;
   if (/^ih\d$/.test(e.target.id)) S.ih[+e.target.id.slice(2)] = e.target.value;

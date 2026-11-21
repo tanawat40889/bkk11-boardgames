@@ -1038,3 +1038,13 @@ button.llc { cursor: pointer; } button.llc:disabled { opacity: .45; cursor: not-
 .llcheat { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; } .llcheat li { display: flex; align-items: center; gap: 8px; font-size: .8rem; } .llcheat li .llc { flex: none; min-width: 96px; }
 .lllast, .llpeek { padding: 8px 12px; border-radius: 12px; background: #0003; } .llreveal { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 12px; } .llreveal div { display: flex; flex-direction: column; align-items: center; }
 .llhand ~ .btn.wide { margin-top: 10px; }
+/* Folding panels (logs, card lists): closed = title + newest line */
+details.fold > summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary h2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; }
+details.fold > summary h2::after { content: '▾'; font-size: .9rem; color: var(--muted); transition: transform .2s; }
+details.fold[open] > summary h2::after { transform: rotate(180deg); }
+details.fold[open] > summary { margin-bottom: 8px; }
+.foldlast { font-size: .85rem; color: var(--text); opacity: .85; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+details.fold[open] .foldlast { display: none; }
+.dctok { font-weight: 400; letter-spacing: 1px; margin-left: 4px; }
