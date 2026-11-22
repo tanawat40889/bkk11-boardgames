@@ -29,6 +29,8 @@ import * as GW from '../js/guesswho.js';
 import * as LD from '../js/liarsdice.js';
 import * as DC from '../js/decrypto.js';
 import * as LL from '../js/loveletter.js';
+import * as WR from '../js/werewords.js';
+import * as CD from '../js/codenamesduet.js';
 import { WORDS_EN } from '../js/words-en.js';
 import { LOCATIONS_EN } from '../js/spyfall-en.js';
 import { PAIRS_EN } from '../js/undercover-en.js';
@@ -1892,6 +1894,77 @@ t('love letter: card effects, forced Countess, handmaid, round end by deck, spy 
     }
     assert.ok(h.winner); assert.ok(h.tok[h.winner] >= h.need);
   }
+});
+
+t('werewords: roles, tokens, guessed word -> werewolves hunt the seer, no word -> vote', () => {
+  const S = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  for (const n of [4, 6, 7, 10]) {
+    const g = WR.newGame(S.concat(['H', 'I', 'J']).slice(0, n), 'A');
+    const r = Object.values(g.role);
+    assert.equal(r.filter(x => x === 'wolf').length, n >= 7 ? 2 : 1); assert.equal(r.filter(x => x === 'seer').length, 1);
+    assert.equal(g.optw.length, 3); assert.equal(new Set(g.opts).size, 3);
+  }
+  let g = WR.newGame(S.slice(0, 5), 'A');
+  assert.ok(!WR.pick(g, 'B', 0), 'only the mayor picks'); assert.ok(WR.pick(g, 'A', 1)); assert.equal(g.word, g.optw[1]);
+  assert.ok(!WR.answer(g, 'A', 'yes'), 'no answers before everyone is ready');
+  for (const s of g.sids) WR.ready(g, s);
+  assert.equal(g.phase, 'ask');
+  assert.ok(!WR.answer(g, 'B', 'yes'), 'only the mayor answers');
+  assert.ok(WR.answer(g, 'A', 'close')); assert.ok(!WR.answer(g, 'A', 'close'), 'one so-close token');
+  assert.ok(WR.undo(g, 'A')); assert.equal(g.tok.close, 1);
+  for (let i = 0; i < 35; i++) assert.ok(WR.answer(g, 'A', i % 2 ? 'yes' : 'no'));
+  assert.equal(g.phase, 'ask'); assert.ok(WR.answer(g, 'A', 'no')); assert.equal(g.phase, 'vote'); assert.equal(g.why, 'tokens');
+  // vote: a werewolf among the most votes -> village wins
+  const wolf = WR.wolves(g)[0];
+  for (const s of g.sids) WR.vote(g, s, s === wolf ? g.sids.find(x => x !== wolf) : wolf);
+  assert.equal(g.phase, 'end'); assert.equal(g.res.w, 'vil');
+  assert.ok(Object.entries(WR.winners(g)).every(([s, w]) => w === (g.role[s] !== 'wolf')));
+  // guessed: wolves pick the seer
+  for (const right of [true, false]) {
+    g = WR.newGame(S.slice(0, 6), 'B'); WR.pick(g, 'B', 0); WR.begin(g);
+    assert.ok(!WR.correct(g, 'B', 'B'), 'mayor cannot be the guesser');
+    assert.ok(WR.correct(g, 'B', 'C')); assert.equal(g.phase, 'seer');
+    const w = WR.wolves(g)[0], seer = WR.seer(g), wrong = g.sids.find(x => x !== seer && g.role[x] !== 'wolf');
+    assert.ok(!WR.hunt(g, seer, wrong), 'only werewolves hunt');
+    assert.ok(WR.hunt(g, w, right ? seer : wrong)); assert.equal(g.res.w, right ? 'wolf' : 'vil');
+  }
+  g = WR.newGame(S.slice(0, 4), 'A'); WR.pick(g, 'A', 0); WR.begin(g); assert.ok(WR.timeout(g)); assert.equal(g.why, 'time');
+});
+
+t('codenames duet: key layout, turns, tokens, sudden death and random play always ends', () => {
+  const g0 = CD.newGame(['A', 'B']);
+  for (const s of ['a', 'b']) { const k = g0.key[s]; assert.equal(k.filter(x => x === 'g').length, 9); assert.equal(k.filter(x => x === 'x').length, 3); }
+  assert.equal(CD.total(g0), 15); assert.equal(new Set(g0.words).size, 25);
+  assert.notEqual(g0.side.A, g0.side.B);
+  // clue rules
+  const giver = g0.sids.find(s => g0.side[s] === g0.giver), guesser = g0.sids.find(s => s !== giver);
+  assert.ok(!CD.giveClue(g0, guesser, 'xyzzy', 2)); assert.ok(!CD.giveClue(g0, giver, g0.words[3], 1)); assert.ok(!CD.giveClue(g0, giver, 'two words', 1));
+  assert.ok(CD.giveClue(g0, giver, 'xyzzy', 2));
+  assert.ok(!CD.pass(g0, guesser), 'must guess at least once');
+  assert.equal(CD.guess(g0, giver, 0), null, 'the clue giver does not guess');
+  const kg = g0.key[g0.giver], bi = kg.indexOf('n'), gi = kg.indexOf('g');
+  assert.equal(CD.guess(g0, guesser, gi), 'g'); assert.equal(g0.guesses, 1);
+  const was = g0.giver; assert.equal(CD.guess(g0, guesser, bi), 'n');
+  assert.equal(g0.tok, 8); assert.notEqual(g0.giver, was); assert.equal(g0.nm[bi], was);
+  // random games always end, never throw, and win only with all 15
+  const out = { win: 0, lose: 0 };
+  for (let r = 0; r < 3000; r++) {
+    const n = 2 + (r % 4), sids = 'ABCDEFGH'.slice(0, n).split(''), g = CD.newGame(sids, 5 + (r % 7));
+    for (let step = 0; step < 500 && !g.winner; step++) {
+      if (!g.sd && !g.clue) { const gv = sids.find(x => g.side[x] === g.giver); assert.ok(CD.giveClue(g, gv, 'qq' + step, 1)); continue; }
+      const who = sids[step % n], picks = [...Array(25).keys()].filter(i => CD.canPick(g, who, i));
+      if (!picks.length) { if (!g.sd && g.side[who] !== g.giver && g.guesses) CD.pass(g, who); continue; }
+      // mostly pick agents (cheating with the key) so some games are won
+      const k = g.key[CD.judge(g, who)], good = picks.filter(i => k[i] === 'g');
+      const i = good.length && Math.random() < 0.85 ? good[Math.floor(Math.random() * good.length)] : picks[Math.floor(Math.random() * picks.length)];
+      CD.guess(g, who, i);
+      if (!g.winner && !g.sd && g.clue && g.guesses >= 2 && Math.random() < 0.3) CD.pass(g, who);
+    }
+    assert.ok(g.winner, 'game ended');
+    if (g.winner === 'win') assert.equal(CD.total(g), 0);
+    out[g.winner]++;
+  }
+  assert.ok(out.win > 0 && out.lose > 0, JSON.stringify(out));
 });
 
 t('content lists: no blanks or duplicates, every location has 10 different roles, pairs are two different words', () => {

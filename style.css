@@ -1048,3 +1048,23 @@ details.fold[open] > summary { margin-bottom: 8px; }
 .foldlast { font-size: .85rem; color: var(--text); opacity: .85; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 details.fold[open] .foldlast { display: none; }
 .dctok { font-weight: 400; letter-spacing: 1px; margin-left: 4px; }
+
+/* Werewords */
+.wrans { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 6px 0 10px; }
+.wrb { grid-column: span 2; min-height: 58px; border: 0; border-radius: 14px; font: inherit; font-weight: 700; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; box-shadow: 0 3px 0 #0006; }
+.wrb.a-yes, .wrb.a-no { grid-column: span 3; min-height: 72px; font-size: 1.1rem; }
+.wrb i { font-style: normal; font-size: 1.3rem; line-height: 1; } .wrb small { font-weight: 500; opacity: .8; font-size: .72rem; }
+.wrb:disabled { opacity: .35; } .wrb:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 #0006; }
+.a-yes { background: linear-gradient(180deg, #3fbf6e, #23894a); } .a-no { background: linear-gradient(180deg, #e2556b, #a92a40); }
+.a-maybe { background: linear-gradient(180deg, #8c86a8, #5e5878); } .a-close { background: linear-gradient(180deg, #ff9a3c, #d0621a); } .a-off { background: linear-gradient(180deg, #57b7e8, #2a7fb0); }
+.wrlog { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.wra { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; color: #fff; font-size: .85rem; font-weight: 600; }
+.wra i { font-style: normal; } .wra.new { font-size: 1.05rem; padding: 6px 14px; box-shadow: 0 0 0 2px #fff8; }
+
+/* Codenames Duet */
+.ccell.hint.k-g { box-shadow: inset 0 0 0 3px #2fae5c, 0 3px 0 #a89868; }
+.ccell.cdf { background: linear-gradient(180deg, #4cc678, #23894a); color: #fff; box-shadow: 0 3px 0 #155c30; }
+.ccell.cdmiss { box-shadow: inset 0 0 0 3px #2fae5c, 0 3px 0 #a89868; opacity: .75; }
+.cdnm { position: absolute; top: 2px; right: 3px; font-size: .6rem; font-weight: 800; background: #7d7458; color: #fff; border-radius: 5px; padding: 0 3px; line-height: 1.4; }
+.cclue.t-g { border-color: #2fae5c; background: #2fae5c18; }
+.jstat .warn b { color: #ff6b6b; }

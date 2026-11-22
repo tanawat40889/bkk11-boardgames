@@ -27,6 +27,8 @@ import * as GW from './guesswho.js';
 import * as LD from './liarsdice.js';
 import * as DC from './decrypto.js';
 import * as LL from './loveletter.js';
+import * as WR from './werewords.js';
+import * as CD from './codenamesduet.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -66,8 +68,10 @@ const GAMES = {
   uc: { n: 'Undercover', s: 'Undercover', e: '🎭', min: UC.MIN, max: UC.MAX, t: 10, c: ['ded', 'word'], d: 'หาคนที่ได้คำไม่เหมือนเพื่อน โดยที่ตัวเองก็ไม่รู้ฝ่าย' },
   av: { n: 'Avalon', s: 'Avalon', e: '🏰', min: AV.MIN, max: AV.MAX, t: 30, c: ['ded'], d: 'ส่งทีมทำภารกิจ โหวต และหักหลัง เกมยาวสำหรับวงใหญ่' },
   ins: { n: 'Insider', s: 'Insider', e: '🔎', min: IN.MIN, max: IN.MAX, t: 10, c: ['ded', 'word'], d: 'ถามใช่/ไม่ใช่หาคำลับ แล้วจับคนที่รู้คำตอบอยู่แล้ว' },
+  wr: { n: 'Werewords', s: 'Werewords', e: '🌙', min: WR.MIN, max: WR.MAX, t: 10, c: ['ded', 'word'], d: 'ถามนายกฯ ใช่/ไม่ใช่หาคำลับ แต่มีมนุษย์หมาป่าที่รู้คำแอบป่วน' },
   jo: { n: 'Just One', s: 'Just One', e: '💡', min: JO.MIN, max: JO.MAX, t: 20, c: ['coop', 'word'], d: 'ช่วยกันใบ้คนละคำ คำใบ้ที่ซ้ำกันโดนลบ' },
   cn: { n: 'Codenames', s: 'Codenames', e: '🗝️', min: CN.MIN, max: CN.MAX, t: 15, c: ['word'], d: '2 ทีม หัวหน้าใบ้คำเดียวให้ทีมเดาหลายคำบนตาราง' },
+  cd: { n: 'Codenames Duet', s: 'Codenames Duet', e: '🤝', min: CD.MIN, max: CD.MAX, t: 15, c: ['coop', 'word'], d: 'Codenames แบบช่วยกัน 2 ฝั่ง เห็นเฉลยคนละแบบ หาสายลับ 15 คนให้ทันเวลา' },
   mi: { n: 'The Mind', s: 'The Mind', e: '🧠', min: MI.MIN, max: MI.MAX, t: 15, c: ['coop', 'card'], d: 'วางเลขเรียงจากน้อยไปมากโดยห้ามคุยกัน' },
   sc: { n: 'Scout', s: 'Scout', e: '🎪', min: SC.MIN, max: SC.MAX, t: 30, c: ['card'], d: 'ไพ่สองหัว ห้ามสลับมือ ลงชุดให้แรงกว่า หรือขโมยไพ่จากโต๊ะ' },
   sk: { n: 'Skull', s: 'Skull', e: '💀', min: SK.MIN, max: SK.MAX, t: 20, c: ['card'], d: 'บลัฟดอกไม้กับหัวกะโหลก ประมูลแล้วเปิด' },
@@ -93,8 +97,8 @@ const GAMES = {
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark', ld: 'dice', dc: 'eye', ll: 'heart' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30, ld: 15, dc: 160, ll: 300 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark', ld: 'dice', dc: 'eye', ll: 'heart', wr: 'moon', cd: 'target' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30, ld: 15, dc: 160, ll: 300, wr: 250, cd: 120 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -215,6 +219,14 @@ function pubOf() {
         stacks: g.stacks, dice: g.dice, rolled: g.rolled, tiles: g.tiles, bets: g.bets, desert: g.desert, coins: g.coins, turn: CU.turnSid(g), leg: g.leg,
         fw: g.fw.map(b => b.sid), fl: g.fl.map(b => b.sid), ncards: Object.fromEntries(g.sids.map(x => [x, g.cards[x].length])), lastLeg: g.lastLeg, log: g.log.slice(-5), over: g.over, res: g.res, nl: g.log.length,
       };
+    } else if (H.game === 'wr') {
+      const open = g.phase === 'seer' || g.phase === 'vote' || g.phase === 'end';
+      p.wr = { phase: g.phase, mayor: g.mayor, ready: g.ready, log: g.log, tok: g.tok, guesser: g.guesser, why: g.why || null, n: g.n,
+        word: open ? g.word : null, wolves: g.phase === 'seer' || g.phase === 'end' ? WR.wolves(g) : null,
+        voted: Object.keys(g.votes), res: g.res, role: g.phase === 'end' ? g.role : null, votes: g.phase === 'end' ? g.votes : null, win: g.phase === 'end' ? WR.winners(g) : null };
+    } else if (H.game === 'cd') {
+      p.cd = { side: g.side, words: g.words, found: g.found, nm: g.nm, tok: g.tok, tok0: g.tok0, giver: g.giver, clue: g.clue, guesses: g.guesses, sd: g.sd,
+        left: { a: CD.left(g, 'a'), b: CD.left(g, 'b') }, total: CD.total(g), log: g.log.slice(-12), winner: g.winner, why: g.why, n: g.n, key: g.winner ? g.key : null };
     } else if (H.game === 'll') {
       p.ll = { phase: g.phase, round: g.round, turn: g.turn, chan: g.chan, tok: g.tok, need: g.need, out: g.out, prot: g.prot, disc: g.disc, spy: g.spy, up: g.up, deck: g.deck.length, log: g.log.slice(-12), res: g.res, winner: g.winner, n: g.n, seats: g.sids };
     } else if (H.game === 'ld') {
@@ -371,6 +383,14 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = sid in g.votes ? g.votes[sid] : null;
   } else if (H.game === 'cu') {
     v.cards = g.cards[sid];
+  } else if (H.game === 'wr') {
+    v.role = g.role[sid];
+    if (g.phase === 'pick' && sid === g.mayor) v.opts = g.optw;
+    if (g.phase !== 'pick' && WR.knows(g, sid)) v.word = g.word;
+    if (g.role[sid] === 'wolf') v.mates = WR.wolves(g).filter(x => x !== sid);
+    if (g.phase === 'vote') v.vote = g.votes[sid] || null;
+  } else if (H.game === 'cd') {
+    if (g.side[sid]) v.key = g.key[g.side[sid]];
   } else if (H.game === 'll') {
     v.hand = g.hand[sid] || []; v.peek = g.peek[sid] || null;
   } else if (H.game === 'ld') {
@@ -490,6 +510,7 @@ function hostTick() {
     if (H.phase === 'lf') { LF.next(H.g); lfClock(); return broadcast(); }
     if (H.phase === 'day') return startVote();
     if (H.phase === 'iask') return inEnd(IN.outcome(H.g, null, 'timeout'));
+    if (H.phase === 'wr' && WR.timeout(H.g)) { wrClock(); return broadcast(); }
     if (H.phase === 'idisc') { H.phase = 'iv1'; H.endsAt = null; return broadcast(); }
   }
   // Taco Cat: close the slap window even if someone never slaps
@@ -605,6 +626,9 @@ function endSpy(guess) {
   H.paused = null;
   broadcast();
 }
+
+// Werewords: the clock only runs while people are asking questions
+function wrClock() { H.endsAt = H.g.phase === 'ask' ? H.endsAt || now() + (H.settings.wr?.min ?? 4) * 60000 : null; }
 
 function inEnd(r) {
   const g = H.g;
@@ -805,6 +829,20 @@ function hostAct(m, p) {
     case 'curoll': case 'cubet': case 'cudes': case 'cufin': {
       if (H.phase !== 'cu') break;
       const ok = m.t === 'curoll' ? CU.roll(g, sid) : m.t === 'cubet' ? CU.takeBet(g, sid, m.c) : m.t === 'cudes' ? CU.placeDesert(g, sid, m.sp, m.type) : CU.finalBet(g, sid, m.c, m.kind);
+      if (ok) broadcast();
+      break;
+    }
+    case 'wrpick': case 'wrready': case 'wrans': case 'wrundo': case 'wrok': case 'wrhunt': case 'wrvote': {
+      if (H.phase !== 'wr') break;
+      if ((m.t === 'wrans' || m.t === 'wrundo' || m.t === 'wrpick') && m.n !== g.n) break;
+      const ok = m.t === 'wrpick' ? WR.pick(g, sid, +m.i) : m.t === 'wrready' ? WR.ready(g, sid) : m.t === 'wrans' ? WR.answer(g, sid, m.a)
+        : m.t === 'wrundo' ? WR.undo(g, sid) : m.t === 'wrok' ? WR.correct(g, sid, m.by) : m.t === 'wrhunt' ? WR.hunt(g, sid, m.to) : WR.vote(g, sid, m.to);
+      if (ok) { wrClock(); broadcast(); }
+      break;
+    }
+    case 'cdclue': case 'cdguess': case 'cdpass': {
+      if (H.phase !== 'cd' || m.n !== g.n) break;
+      const ok = m.t === 'cdclue' ? CD.giveClue(g, sid, m.word, m.n2) : m.t === 'cdguess' ? CD.guess(g, sid, +m.i) : CD.pass(g, sid);
       if (ok) broadcast();
       break;
     }
@@ -1102,9 +1140,9 @@ const HA = {
   },
   wl(d) { if (H.phase === 'lobby' && (d.l === 'th' || d.l === 'en')) { H.settings.wl = d.l; broadcast(); } },
   set(d) {
-    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1], 'ld.dice': [3, 6, 1], 'ld.wild': [0, 1, 1] }[d.k];
+    const [g, k] = d.k.split('.'), lim = { 'onuw.night': [10, 30, 5], 'onuw.day': [120, 600, 60], 'spyfall.min': [4, 12, 1], 'spyfall.spies': [1, 2, 1], 'uc.uc': [1, 3, 1], 'uc.white': [0, 1, 1], 'ins.min': [3, 8, 1], 'jo.rounds': [5, 13, 1], 'ct.sec': [6, 14, 2], 'od.sec': [2, 5, 1], 'ld.dice': [3, 6, 1], 'ld.wild': [0, 1, 1], 'wr.min': [2, 8, 1], 'cd.tok': [5, 11, 1] }[d.k];
     if (!lim) return;
-    H.settings[g] ||= { ld: { dice: 5, wild: 1 } }[g];
+    H.settings[g] ||= { ld: { dice: 5, wild: 1 }, wr: { min: 4 }, cd: { tok: CD.TOKENS } }[g];
     if (g === 'uc' && H.settings.uc.auto) Object.assign(H.settings.uc, ucCounts(), { auto: false });
     const v = H.settings[g][k] + lim[2] * +d.d;
     if (v < lim[0] || v > lim[1]) return;
@@ -1146,6 +1184,15 @@ const HA = {
       H.g = SH.newGame(sids); H.phase = 'sh'; H.endsAt = null;
     } else if (H.game === 'cu') {
       H.g = CU.newGame(sids); H.phase = 'cu'; H.endsAt = null;
+    } else if (H.game === 'wr') {
+      H.wrm = (H.wrm ?? rint(n)) + 1;
+      H.g = WR.newGame(sids, sids[H.wrm % n], H.recentWR || [], H.wl);
+      H.recentWR = [...H.g.opts, ...(H.recentWR || [])].slice(0, WR.RECENT);
+      H.phase = 'wr'; H.endsAt = null;
+    } else if (H.game === 'cd') {
+      H.g = CD.newGame(sids, H.settings.cd?.tok ?? CD.TOKENS, H.recentCD || [], H.wl);
+      H.recentCD = [...H.g.idx, ...(H.recentCD || [])].slice(0, CD.RECENT);
+      H.phase = 'cd'; H.endsAt = null;
     } else if (H.game === 'll') {
       H.g = LL.newGame(sids); H.phase = 'll'; H.endsAt = null;
     } else if (H.game === 'ld') {
@@ -1265,6 +1312,7 @@ const HA = {
   itnext() { if (H.phase === 'it' && IT.nextLevel(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
   ittheme() { if (H.phase === 'it' && IT.newTheme(H.g)) { H.recentIT = H.g.recent; broadcast(); } },
   cppass() { if (H.phase === 'cp' && CP.forceStep(H.g)) broadcast(); },
+  wrstart() { if (H.phase === 'wr' && WR.begin(H.g)) { wrClock(); broadcast(); } },
   llnext() { if (H.phase === 'll' && LL.next(H.g)) broadcast(); },
   ldnext() { if (H.phase === 'ld' && LD.nextRound(H.g)) broadcast(); },
   dcnext() { if (H.phase === 'dc' && DC.next(H.g)) broadcast(); },
@@ -1656,7 +1704,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, ld: ldV, dc: dcV, ll: llV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, ld: ldV, dc: dcV, ll: llV, wr: wrV, cd: cdV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1706,7 +1754,7 @@ function pickerView() {
 }
 
 // games whose secret words / places come from a word list (the room picks the list's language)
-const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn', 'it', 'dc']);
+const WORDY = new Set(['spyfall', 'uc', 'ins', 'jo', 'cn', 'it', 'dc', 'wr', 'cd']);
 function lobby() {
   const p = S.pub, n = pl().length, host = isHostView(), G = GAMES[p.game];
   let settings = '', errs = [];
@@ -1748,6 +1796,18 @@ function lobby() {
     if (n < CU.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CU.MIN} คน`);
     if (n > CU.MAX) errs.push(`Camel Up เล่นได้สูงสุด ${CU.MAX} คน`);
     settings = '<p class="muted small">อูฐ 5 ตัว · ลู่ 16 ช่อง · เริ่มคนละ 3 เหรียญ · ใครเหรียญมากสุดตอนอูฐเข้าเส้นชัยชนะ</p>';
+  } else if (p.game === 'wr') {
+    if (n < WR.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${WR.MIN} คน`);
+    if (n > WR.MAX) errs.push(`Werewords เล่นได้สูงสุด ${WR.MAX} คน`);
+    const min = p.set.wr?.min ?? 4, w = WR.wolvesFor(Math.max(WR.MIN, n));
+    settings = host ? `${stepper('wr.min', 'เวลาถามหาคำ', min, ' นาที')}<p class="muted small">มนุษย์หมาป่า ${w} · ผู้หยั่งรู้ 1 · นายกฯ วนไปทีละคน</p>`
+      : `<p class="muted small">ถามหาคำ ${min} นาที · มนุษย์หมาป่า ${w} · ผู้หยั่งรู้ 1</p>`;
+  } else if (p.game === 'cd') {
+    if (n < CD.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${CD.MIN} คน`);
+    if (n > CD.MAX) errs.push(`Codenames Duet เล่นได้สูงสุด ${CD.MAX} คน`);
+    const t = p.set.cd?.tok ?? CD.TOKENS;
+    settings = host ? `${stepper('cd.tok', 'จำนวนตา', t, ' ตา')}<p class="muted small">น้อยกว่า 9 = ยากขึ้น · แบ่ง 2 ฝั่งให้อัตโนมัติ</p>`
+      : `<p class="muted small">หาสายลับ 15 คนภายใน ${t} ตา · แบ่ง 2 ฝั่งให้อัตโนมัติ</p>`;
   } else if (p.game === 'll') {
     if (n < LL.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LL.MIN} คน`);
     if (n > LL.MAX) errs.push(`Love Letter เล่นได้สูงสุด ${LL.MAX} คน`);
@@ -2046,6 +2106,106 @@ function miEndV() {
       <div>${win ? `ผ่านครบ ${m.max} ด่าน` : `ไปได้ถึงด่าน ${m.level} จาก ${m.max}`}</div><div class="small">พลาดทั้งหมด ${m.mistakes} ครั้ง</div></div>
     ${miLast()}
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Werewords */
+const pns = a => a.map(pn).join(', ');
+const WRR = { wolf: ['🐺 มนุษย์หมาป่า', 'wolf', 'รู้คำลับ · ป่วนให้หาไม่เจอ ถ้ามีคนทายถูก คุณมีโอกาสชี้ตัวผู้หยั่งรู้'], seer: ['🔮 ผู้หยั่งรู้', 'seer', 'รู้คำลับ · ช่วยชี้ทางแบบเนียนๆ อย่าให้หมาป่ารู้ว่าเป็นคุณ'], vil: ['🙂 ชาวบ้าน', 'villager', 'ถามคำถามใช่/ไม่ใช่เพื่อหาคำลับให้ทัน'] };
+const WRA = { yes: ['✔', 'ใช่'], no: ['✘', 'ไม่ใช่'], maybe: ['〰', 'อาจจะ'], close: ['🔥', 'ใกล้แล้ว!'], off: ['🧊', 'ห่างไกล'] };
+function wrCard() {
+  const v = S.priv, r = WRR[v.role], w = S.pub.wr;
+  return `<span class="role t-${v.role === 'wolf' ? 'wolf' : 'village'}">${art(r[1])}<span class="rn">${r[0]}</span>
+    ${w.mayor === me() ? '<span class="small">🎖️ และคุณเป็นนายกฯ ด้วย</span>' : ''}
+    ${v.word ? `<span class="small muted">คำลับ</span><span class="rn word">${esc(v.word)}</span>` : ''}
+    ${v.mates?.length ? `<span class="small">🐺 หมาป่าอีกตัว: ${esc(pns(v.mates))}</span>` : ''}<span class="rd">${r[2]}</span></span>`;
+}
+const wrMine = () => secret(wrCard(), 'แตะเพื่อดูบทบาทของคุณ');
+const wrMayor = () => `<p class="center">🎖️ นายกฯ: <b>${esc(pn(S.pub.wr.mayor))}</b>${S.pub.wr.mayor === me() ? ' (คุณ)' : ''}</p>`;
+function wrAnswers(w) {
+  const li = [...w.log].reverse().map((e, i) => `<li class="wra a-${e.a}${i ? '' : ' new'}"><i>${WRA[e.a][0]}</i>${WRA[e.a][1]}</li>`).join('');
+  return `<section class="panel"><h2>คำตอบของนายกฯ <span class="muted small">${w.log.length} ครั้ง · ✔✘ เหลือ ${w.tok.yn}</span></h2>
+    ${li ? `<ul class="wrlog">${li}</ul>` : '<p class="muted">ยังไม่มีคำถาม</p>'}</section>`;
+}
+function wrV() {
+  const w = S.pub.wr, v = S.priv, mine = me(), mayor = w.mayor === mine, host = isHostView(), n = pl().length;
+  if (w.phase === 'pick') return `<h1 class="ph">🌙 Werewords</h1>${wrMayor()}
+    ${mayor ? `<section class="panel"><h2>เลือกคำลับ</h2><div class="picks">${(v.opts || []).map((x, i) => `<button class="pick" data-act="wrpick" data-i="${i}">${esc(x)}</button>`).join('')}</div>
+      <p class="muted small">ทุกคนต้องถามหาคำนี้ เลือกคำที่ยากพอดีๆ</p></section>` : '<p class="center muted">รอนายกฯ เลือกคำลับ…</p>'}`;
+  if (w.phase === 'role') {
+    const rd = w.ready;
+    return `<h1 class="ph">🌙 รับบทบาท</h1>${wrMayor()}${wrMine()}
+      ${rd.includes(mine) ? '<p class="center ok-text">✔ คุณพร้อมแล้ว</p>' : btn('wrready', 'ดูแล้ว พร้อม', 'primary wide big')}
+      <section class="panel"><h2>พร้อม ${rd.length}/${n}</h2>${players({ ready: rd })}</section>
+      ${host ? btn('wrstart', `⏱️ เริ่มเลย (พร้อม ${rd.length}/${n})`, 'ghost wide') : ''}`;
+  }
+  if (w.phase === 'ask') return `<div class="timer big" data-timer></div>${wrMayor()}
+    ${mayor ? `<section class="panel"><h2>ตอบคำถาม</h2><div class="wrans">${WR.ANS.map(a => {
+        const left = a === 'yes' || a === 'no' ? w.tok.yn : w.tok[a];
+        return `<button class="wrb a-${a}" data-act="wrans" data-a="${a}" ${left > 0 ? '' : 'disabled'}><i>${WRA[a][0]}</i>${WRA[a][1]}${a === 'yes' || a === 'no' ? '' : `<small>เหลือ ${left}</small>`}</button>`;
+      }).join('')}</div>
+      <div class="row">${btn('wrundo', '↶ ย้อน', 'ghost', {}, !w.log.length)}</div>
+      <details class="panel fold" data-fold="wrok" ${S.open.has('wrok') ? 'open' : ''}><summary><h2>🎯 มีคนทายถูก</h2></summary><div class="picks">${pl().filter(x => x.sid !== mine).map(x => `<button class="pick" data-act="wrok" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div></details></section>`
+      : '<p class="center">ถามนายกฯ ได้แค่คำถามที่ตอบ <b>ใช่ / ไม่ใช่</b> · ใครคิดว่ารู้ก็พูดคำออกมาเลย</p>'}
+    ${wrAnswers(w)}${wrMine()}`;
+  if (w.phase === 'seer') {
+    const wolf = v.role === 'wolf';
+    return `<div class="banner win"><div class="small">🎯 ${esc(pn(w.guesser))} ทายถูก! คำลับคือ</div><div class="bt">${esc(w.word)}</div></div>
+      <p class="center">🐺 หมาป่า: <b>${esc(pns(w.wolves))}</b> — ชี้ตัว <b>ผู้หยั่งรู้</b> ให้ถูก ฝ่ายหมาป่าชนะ</p>
+      ${wolf ? `<section class="panel"><h2>ใครคือผู้หยั่งรู้? <span class="muted small">(เลือกได้ครั้งเดียว)</span></h2><div class="picks">${pl().filter(x => !w.wolves.includes(x.sid)).map(x => `<button class="pick" data-act="wrhunt" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div></section>`
+        : '<p class="center muted">หมาป่ากำลังเลือก… ห้ามบอกใบ้ 🤐</p>'}`;
+  }
+  if (w.phase === 'vote') return `<div class="banner lose"><div class="small">${w.why === 'tokens' ? '✔✘ หมดแล้ว' : '⏰ หมดเวลา'} — ไม่มีใครทายถูก คำลับคือ</div><div class="bt">${esc(w.word)}</div></div>
+    <p class="center">โหวตหา <b>🐺 มนุษย์หมาป่า</b> · โหวตโดน = ชาวบ้านชนะ<br><span class="muted small">เปลี่ยนใจได้จนกว่าจะครบ</span></p>
+    <div class="picks">${pl().filter(x => x.sid !== mine).map(x => `<button class="pick ${v.vote === x.sid ? 'on' : ''}" data-act="wrvote" data-sid="${x.sid}">${esc(x.name)}</button>`).join('')}</div>
+    <section class="panel"><h2>โหวตแล้ว ${w.voted.length}/${n}</h2>${players({ voted: w.voted })}</section>`;
+  const r = w.res, win = w.win[mine];
+  const head = r.how === 'seer' ? (r.w === 'wolf' ? `🐺 หมาป่าชี้ถูก — ${esc(pn(r.pick))} คือผู้หยั่งรู้` : `🔮 หมาป่าชี้ผิด (${esc(pn(r.pick))}) — ชาวบ้านชนะ`)
+    : r.w === 'vil' ? '🗳️ โหวตโดนหมาป่า — ชาวบ้านชนะ' : '🗳️ โหวตพลาด — หมาป่าชนะ';
+  const cnt = {};
+  Object.values(w.votes || {}).forEach(t => (cnt[t] = (cnt[t] || 0) + 1));
+  return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${win ? '🎉 คุณชนะ!' : '😵 คุณแพ้'}</div><div>${head}</div></div>
+    <section class="panel"><h2>เฉลย · คำลับ <b>${esc(w.word)}</b></h2><ul class="players">${pl().map(x => `<li>${av(x.sid, 'sm')}<span class="pname">${esc(x.name)}${x.sid === w.mayor ? ' 🎖️' : ''}</span>
+      <span class="small">${WRR[w.role[x.sid]][0]}${cnt[x.sid] ? ` · โดน ${cnt[x.sid]} เสียง` : ''}</span></li>`).join('')}</ul></section>
+    ${host ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* Codenames Duet */
+const cdSide = s => (s === 'a' ? 'ฝั่ง A' : 'ฝั่ง B');
+function cdV() {
+  const c = S.pub.cd, v = S.priv, mine = me(), my = c.side[mine], over = !!c.winner;
+  const cdWho = s => pns(pl().map(x => x.sid).filter(x => c.side[x] === s));
+  const giving = !over && !c.sd && c.giver === my, guessing = !over && !c.sd && c.giver !== my && !!c.clue;
+  const pickable = i => {
+    if (over || c.found[i]) return false;
+    if (c.sd) return !c.nm[i].includes(my === 'a' ? 'b' : 'a');
+    return guessing && !c.nm[i].includes(c.giver);
+  };
+  const cells = c.words.map((w, i) => {
+    const k = v.key?.[i], f = c.found[i], miss = over && !f && (c.key.a[i] === 'g' || c.key.b[i] === 'g');
+    const cls = f ? 'cdf' : miss ? 'cdmiss' : `hint k-${k === 'g' ? 'g' : k === 'x' ? 'x' : 'n'}`;
+    const marks = c.nm[i] ? `<span class="cdnm">${[...c.nm[i]].map(x => x.toUpperCase()).join('')}</span>` : '';
+    return `<button class="ccell ${cls}" ${pickable(i) ? `data-act="cdguess" data-i="${i}"` : 'disabled'}>${k === 'x' && !f ? gi('skull', 'inl') : ''}${esc(w)}${marks}</button>`;
+  }).join('');
+  let panel;
+  if (over) panel = `<div class="banner ${c.winner === 'win' ? 'win' : 'lose'}"><div class="bt">${c.winner === 'win' ? '🎉 ชนะ! หาสายลับครบ 15 คน' : '😵 แพ้'}</div>
+      <div>${c.why === 'assassin' ? 'เปิดเจอนักฆ่า ☠️' : c.why === 'sd' ? 'ช่วงตัดสินเปิดผิด' : ''}</div></div>
+    ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+  else if (c.sd) panel = `<div class="banner lose"><div class="bt">⚠️ หมดตาแล้ว</div><div class="small">ห้ามใบ้อีก · ใครก็ได้แตะคำที่คิดว่าเป็นสายลับของ<b>อีกฝั่ง</b> · ผิดครั้งเดียวแพ้</div></div>`;
+  else if (!c.clue) panel = giving
+    ? `<section class="panel"><h2>ใบ้ให้${cdSide(c.giver === 'a' ? 'b' : 'a')}</h2><input id="cw" class="jin" maxlength="20" autocomplete="off" placeholder="คำใบ้ 1 คำ" value="${esc(S.cw || '')}">
+        <div class="stepper"><span>เกี่ยวกับกี่คำ</span><div class="sctl"><button class="sb" data-act="cnn" data-d="-1">−</button><b>${S.cnN}</b><button class="sb" data-act="cnn" data-d="1">+</button></div></div>
+        ${btn('cdclue', 'ส่งคำใบ้', 'primary wide')}</section>`
+    : `<p class="center">รอ${cdSide(c.giver)} (${esc(cdWho(c.giver))}) ใบ้…</p>`;
+  else panel = `<div class="cclue t-g"><span class="small">คำใบ้จาก${cdSide(c.giver)}</span><b>${esc(c.clue.word)} · ${c.clue.n}</b><span class="small">เดาถูกแล้ว ${c.guesses}</span></div>
+      ${guessing ? `<p class="center muted small">แตะคำเพื่อเดา · ถูกเดาต่อได้เรื่อยๆ</p>${btn('cdpass', '✋ พอแล้ว จบตา', 'ghost wide', {}, c.guesses < 1)}` : '<p class="center muted small">อีกฝั่งกำลังเดา… ห้ามใบ้เพิ่ม 🤐</p>'}`;
+  const P = s => esc(pn(s));
+  const logLi = [...c.log].reverse().map(e => e.t === 'clue' ? `<li>💬 ${P(e.sid)}: <b>${esc(e.word)} · ${e.n}</b></li>`
+    : e.t === 'guess' ? `<li>${e.k === 'g' ? '🟢' : e.k === 'x' ? '☠️' : '⚪'} ${P(e.sid)} → ${esc(c.words[e.i])}</li>` : e.t === 'pass' ? `<li>✋ ${P(e.sid)} จบตา</li>` : '<li>⚠️ หมดตา</li>').join('');
+  return `<section class="panel board"><div class="jstat"><span>🕵️ เหลือ <b>${c.total}</b>/15</span><span class="${c.tok <= 2 ? 'warn' : ''}">⏳ เหลือ <b>${c.tok}</b> ตา</span></div>
+      <div class="small center">คุณอยู่${cdSide(my)} · ขอบเขียว = สายลับที่คุณต้องใบ้ · ☠️ = นักฆ่า</div></section>
+    ${panel}<div class="cgrid">${cells}</div>
+    <p class="muted small center">ป้าย A/B = คนธรรมดาตามเฉลยของฝั่งนั้น</p>
+    ${foldLog('cdlog', 'ที่ผ่านมา', `<ul class="log">${logLi}</ul>`)}`;
 }
 
 /* Codenames */
@@ -3402,7 +3562,20 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'll' ? `
+  const body = g === 'wr' ? `
+    <p><b>เป้าหมาย:</b> ชาวบ้านต้องหาคำลับให้ทันเวลา · หมาป่าต้องป่วน</p>
+    <ol><li><b>🎖️ นายกฯ</b> (ทุกคนรู้ว่าใคร) เลือกคำลับ แล้วตอบคำถามด้วยปุ่ม ใช่ / ไม่ใช่ / อาจจะ / ใกล้แล้ว / ห่างไกล</li>
+    <li>นายกฯ ยังมีบทลับของตัวเองด้วย อาจเป็นหมาป่าก็ได้</li>
+    <li><b>🐺 มนุษย์หมาป่า</b> และ <b>🔮 ผู้หยั่งรู้</b> รู้คำลับตั้งแต่ต้น</li>
+    <li>มีคนพูดคำถูก → หมาป่าเปิดตัวแล้วเลือก 1 คนว่าใครคือผู้หยั่งรู้ · ชี้ถูก = หมาป่าชนะ ชี้ผิด = ชาวบ้านชนะ</li>
+    <li>หมดเวลา หรือปุ่ม ใช่/ไม่ใช่ หมด → ทุกคนโหวตหาหมาป่า · โหวตโดน = ชาวบ้านชนะ</li></ol>
+    <p class="muted small">หมาป่า 1 ตัว (7 คนขึ้นไป 2 ตัว) · ใกล้แล้ว / ห่างไกล ใช้ได้อย่างละครั้ง · อาจจะ 10 ครั้ง</p>` : g === 'cd' ? `
+    <p><b>เกมช่วยกัน:</b> หาสายลับ 15 คนบนตาราง 25 คำ ให้ครบก่อนตาหมด</p>
+    <ol><li>แบ่งเป็น 2 ฝั่ง แต่ละฝั่งเห็นเฉลยคนละแบบ: สายลับ 9 · นักฆ่า 3 (บางคำเป็นสายลับทั้งสองฝั่ง)</li>
+    <li>ผลัดกันใบ้ <b>คำเดียว + ตัวเลข</b> ให้อีกฝั่งเดา · ห้ามใช้คำบนตาราง</li>
+    <li>เดาถูก (ตามเฉลยของคนใบ้) เดาต่อได้ไม่จำกัด · เจอคนธรรมดา = จบตา · <b>เจอนักฆ่า = แพ้ทันที</b></li>
+    <li>ทุกตาที่จบใช้ไป 1 ตา · ฝั่งไหนหาของตัวเองครบแล้ว อีกฝั่งใบ้อย่างเดียว</li>
+    <li><b>หมดตา:</b> ห้ามใบ้ ใครก็ได้แตะคำที่คิดว่าเป็นสายลับของอีกฝั่ง ผิดครั้งเดียวแพ้</li></ol>` : g === 'll' ? `
     <p><b>เป้าหมาย:</b> ได้ ❤ ครบก่อน (2 คน 6 · 3 คน 5 · 4 คน 4 · 5–6 คน 3)</p>
     <ol><li>ทุกคนถือไพ่ 1 ใบ ถึงตาจั่ว 1 ใบ แล้วเลือกลง 1 ใน 2 ใบ ใช้พลังของใบที่ลง</li>
     <li>ตกรอบเมื่อโดนการ์ดคนอื่นเขี่ย หรือทิ้งเจ้าหญิง</li>
@@ -3653,7 +3826,7 @@ function render() {
   renderPending = false;
   const p = S.pub;
   if (p) {
-    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}|${p.ld ? p.ld.n : ''}|${p.ll ? p.ll.n : ''}|${p.dc ? `${p.dc.phase}.${p.dc.round}` : ''}`;
+    const k = `${p.phase}|${p.round}|${p.step?.[0] ?? ''}|${p.vr ?? ''}|${p.turn ?? ''}|${p.av ? p.av.q + '.' + p.av.nh : ''}|${p.jo ? p.jo.i : ''}|${p.sk ? `${p.sk.round}.${p.sk.bid?.n ?? 0}.${p.sk.turn}` : ''}|${p.sc ? `${p.sc.round}.${p.sc.turn}.${p.sc.active?.cards.length ?? 0}.${p.sc.active?.by ?? ''}` : ''}|${p.cn?.words ? `${p.cn.turn}.${p.cn.clue ? 1 : 0}` : ''}|${p.sh ? `${p.sh.phase}.${p.sh.pres}.${p.sh.power}` : ''}|${p.cu ? `${p.cu.turn}.${p.cu.nl}` : ''}|${p.sa ? `${p.sa.phase}.${p.sa.turn}.${p.sa.nl}` : ''}|${p.ab ? `${p.ab.round}.${p.ab.ln}` : ''}|${p.ld ? p.ld.n : ''}|${p.wr ? p.wr.phase : ''}|${p.cd ? `${p.cd.giver}.${p.cd.clue ? 1 : 0}.${p.cd.sd}` : ''}|${p.ll ? p.ll.n : ''}|${p.dc ? `${p.dc.phase}.${p.dc.round}` : ''}`;
     if (k !== S.key) {
       S.jc = ['', '']; S.jedit = false; S.bidN = null; S.cuD = 0; S.cuF = null; S.saSel = null; S.saDecoy = null; S.scSel = []; S.scM = null; S.cw = ''; S.cnN = 1; S.bdKeep = []; S.odSel = null; S.odAb = null; S.rrN = null; S.rrC = null; S.lfI = null; S.tbI = null; S.hnI = null; S.hnTo = null; S.cpAct = null; S.cpKeep = []; S.ih = []; S.gwQ = null; S.gwG = false; S.ldQ = null; S.ldF = null; S.dcG = {}; S.llC = null; S.llT = null; S.llG = null;
       S.enter = true;   // new screen: play the entrance animation once
@@ -3800,6 +3973,22 @@ const ACT = {
   llc: d => { const v = +d.v; S.llC = S.llC === v ? null : v; S.llT = null; S.llG = null; render(); },
   llt: d => { S.llT = S.llT === d.s ? null : d.s; render(); },
   llg: d => { S.llG = +d.g; render(); },
+  wrpick: d => { if (confirm(`ใช้คำ “${S.priv.opts?.[+d.i]}” ?`)) send({ t: 'wrpick', n: S.pub.wr.n, i: +d.i }); },
+  wrready: () => send({ t: 'wrready' }),
+  wrans: d => send({ t: 'wrans', n: S.pub.wr.n, a: d.a }),
+  wrundo: () => send({ t: 'wrundo', n: S.pub.wr.n }),
+  wrok: d => { if (confirm(`${pn(d.sid)} ทายคำถูกแล้ว?`)) send({ t: 'wrok', by: d.sid }); },
+  wrhunt: d => { if (confirm(`ชี้ว่า ${pn(d.sid)} คือผู้หยั่งรู้?`)) send({ t: 'wrhunt', to: d.sid }); },
+  wrvote: d => send({ t: 'wrvote', to: d.sid }),
+  cdclue: () => {
+    const w = (S.cw || '').trim(), c = S.pub.cd, nw = norm(w);
+    if (!w) return toast('พิมพ์คำใบ้ก่อน');
+    if (/\s/.test(w)) return toast('คำใบ้ต้องเป็นคำเดียว (ห้ามเว้นวรรค)');
+    if (c.words.some((x, i) => !c.found[i] && (norm(x).includes(nw) || nw.includes(norm(x))))) return toast('ห้ามใช้คำบนตาราง หรือส่วนของคำนั้น');
+    if (confirm(`ใบ้ “${w}” ${S.cnN}?`)) send({ t: 'cdclue', n: c.n, word: w, n2: S.cnN });
+  },
+  cdguess: d => { if (confirm(`เลือก “${S.pub.cd.words[+d.i]}” ?`)) send({ t: 'cdguess', n: S.pub.cd.n, i: +d.i }); },
+  cdpass: () => { if (confirm('จบตานี้?')) send({ t: 'cdpass', n: S.pub.cd.n }); },
   llplay: () => { if (S.llC != null) send({ t: 'llplay', n: S.pub.ll.n, v: S.llC, to: S.llT, g: S.llG }); },
   llkeep: d => send({ t: 'llkeep', n: S.pub.ll.n, v: +d.v }),
   ldf: d => { S.ldF = +d.f; S.ldQ = Math.max(S.ldQ ?? 1, LD.minQ(S.pub.ld, S.ldF)); render(); },
