@@ -1552,23 +1552,18 @@ const btn = (act, label, cls = '', data = {}, dis = false) =>
 
 // First visit: pick a name and a colour before anything else.
 // Home background: every game's badge drifting up slowly and faintly (all motion is CSS; this only spreads them out).
-const floaters = () => `<div class="floaters" aria-hidden="true">${Object.keys(GAMES).map((k, i, a) => {
-  const t = 22 + ((i * 7) % 15);   // 22–36 s per trip
-  return `<span class="fl" style="--x:${(i * 61 + 7) % 96}%;--t:${t}s;--d:${-((i * t) / a.length).toFixed(1)}s;--s:${44 + ((i * 13) % 40)}px;--r:${((i % 5) - 2) * 9}deg;--w:${10 + (i % 4) * 8}px">${gbadge(k)}</span>`;
-}).join('')}</div>`;
 function setupView() {
-  return `${floaters()}<main class="wrap home setup">
-    <div class="hcol hl"><header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ!</h1><p>ตั้งชื่อและเลือกสีที่ชอบก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙ ตั้งค่า</p></header></div>
-    <div class="hcol hr">
+  return `<main class="wrap home setup">
+    <header class="brand"><img class="logo" src="icons/icon-192.png" alt="" width="96" height="96"><h1>ยินดีต้อนรับ</h1><p class="muted">ตั้งชื่อก่อนเริ่มเล่น · เปลี่ยนทีหลังได้ที่ ⚙︎</p></header>
     ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
     <section class="panel"><label for="name">ชื่อของคุณ</label>
       <input id="name" maxlength="16" autocomplete="nickname" placeholder="เช่น ต้น" value="${esc(S.name)}"></section>
     <section class="panel"><h2>ภาษา · Language</h2>${langPicker()}</section>
     <section class="panel"><h2>สีธีม</h2>${themePicker()}</section>
-    ${btn('setupdone', 'เริ่มเลย →', 'primary wide big')}</div>
+    ${btn('setupdone', 'เริ่มเลย', 'primary wide big')}
   </main>`;
 }
-// Invite: room code, QR and share link in one dialog (opened from the header).
+// Invite: room code, QR and share link in one dialog (opened from the menu or the lobby).
 function qrView() {
   const link = location.origin + location.pathname + '?r=' + S.pub.room;
   return `<div class="modal mid" data-act="qr"><div class="dialog" data-act="noop">
@@ -1580,7 +1575,7 @@ function qrView() {
 }
 function settingsView() {
   const inRoom = !!S.conn;
-  return `<div class="modal" data-act="settings"><div class="sheet" data-act="noop"><div class="sh"><h2>${gi('gear', 'inl')} ตั้งค่า</h2><button class="ib" data-act="settings">✕</button></div>
+  return `<div class="modal" data-act="settings"><div class="sheet" data-act="noop"><div class="sh"><h2>${gi('gear', 'inl')} ตั้งค่า</h2><button class="ib" data-act="settings" aria-label="ปิด">✕</button></div>
     <label for="sname">ชื่อของคุณ</label>
     <div class="row"><input id="sname" maxlength="16" autocomplete="nickname" value="${esc(S.sname ?? S.name)}">${btn('savename', 'บันทึก', 'primary', {}, !cleanName(S.sname ?? S.name) || cleanName(S.sname ?? S.name) === S.name)}</div>
     ${inRoom ? '<p class="muted small">คนอื่นในห้องจะเห็นชื่อใหม่ทันที</p>' : ''}
@@ -1590,83 +1585,51 @@ function settingsView() {
   </div></div>`;
 }
 
-// "All games": a fan of cards that swings around a pivot below the screen (swipe, arrows or tap a side card).
-const fanKeys = () => Object.keys(GAMES).filter(k => (S.hcat || 'all') === 'all' || GAMES[k].c.includes(S.hcat));
-const fanOff = (i, cur, n) => { let d = i - cur; if (d > n / 2) d -= n; if (d < -n / 2) d += n; return d; };
-function fanView() {
-  const ks = fanKeys(), n = ks.length, cur = ((S.fan || 0) % n + n) % n, k = ks[cur], G = GAMES[k];
-  return `<div class="fancats tabs">${Object.entries(CATS).map(([c, l]) => `<button class="${(S.hcat || 'all') === c ? 'on' : ''}" data-act="hcat" data-c="${c}">${l}</button>`).join('')}</div>
-    <div class="fan" data-n="${n}">${ks.map((g, i) => { const d = fanOff(i, cur, n), a = Math.abs(d), F = GAMES[g];
-      return `<button class="fcard ${a ? '' : 'cur'}" style="--gh:${GHUE[g]};--d:${d};--a:${a};z-index:${20 - a}" data-act="fan" data-i="${i}" ${a > 3 ? 'tabindex="-1" aria-hidden="true"' : ''}>
-        <span class="fk">${CATS[F.c[0]]}</span><b class="ft">${F.s}</b><span class="fp">${gi('people', 'inl')}${playersTxt(F)}</span>${gbadge(g)}</button>`; }).join('')}
-      <button class="fnav l" data-act="fanmv" data-d="-1" aria-label="ก่อนหน้า">‹</button><button class="fnav r" data-act="fanmv" data-d="1" aria-label="ถัดไป">›</button></div>
-    <div class="fancta"><span><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที · ${cur + 1}/${n}</small></span>${btn('playg', '▶ เล่น', 'primary', { game: k }, !!S.busy)}</div>`;
+// Home: a plain, filterable grid of every game. Tapping a game opens its sheet with the rules summary and the one button that makes a room.
+const gameKeys = () => Object.keys(GAMES).filter(k => (S.hcat || 'all') === 'all' || GAMES[k].c.includes(S.hcat));
+function gameSheet(k) {
+  const G = GAMES[k];
+  return `<div class="modal" data-act="gd"><div class="sheet" data-act="noop">
+    <div class="sh"><span class="muted small">${G.c.map(c => CATS[c]).join(' · ')}</span><button class="ib" data-act="gd" aria-label="ปิด">✕</button></div>
+    <div class="ghero">${gbadge(k)}<div><b>${G.n}</b><small>${playersTxt(G)} · ~${G.t} นาที</small></div></div>
+    <p class="gdesc">${G.d}</p>
+    ${btn('playg', '▶ สร้างห้องเล่นเกมนี้', 'primary wide big', { game: k }, !!S.busy)}
+    <p class="muted small center">ได้รหัสห้องไว้ชวนเพื่อน หลังสร้างห้องแล้วเปลี่ยนเกมได้</p>
+  </div></div>`;
 }
-// Move the fan in place so the cards animate (a full re-render would just jump).
-function fanMove(to) {
-  const fan = document.querySelector('.fan'), n = fanKeys().length;
-  S.fan = ((to % n) + n) % n;
-  if (!fan) return render();
-  fan.querySelectorAll('.fcard').forEach((c, i) => {
-    const d = fanOff(i, S.fan, n), a = Math.abs(d), was = +c.style.getPropertyValue('--d');
-    // a card wrapping round from one end to the other jumps instead of sweeping across the fan
-    if (Math.abs(d - was) > 1) { c.style.transition = 'none'; requestAnimationFrame(() => requestAnimationFrame(() => (c.style.transition = ''))); }
-    c.style.setProperty('--d', d); c.style.setProperty('--a', a); c.style.zIndex = 20 - a; c.classList.toggle('cur', !a);
-    if (a > 3) { c.setAttribute('aria-hidden', 'true'); c.tabIndex = -1; } else { c.removeAttribute('aria-hidden'); c.removeAttribute('tabindex'); }
-  });
-  const cta = document.querySelector('.fancta'), tmp = document.createElement('div');
-  tmp.innerHTML = fanView(); cta.replaceWith(tmp.querySelector('.fancta'));
-  if (lang === 'en') translate(document.querySelector('.fancta'));
-  lastHtml = null;
+// In-room menu: everything secondary lives here so the room screen stays about the game.
+function menuView() {
+  const row = (act, ic, label, cls = '') => `<button class="mrow ${cls}" data-act="${act}"><span class="mic" aria-hidden="true">${ic}</span><span>${label}</span></button>`;
+  return `<div class="modal" data-act="menu"><div class="sheet msheet" data-act="noop">
+    <div class="sh"><h2>เมนู</h2><button class="ib" data-act="menu" aria-label="ปิด">✕</button></div>
+    ${row('qr', gi('qrcode'), 'ชวนเพื่อน (QR / ลิงก์)')}
+    ${row('rules', '📖', 'กติกาเกม')}
+    ${row('settings', gi('gear'), 'ตั้งค่า')}
+    ${S.isHost && S.pub.phase !== 'lobby' ? row('abort', '⏹', 'หยุดเกม กลับล็อบบี้') : ''}
+    ${row('leave', '🚪', 'ออกจากห้อง', 'danger')}
+  </div></div>`;
 }
-// swipe on the fan
-let fanX = null, fanTouched = 0;
-addEventListener('pointerdown', e => { fanX = e.target.closest?.('.fan') ? e.clientX : null; if (fanX != null) fanTouched = now(); }, true);
-// autoplay: the fan keeps turning on its own, and rests for a while after the player touches it
-setInterval(() => {
-  if (!document.querySelector('.fan') || document.hidden || S.busy || S.settings || document.querySelector('.modal') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (now() - fanTouched < 8000) return;
-  fanMove((S.fan || 0) + 1);
-}, 3200);
-addEventListener('pointerup', e => {
-  if (fanX == null) return;
-  const dx = e.clientX - fanX; fanX = null;
-  if (Math.abs(dx) > 40) { S.fanSwiped = now(); fanMove((S.fan || 0) + (dx < 0 ? 1 : -1)); }
-}, true);
 
 function home() {
   if (S.setup) return setupView();
   const last = LS.get('bg_last', null);
   const lastOk = last && now() - last.t < 12 * 3600e3;
-  const keys = Object.keys(GAMES), day = Math.floor(Date.now() / 864e5);
-  const fk = keys[(day + (S.feat || 0)) % keys.length], F = GAMES[fk];
-  const rec = [1, 2, 3].map(k => keys[(day + (S.feat || 0) + k * 5) % keys.length]);
-  const hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : hr < 20 ? 'สวัสดีตอนเย็น' : 'สวัสดีตอนค่ำ';
-  return `${floaters()}<main class="wrap home home2">
-    <div class="hcol hl">
-      <div class="htop"><h1 class="greet">${greet}, <b>${esc(S.name || '')}</b></h1>
-        <button class="ib me" data-act="settings" aria-label="ตั้งค่า"><span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...(S.name || '?')][0])}</span></button></div>
-      ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
-      <div class="joinbar">${gi('key', 'inl')}<input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="รหัสห้อง เช่น ABCD" value="${esc(S.codeIn)}">
-        ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}</div>
-      ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '➕ สร้างห้องแบบไม่เลือกเกม', 'ghost wide newroom', {}, !!S.busy)}
-      <section class="hero" style="--gh:${GHUE[fk]}">
-        <div class="hchips"><span class="chip yel">🔥 แนะนำวันนี้</span>${F.c.map(c => `<span class="chip">${CATS[c]}</span>`).join('')}</div>
-        <h2>${F.n}</h2><p>${F.d}</p>
-        <div class="hmeta"><span class="chip">${gi('people', 'inl')}${playersTxt(F)}</span><span class="chip">${gi('hourglass', 'inl')}~${F.t} นาที</span></div>
-        <div class="row hbtns">${btn('playg', '▶ เล่นเกมนี้', 'primary', { game: fk }, !!S.busy)}<button class="ib" data-act="feat" aria-label="เกมอื่น">›</button></div>
-        <span class="hart">${gbadge(fk)}</span>
-      </section>
-      <div class="sechead"><h2>เกมทั้งหมด <span class="muted small">${keys.length} เกม</span></h2></div>
-      ${fanView()}
+  const ks = gameKeys(), hr = new Date().getHours(), greet = hr < 12 ? 'สวัสดีตอนเช้า' : hr < 17 ? 'สวัสดีตอนบ่าย' : hr < 20 ? 'สวัสดีตอนเย็น' : 'สวัสดีตอนค่ำ';
+  return `<main class="wrap home">
+    <header class="hhead"><h1 class="greet">${greet}, <b>${esc(S.name || '')}</b></h1>
+      <button class="ib me" data-act="settings" aria-label="ตั้งค่า"><span class="av" style="--ph:${THEMES[curTheme()][1]}">${esc([...(S.name || '?')][0])}</span></button></header>
+    ${S.err ? `<div class="alert">${esc(S.err)}</div>` : ''}
+    <div class="joinrow">
+      <input id="code" class="code-in" maxlength="4" inputmode="text" autocapitalize="characters" autocomplete="off" placeholder="รหัสห้อง เช่น ABCD" value="${esc(S.codeIn)}" aria-label="รหัสห้อง">
+      ${btn('join', S.busy === 'join' ? 'กำลังหา…' : 'เข้าห้อง', 'primary', {}, !!S.busy)}
     </div>
-    <div class="hcol hr">
-      <div class="sechead"><h2>ลองเล่นดูไหม</h2></div>
-      <div class="reclist">${rec.map(k => `<button class="rec" data-act="playg" data-game="${k}">${gbadge(k, 'xs')}<span class="rect"><b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></span><i>›</i></button>`).join('')}</div>
-      ${installHint()}
-    </div>
+    ${btn('create', S.busy === 'create' ? 'กำลังสร้างห้อง…' : '＋ สร้างห้องเปล่า (เลือกเกมทีหลัง)', 'ghost wide', {}, !!S.busy)}
+    ${installHint()}
+    <div class="sechead"><h2>เลือกเกม</h2><span class="muted small">${ks.length} เกม</span></div>
+    <div class="tabs">${Object.entries(CATS).map(([c, l]) => `<button class="${(S.hcat || 'all') === c ? 'on' : ''}" data-act="hcat" data-c="${c}">${l}</button>`).join('')}</div>
+    <div class="gamegrid">${ks.map(k => `<button class="gtile" data-act="gd" data-g="${k}">${gbadge(k)}<b>${GAMES[k].s}</b><small>${playersTxt(GAMES[k])} · ~${GAMES[k].t} นาที</small></button>`).join('')}</div>
   </main>
-  ${S.settings ? settingsView() : ''}
+  ${S.gd ? gameSheet(S.gd) : ''}
   ${lastOk && !S.busy && !S.noResume ? `<div class="modal mid" data-act="noresume"><div class="dialog" data-act="noop">
     <div class="dicon">${gi('key')}</div><h2>กลับเข้าห้องเดิมไหม?</h2>
     <p>คุณยังอยู่ในห้อง <b class="droom">${esc(last.room)}</b>${last.host ? ' ในฐานะเจ้าของห้อง' : ''}</p>
@@ -1692,11 +1655,12 @@ const loading = t => `<main class="wrap"><div class="loading"><div class="spin">
 function shell(body) {
   const p = S.pub, G = GAMES[p.game];
   return `<div class="top"><div class="wrap topin">
-      <div class="tl"><span class="tg">${gbadge(p.game, 'xxs')}${G.s}</span><span class="tc">ห้อง <b>${p.room}</b></span></div>
-      <div class="tr">${S.isHost && p.phase !== 'lobby' ? '<button class="ib" data-act="abort" aria-label="หยุดเกม" title="หยุดเกม กลับล็อบบี้">⏹</button>' : ''}<button class="ib" data-act="qr" aria-label="ชวนเพื่อน QR">${gi('qrcode')}</button><button class="ib" data-act="settings" aria-label="ตั้งค่า">${gi('gear')}</button>${p.phase !== 'lobby' ? '<button class="ib" data-act="rules" aria-label="กติกา">?</button>' : ''}<button class="ib out" data-act="leave">ออก</button></div>
+      <div class="tl"><span class="tg">${gbadge(p.game, 'xxs')}<span class="tgn">${G.s}</span></span><span class="tc">ห้อง <b>${p.room}</b></span></div>
+      <div class="tr"><button class="ib" data-act="menu" aria-label="เมนู">⋯</button></div>
     </div></div>
     ${!S.online && now() - S.offSince >= 3000 ? '<div class="offline">⚠︎ การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>' : S.hostDown && !S.isHost ? '<div class="offline host">⏸ เจ้าของห้องหลุดการเชื่อมต่อ — เกมหยุดรอสักครู่</div>' : S.sending ? '<div class="offline send">กำลังส่ง…</div>' : ''}
     <main class="wrap phase-${p.phase} game-${p.game} ${S.enter ? 'enter' : ''}">${body}</main>
+    ${S.menu ? menuView() : ''}
     ${S.rules ? rulesView() : ''}
     ${S.settings ? settingsView() : ''}
     ${S.qr ? qrView() : ''}
@@ -1928,9 +1892,9 @@ function lobby() {
       ${WORDY.has(p.game) ? `<div class="gset"><h3>ภาษาของคำในเกม</h3>${host ? `<div class="seg notr">${[['th', 'ไทย'], ['en', 'English']].map(([k, nm]) => `<button class="${(p.set.wl || 'th') === k ? 'on' : ''}" data-act="wl" data-l="${k}">${nm}</button>`).join('')}</div>` : `<p class="muted small">${p.set.wl === 'en' ? 'English' : 'ไทย'}</p>`}</div>` : ''}
       ${settings ? `<div class="gset"><h3>ตั้งค่าเกม</h3>${settings}</div>` : ''}
     </section>
-    <section class="panel"><h2>ผู้เล่น <span class="muted">${n}/${G.max}</span></h2>${players({ kick: host })}</section>
+    <section class="panel"><div class="phead"><h2>ผู้เล่น <span class="muted">${n}/${G.max}</span></h2>${btn('qr', '🔗 ชวนเพื่อน', 'ghost small')}</div>${players({ kick: host })}</section>
     ${host
-      ? `${errs.length ? `<p class="alert">${esc(errs[0])}</p>` : ''}${btn('start', `▶︎ เริ่มเกม ${G.s}`, 'primary wide big', {}, errs.length > 0)}
+      ? `<div class="startbar">${errs.length ? `<p class="alert">${esc(errs[0])}</p>` : ''}${btn('start', `▶︎ เริ่มเกม ${G.s}`, 'primary wide big', {}, errs.length > 0)}</div>
          <p class="muted small center">เจ้าของห้องควรเปิดจอค้างไว้ตลอดเกม (เครื่องนี้เป็นตัวคุมเวลา)</p>`
       : '<p class="muted center">รอเจ้าของห้องเริ่มเกม…</p>'}`;
 }
@@ -3917,11 +3881,10 @@ function toggleSel(v) {
 
 const ACT = {
   create: d => createRoom(d.game),
-  playg: d => createRoom(d.game),
-  feat: () => { S.feat = (S.feat || 0) + 1; render(); },
-  fan: d => { if (now() - (S.fanSwiped || 0) < 400) return; const i = +d.i; if (i === (S.fan || 0) % fanKeys().length) return createRoom(fanKeys()[i]); fanMove(i); },
-  fanmv: d => { fanTouched = now(); fanMove((S.fan || 0) + +d.d); },
-  hcat: d => { S.hcat = d.c; S.fan = 0; render(); },
+  playg: d => { S.gd = null; createRoom(d.game); },
+  gd: d => { S.gd = d.g || null; render(); },
+  menu: () => { S.menu = !S.menu; render(); },
+  hcat: d => { S.hcat = d.c; render(); },
   join: () => joinRoom(S.codeIn),
   resume: () => { const l = LS.get('bg_last', null); if (l) resume(l); },
   rejoin: () => { S.joinErr = ''; render(); hello(); },
@@ -4170,6 +4133,7 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]');
   if (!el || el.disabled) return;
   if (el.dataset.act === 'rules' && el.classList.contains('modal') && e.target !== el) return;
+  if (S.menu && !['menu', 'noop'].includes(el.dataset.act)) S.menu = false;
   if (el.tagName !== 'INPUT') e.preventDefault();
   ACT[el.dataset.act]?.(el.dataset, el);
   wake();
