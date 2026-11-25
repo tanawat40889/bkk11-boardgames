@@ -29,6 +29,7 @@ import * as DC from './decrypto.js';
 import * as LL from './loveletter.js';
 import * as WR from './werewords.js';
 import * as CD from './codenamesduet.js';
+import * as NT from './nothanks.js';
 import * as SA from './salem.js';
 import * as AB from './abraca.js';
 import { norm } from './words.js';
@@ -93,12 +94,13 @@ const GAMES = {
   ld: { n: "Liar's Dice", s: "Liar's Dice", e: '🎲', min: LD.MIN, max: LD.MAX, t: 15, c: ['card'], d: 'ทุกคนทอยเต๋าลับในถ้วย แล้วประมูลว่าทั้งวงมีเลขนี้กี่ลูก ไม่เชื่อก็เรียก “โกหก!” ใครผิดเสียเต๋า 1 ลูก' },
   dc: { n: 'Decrypto', s: 'Decrypto', e: '📻', min: DC.MIN, max: DC.MAX, t: 30, c: ['word'], d: '2 ทีม ใบ้รหัส 3 หลักจากคำลับ 4 คำให้ทีมตัวเองถอดได้ แต่อย่าให้ทีมตรงข้ามดักฟังรหัสได้' },
   ll: { n: 'Love Letter', s: 'Love Letter', e: '💌', min: LL.MIN, max: LL.MAX, t: 20, c: ['card', 'ded'], d: 'ส่งจดหมายรักถึงเจ้าหญิง ถือไพ่ 1 ใบ จั่ว 1 ลง 1 ใช้พลังการ์ดเขี่ยคนอื่นออก หรือถือใบสูงสุดตอนกองหมด' },
+  nt: { n: 'No Thanks!', s: 'No Thanks!', e: '🙅', min: NT.MIN, max: NT.MAX, t: 15, c: ['card'], d: 'จ่ายชิปเพื่อไม่เอาไพ่ หรือเก็บไพ่พร้อมชิปที่กองอยู่ เลขเรียงกันนับแค่ใบต่ำสุด แต้มน้อยสุดชนะ' },
   tc: { n: 'Taco Cat Goat Cheese Pizza', s: 'Taco Cat', e: '🌮', min: TC.MIN, max: TC.MAX, t: 10, c: ['card'], d: 'เปิดไพ่พร้อมพูดคำ ไพ่ตรงกับคำเมื่อไหร่ ตบให้ไว!' },
 };
 // Icon set: game-icons.net (CC BY 3.0), drawn as a CSS mask so each one can take any colour or gradient.
 const gi = (n, cls = '') => `<i class="gi ${cls}" style="-webkit-mask-image:url(icons/g/${n}.svg);mask-image:url(icons/g/${n}.svg)"></i>`;
-const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark', ld: 'dice', dc: 'eye', ll: 'heart', wr: 'moon', cd: 'target' };
-const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30, ld: 15, dc: 160, ll: 300, wr: 250, cd: 120 };
+const GICON = { onuw: 'wolf', spyfall: 'spy', uc: 'masks', av: 'castle', ins: 'magnify', jo: 'bulb', cn: 'key', mi: 'brain', sc: 'juggler', sk: 'skull', sh: 'gavel', sa: 'witchhat', cu: 'camel', tc: 'taco', ab: 'wand', ct: 'cheese', bd: 'bdgat', od: 'odcup', rr: 'rrgun', lf: 'lift', tb: 'toybear', hn: 'fire', cp: 'crown', it: 'bulb', bs: 'anchor', gw: 'qmark', ld: 'dice', dc: 'eye', ll: 'heart', wr: 'moon', cd: 'target', nt: 'coins' };
+const GHUE = { onuw: 345, spyfall: 190, uc: 35, av: 220, ins: 275, jo: 48, cn: 150, mi: 310, sc: 20, sk: 0, sh: 12, sa: 265, cu: 38, tc: 95, ab: 290, ct: 50, bd: 28, od: 25, rr: 0, lf: 205, tb: 10, hn: 330, cp: 45, it: 175, bs: 205, gw: 30, ld: 15, dc: 160, ll: 300, wr: 250, cd: 120, nt: 50 };
 const gbadge = (k, cls = '') => `<span class="gemo ${cls}" style="--gh:${GHUE[k]}">${gi(GICON[k])}</span>`;
 const RICON = { werewolf: 'wolf', minion: 'minion', mason: 'mason', seer: 'seer', robber: 'robber', troublemaker: 'troublemaker', drunk: 'drunk', insomniac: 'insomniac', villager: 'villager', hunter: 'hunter', tanner: 'tanner' };
 const AICON = { merlin: 'merlin', percival: 'percival', servant: 'servant', assassin: 'assassin', morgana: 'morgana', mordred: 'mordred', oberon: 'oberon', minion: 'minion' };
@@ -227,6 +229,8 @@ function pubOf() {
     } else if (H.game === 'cd') {
       p.cd = { side: g.side, words: g.words, found: g.found, nm: g.nm, tok: g.tok, tok0: g.tok0, giver: g.giver, clue: g.clue, guesses: g.guesses, sd: g.sd,
         left: { a: CD.left(g, 'a'), b: CD.left(g, 'b') }, total: CD.total(g), log: g.log.slice(-12), winner: g.winner, why: g.why, n: g.n, key: g.winner ? g.key : null };
+    } else if (H.game === 'nt') {
+      p.nt = { card: g.card, pot: g.pot, turn: g.over ? null : NT.cur(g), deck: g.deck.length, cards: g.cards, log: g.log.slice(-10), over: g.over, res: g.res, n: g.n, seats: g.sids };
     } else if (H.game === 'll') {
       p.ll = { phase: g.phase, round: g.round, turn: g.turn, chan: g.chan, tok: g.tok, need: g.need, out: g.out, prot: g.prot, disc: g.disc, spy: g.spy, up: g.up, deck: g.deck.length, log: g.log.slice(-12), res: g.res, winner: g.winner, n: g.n, seats: g.sids };
     } else if (H.game === 'ld') {
@@ -391,6 +395,8 @@ function privOf(sid) {
     if (g.phase === 'vote') v.vote = g.votes[sid] || null;
   } else if (H.game === 'cd') {
     if (g.side[sid]) v.key = g.key[g.side[sid]];
+  } else if (H.game === 'nt') {
+    v.chips = g.chips[sid];
   } else if (H.game === 'll') {
     v.hand = g.hand[sid] || []; v.peek = g.peek[sid] || null;
   } else if (H.game === 'ld') {
@@ -846,6 +852,11 @@ function hostAct(m, p) {
       if (ok) broadcast();
       break;
     }
+    case 'ntpass': case 'nttake': {
+      if (H.phase !== 'nt' || m.n !== g.n) break;
+      if (m.t === 'ntpass' ? NT.pass(g, sid) : NT.take(g, sid)) broadcast();
+      break;
+    }
     case 'llplay': case 'llkeep': {
       if (H.phase !== 'll' || m.n !== g.n) break;
       if (m.t === 'llplay' ? LL.play(g, sid, +m.v, m.to ?? null, m.g == null ? null : +m.g) : LL.keep(g, sid, +m.v)) broadcast();
@@ -1193,6 +1204,8 @@ const HA = {
       H.g = CD.newGame(sids, H.settings.cd?.tok ?? CD.TOKENS, H.recentCD || [], H.wl);
       H.recentCD = [...H.g.idx, ...(H.recentCD || [])].slice(0, CD.RECENT);
       H.phase = 'cd'; H.endsAt = null;
+    } else if (H.game === 'nt') {
+      H.g = NT.newGame(sids); H.phase = 'nt'; H.endsAt = null;
     } else if (H.game === 'll') {
       H.g = LL.newGame(sids); H.phase = 'll'; H.endsAt = null;
     } else if (H.game === 'ld') {
@@ -1704,7 +1717,7 @@ function view() {
   if (S.pub.phase !== 'lobby' && S.priv.round !== S.pub.round) return shell('<div class="loading"><div class="spin"></div><p>กำลังรับข้อมูล…</p></div>');
   const p = S.pub, v = {
     lobby, iword: inWordV, iask: inAskV, idisc: inDiscV, iv1: inV1V, iv2: inV2V, itie: inTieV, iend: inEndV,
-    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, ld: ldV, dc: dcV, ll: llV, wr: wrV, cd: cdV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
+    sk: skV, skend: skEndV, sh: shV, cu: cuV, tc: tcV, ct: ctV, bd: bdV, od: odV, rr: rrV, lf: lfV, tb: tbV, hn: hnV, cp: cpV, it: itV, bs: bsV, gw: gwV, ld: ldV, dc: dcV, ll: llV, wr: wrV, cd: cdV, nt: ntV, sa: saV, ab: abV, mind: miV, mlvl: miLvlV, mend: miEndV, cteam: cnTeamV, cn: cnV, cnend: cnV, scout: scV, scend: scEndV,
     jclue: joClueV, jcheck: joCheckV, jguess: joGuessV, jres: joResV, jend: joEndV,
     aroles: avRolesV, ateam: avTeamV, avote: avVoteV, avres: avResV, aquest: avQuestV, aqres: avQResV, aassn: avAssnV, aend: avEndV,
     uword: ucWordV, udesc: ucDescV, uvote: ucVoteV, uout: ucOutV, uend: ucEndV, deal: dealV, night: nightV, day: dayV, vote: voteV, result: resultV, play: playV, reveal: revealV,
@@ -1808,6 +1821,10 @@ function lobby() {
     const t = p.set.cd?.tok ?? CD.TOKENS;
     settings = host ? `${stepper('cd.tok', 'จำนวนตา', t, ' ตา')}<p class="muted small">น้อยกว่า 9 = ยากขึ้น · แบ่ง 2 ฝั่งให้อัตโนมัติ</p>`
       : `<p class="muted small">หาสายลับ 15 คนภายใน ${t} ตา · แบ่ง 2 ฝั่งให้อัตโนมัติ</p>`;
+  } else if (p.game === 'nt') {
+    if (n < NT.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${NT.MIN} คน`);
+    if (n > NT.MAX) errs.push(`No Thanks! เล่นได้สูงสุด ${NT.MAX} คน`);
+    settings = `<p class="muted small">ไพ่ 3–35 คัดออก 9 ใบแบบไม่มีใครเห็น · เริ่มคนละ 🪙 ${NT.chipsFor(Math.max(NT.MIN, n))}</p>`;
   } else if (p.game === 'll') {
     if (n < LL.MIN) errs.push(`ต้องมีผู้เล่นอย่างน้อย ${LL.MIN} คน`);
     if (n > LL.MAX) errs.push(`Love Letter เล่นได้สูงสุด ${LL.MAX} คน`);
@@ -2106,6 +2123,28 @@ function miEndV() {
       <div>${win ? `ผ่านครบ ${m.max} ด่าน` : `ไปได้ถึงด่าน ${m.level} จาก ${m.max}`}</div><div class="small">พลาดทั้งหมด ${m.mistakes} ครั้ง</div></div>
     ${miLast()}
     ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}`;
+}
+
+/* No Thanks! */
+const ntRuns = cards => NT.runs(cards).map(r => `<span class="ntrun">${r.map((c, i) => `<i class="${i ? 'x' : ''}">${c}</i>`).join('')}</span>`).join('');
+function ntV() {
+  const t = S.pub.nt, v = S.priv, mine = me(), my = t.turn === mine;
+  const seats = `<section class="panel"><ul class="players ntp">${t.seats.map(x => `<li class="${x === t.turn ? 'turn' : ''}">${av(x, 'sm')}<span class="pname">${esc(pn(x))}${x === mine ? ' <em>(คุณ)</em>' : ''}</span>
+      <span class="ntcards">${t.cards[x].length ? ntRuns(t.cards[x]) : '<span class="muted small">ยังไม่มีไพ่</span>'}</span><b class="ntpts">${NT.cardPts(t.cards[x])}</b></li>`).join('')}</ul>
+    <p class="muted small">เลขเรียงกันนับแค่ใบต่ำสุด (ใบจางไม่คิดแต้ม) · ตัวเลขขวา = แต้มไพ่ ยังไม่หักชิป</p></section>`;
+  const logP = foldLog('ntlog', 'ที่ผ่านมา', `<ol class="log">${[...t.log].reverse().map(e => `<li><b>${esc(pn(e.s))}</b> ${e.t === 'take' ? `<span>เก็บ</span> ${e.c}${e.pot ? ` +🪙${e.pot}` : ''}` : `<span>ไม่เอา</span> ${e.c}`}</li>`).join('')}</ol>`);
+  if (t.over) {
+    const r = t.res, win = r.win.includes(mine);
+    return `<div class="banner ${win ? 'win' : 'lose'}"><div class="bt">${win ? '🎉 คุณชนะ!' : `${esc(pns(r.win))} ชนะ`}</div><div>แต้มน้อยสุดชนะ</div></div>
+      <section class="panel"><table class="res"><thead><tr><th>ผู้เล่น</th><th>ไพ่</th><th>🪙</th><th>รวม</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td>${esc(pn(x.s))}</td><td class="c">${x.cards}</td><td class="c">−${x.chips}</td><td class="c"><b>${x.total}</b></td></tr>`).join('')}</tbody></table></section>
+      ${isHostView() ? `<div class="row">${btn('lobby', 'กลับล็อบบี้', 'ghost')}${btn('again', '🔁 เล่นอีกรอบ', 'primary')}</div>` : '<p class="muted center">รอเจ้าของห้องเริ่มรอบใหม่…</p>'}${seats}`;
+  }
+  const act = my ? `<div class="row">${btn('ntpass', '🙅 ไม่เอา (−🪙1)', 'ghost big', {}, v.chips < 1)}${btn('nttake', `✋ เก็บ${t.pot ? ` (+🪙${t.pot})` : ''}`, 'primary big')}</div>
+      ${v.chips < 1 ? '<p class="center muted small">ชิปหมด ต้องเก็บไพ่</p>' : ''}` : `<p class="center muted">ตาของ <b>${esc(pn(t.turn))}</b>…</p>`;
+  return `<p class="center skstatus">เหลือในกอง ${t.deck} ใบ</p>
+    <div class="ntmid"><div class="ntcard"><b>${t.card}</b></div><div class="ntpot">🪙 <b>${t.pot}</b><small>บนไพ่</small></div></div>
+    ${act}<p class="center">คุณมี 🪙 <b>${v.chips}</b> <span class="muted small">(คนอื่นไม่เห็น)</span></p>${seats}${logP}`;
 }
 
 /* Werewords */
@@ -3562,7 +3601,14 @@ function ctV() {
 
 function rulesView() {
   const g = S.pub.game;
-  const body = g === 'wr' ? `
+  const body = g === 'nt' ? `
+    <p><b>เป้าหมาย:</b> แต้มน้อยที่สุดเมื่อไพ่หมดกอง</p>
+    <ol><li>ไพ่เลข 3–35 คัดออก 9 ใบแบบไม่มีใครเห็น เปิดทีละใบ</li>
+    <li>ถึงตาคุณ: <b>ไม่เอา</b> = วางชิป 1 อันบนไพ่แล้วส่งต่อ · <b>เก็บ</b> = เอาไพ่พร้อมชิปทั้งหมดบนนั้น แล้วเปิดใบใหม่เล่นต่อ</li>
+    <li>ชิปหมด = ต้องเก็บ</li>
+    <li>ไพ่แต่ละใบนับแต้มตามเลข แต่ <b>เลขเรียงกัน</b> (เช่น 21 22 23) นับแค่ใบต่ำสุด</li>
+    <li>ชิปที่เหลือหักแต้มได้ อันละ 1</li></ol>
+    <p class="muted small">ชิปของแต่ละคนเป็นความลับจนจบเกม</p>` : g === 'wr' ? `
     <p><b>เป้าหมาย:</b> ชาวบ้านต้องหาคำลับให้ทันเวลา · หมาป่าต้องป่วน</p>
     <ol><li><b>🎖️ นายกฯ</b> (ทุกคนรู้ว่าใคร) เลือกคำลับ แล้วตอบคำถามด้วยปุ่ม ใช่ / ไม่ใช่ / อาจจะ / ใกล้แล้ว / ห่างไกล</li>
     <li>นายกฯ ยังมีบทลับของตัวเองด้วย อาจเป็นหมาป่าก็ได้</li>
@@ -3973,6 +4019,8 @@ const ACT = {
   llc: d => { const v = +d.v; S.llC = S.llC === v ? null : v; S.llT = null; S.llG = null; render(); },
   llt: d => { S.llT = S.llT === d.s ? null : d.s; render(); },
   llg: d => { S.llG = +d.g; render(); },
+  ntpass: () => send({ t: 'ntpass', n: S.pub.nt.n }),
+  nttake: () => send({ t: 'nttake', n: S.pub.nt.n }),
   wrpick: d => { if (confirm(`ใช้คำ “${S.priv.opts?.[+d.i]}” ?`)) send({ t: 'wrpick', n: S.pub.wr.n, i: +d.i }); },
   wrready: () => send({ t: 'wrready' }),
   wrans: d => send({ t: 'wrans', n: S.pub.wr.n, a: d.a }),

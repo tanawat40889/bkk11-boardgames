@@ -1068,3 +1068,14 @@ details.fold[open] .foldlast { display: none; }
 .cdnm { position: absolute; top: 2px; right: 3px; font-size: .6rem; font-weight: 800; background: #7d7458; color: #fff; border-radius: 5px; padding: 0 3px; line-height: 1.4; }
 .cclue.t-g { border-color: #2fae5c; background: #2fae5c18; }
 .jstat .warn b { color: #ff6b6b; }
+
+/* No Thanks! */
+.ntmid { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 10px 0 14px; }
+.ntcard { width: 120px; height: 168px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #fff6e0, #f0d9a0); color: #7a2e12; box-shadow: 0 4px 0 #a8803e, 0 10px 22px #0007; border: 3px solid #fff; }
+.ntcard b { font-size: 3.6rem; font-weight: 800; }
+.ntpot { display: flex; flex-direction: column; align-items: center; font-size: 1.2rem; } .ntpot b { font-size: 2rem; color: var(--accent2); } .ntpot small { color: var(--muted); font-size: .75rem; }
+.ntp li { flex-wrap: wrap; } .ntp li { padding-left: 8px; padding-right: 8px; border-radius: 10px; } .ntp li.turn { background: #f6e27a1c; outline: 1px solid #f6e27a66; }
+.ntcards { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; order: 3; }
+.ntrun { display: inline-flex; } .ntrun i { font-style: normal; font-weight: 700; font-size: .8rem; min-width: 26px; padding: 3px 4px; text-align: center; background: #f7ebc8; color: #7a2e12; border-radius: 5px; margin-right: -6px; box-shadow: -1px 0 0 #0003; }
+.ntrun i.x { opacity: .55; } .ntrun i:last-child { margin-right: 0; }
+.ntpts { margin-left: auto; font-size: 1.1rem; }

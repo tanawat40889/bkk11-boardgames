@@ -31,6 +31,7 @@ import * as DC from '../js/decrypto.js';
 import * as LL from '../js/loveletter.js';
 import * as WR from '../js/werewords.js';
 import * as CD from '../js/codenamesduet.js';
+import * as NT from '../js/nothanks.js';
 import { WORDS_EN } from '../js/words-en.js';
 import { LOCATIONS_EN } from '../js/spyfall-en.js';
 import { PAIRS_EN } from '../js/undercover-en.js';
@@ -1965,6 +1966,28 @@ t('codenames duet: key layout, turns, tokens, sudden death and random play alway
     out[g.winner]++;
   }
   assert.ok(out.win > 0 && out.lose > 0, JSON.stringify(out));
+});
+
+t('no thanks: deck, chips, pass/take, runs scoring and random games always finish', () => {
+  assert.deepEqual(NT.runs([5, 3, 4, 10, 12, 11, 20]), [[3, 4, 5], [10, 11, 12], [20]]);
+  assert.equal(NT.cardPts([5, 3, 4, 10, 12, 11, 20]), 3 + 10 + 20);
+  for (const n of [2, 5, 6, 7]) {
+    const g = NT.newGame('ABCDEFG'.slice(0, n).split(''));
+    assert.equal(g.deck.length + 1, 24); assert.ok(Object.values(g.chips).every(c => c === NT.chipsFor(n)));
+  }
+  const g = NT.newGame(['A', 'B', 'C']), a = NT.cur(g), c0 = g.card;
+  assert.ok(!NT.pass(g, g.sids.find(x => x !== a)), 'not your turn');
+  assert.ok(NT.pass(g, a)); assert.equal(g.pot, 1); assert.equal(g.chips[a], 10);
+  const b = NT.cur(g); assert.notEqual(b, a); assert.ok(NT.take(g, b));
+  assert.deepEqual(g.cards[b], [c0]); assert.equal(g.chips[b], 12); assert.equal(g.pot, 0); assert.equal(NT.cur(g), b, 'taker goes again');
+  g.chips[b] = 0; assert.ok(!NT.pass(g, b), 'no chips -> must take');
+  for (let r = 0; r < 2000; r++) {
+    const n = 2 + (r % 6), h = NT.newGame('ABCDEFG'.slice(0, n).split('')), total = n * NT.chipsFor(n);
+    for (let k = 0; k < 5000 && !h.over; k++) { const s = NT.cur(h); (Math.random() < 0.6 && NT.pass(h, s)) || NT.take(h, s); }
+    assert.ok(h.over); assert.equal(Object.values(h.cards).flat().length, 24);
+    assert.equal(Object.values(h.chips).reduce((x, y) => x + y, 0), total, 'chips are conserved');
+    assert.equal(h.res.rows[0].total, Math.min(...h.sids.map(s => NT.score(h, s))));
+  }
 });
 
 t('content lists: no blanks or duplicates, every location has 10 different roles, pairs are two different words', () => {
